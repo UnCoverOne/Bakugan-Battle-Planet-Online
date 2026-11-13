@@ -153,6 +153,12 @@
   .tabletFilterButton{display:inline-flex;justify-self:start}
   .desktopRailToggle{display:none}
 }
+@media(max-width:1099px){
+  .rulebookFrame :global([data-rulebook-reader]){grid-template-columns:minmax(0,1fr)}
+  .rulebookFrame :global([data-rulebook-reader] > nav[data-reference-contents]){
+    position:fixed;top:0;left:0;width:min(20rem,calc(100vw - 3.5rem));max-height:100dvh;
+  }
+}
 @media(max-width:700px){
   .route{--compendium-scroll-offset:calc(var(--site-header-height,64px) + var(--compendium-nav-height) + var(--compendium-controls-height) + 1rem)}
   .toolbar{width:100%;top:var(--site-header-height,64px);padding:.45rem var(--space-4) .6rem}
@@ -180,7 +186,7 @@
   .filterSheet>:global([data-ui="action-button"]){position:sticky;bottom:0;z-index:3;min-height:3rem;background:var(--surface-panel-raised)}
   .rulebookFrame{width:calc(100% - 2 * var(--space-4))}
   .rulebookFrame :global([data-rulebook-reader]){grid-template-columns:minmax(0,1fr)}
-  .rulebookFrame :global([data-rulebook-reader] > nav[data-reference-contents]){position:fixed;top:0;left:0;max-height:100dvh}
+  .rulebookFrame :global([data-rulebook-reader] > nav[data-reference-contents]){position:fixed;top:0;left:0;right:0;width:100vw;max-height:100dvh}
   .referenceReturn{width:calc(100% - 2 * var(--space-4));top:var(--compendium-scroll-offset)}
 }
 @media(prefers-reduced-motion:reduce){
