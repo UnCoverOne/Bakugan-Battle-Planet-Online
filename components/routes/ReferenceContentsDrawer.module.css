@@ -1,119 +1,18 @@
-/* Redesign: structural rules only; visual styling intentionally removed. */
-
-
-
+/* Reference sidebars are inline on desktop and full-screen on phones. */
 .tab,.scrim,.closeControl{display:none}
-
 @media(max-width:900px){
-  .tab{
-    display:block;
-    position:fixed;
-    z-index:1030;
-    left:0;
-    top:50%;
-    transform:translateY(-50%) rotate(180deg);
-
-    padding:.85rem .45rem;
-
-
-
-
-
-
-
-
-
-    cursor:pointer;
-  }
+  .tab{position:relative;z-index:1;display:inline-flex;align-items:center;justify-content:center;min-height:2.75rem;width:max-content;max-width:100%;margin:.35rem 0;padding:.5rem .85rem;border:1px solid var(--border-subtle);border-radius:.3rem;background:var(--surface-input);color:var(--text-primary);cursor:pointer}
   .tab[data-open="true"]{visibility:hidden;pointer-events:none}
-  .scrim{
-    display:block;
-    position:fixed;
-    z-index:1035;
-    inset:0;
-
-  }
-  nav.panel{
-    display:block;
-    position:fixed;
-    z-index:1040;
-    inset:0 auto 0 0;
-    top:0;
-    left:0;
-    width:min(20rem,calc(100vw - 3.5rem));
-    height:100dvh;
-    max-height:100dvh;
-    overflow-y:auto;
-
-    padding:calc(var(--space-4) + env(safe-area-inset-top)) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
-
-
-
-
-
-    transform:translateX(-105%);
-    visibility:hidden;
-    pointer-events:none;
-
-  }
-  nav.panel[data-open="true"]{
-    transform:translateX(0);
-    visibility:visible;
-    pointer-events:auto;
-
-  }
-  
-  nav.panel > .closeControl{
-    display:flex;
-    justify-content:flex-end;
-    position:absolute;
-    top:calc(var(--space-4) + env(safe-area-inset-top) - 6px);
-    right:var(--space-4);
-    z-index:1;
-    margin:0;
-  }
-  nav.panel > h2:first-of-type{
-    padding-right:2.25rem;
-  }
-  nav.panel > .closeControl > button.close{
-    display:grid;
-    place-items:center;
-    flex:0 0 30px;
-    width:30px;
-    height:30px;
-    min-width:30px;
-    min-height:30px;
-    margin:0;
-    padding:0;
-
-
-
-
-    line-height:1;
-    text-align:center;
-    cursor:pointer;
-    touch-action:manipulation;
-  }
-  nav.panel > .closeControl > button.close:hover{
-
-  }
-  .close:focus-visible,.tab:focus-visible{outline-offset:2px}
+  .scrim{position:fixed;inset:0;z-index:1035;display:block;background:rgba(0,0,0,.68)}
+  nav.panel{position:fixed;z-index:1040;inset:0 auto 0 0;display:block;width:min(20rem,calc(100vw - 3.5rem));height:100dvh;max-height:100dvh;overflow-y:auto;padding:calc(1rem + env(safe-area-inset-top)) 1rem calc(1rem + env(safe-area-inset-bottom));border-right:1px solid var(--border-subtle);background:var(--surface-panel-raised);box-shadow:var(--elevation-3);transform:translateX(-105%);visibility:hidden;pointer-events:none;transition:transform .18s ease-out,visibility .18s ease-out}
+  nav.panel[data-open="true"]{transform:translateX(0);visibility:visible;pointer-events:auto}
+  nav.panel>.closeControl{position:sticky;top:0;z-index:2;display:flex;justify-content:flex-end;margin:0 0 .5rem}
+  nav.panel>.closeControl>button.close{display:grid;place-items:center;width:44px;height:44px;min-width:44px;min-height:44px;margin:0;padding:0;border:1px solid var(--border-subtle);border-radius:.3rem;background:var(--surface-input);color:var(--text-primary);cursor:pointer}
+  nav.panel>h2:first-of-type{padding-right:2.5rem}
+  .tab:focus-visible,.close:focus-visible{outline:2px solid var(--focus-color);outline-offset:2px}
 }
-@media(max-width:900px) and (prefers-reduced-motion:reduce){
-  nav.panel{transition:none}
-  nav.panel[data-open="true"]{transition:none}
-}
-
-/* Responsive category/contents button and full-screen mobile navigation. */
-@media(max-width:900px){
- .tab{position:relative;display:inline-flex;align-items:center;justify-content:center;z-index:1;left:auto;top:auto;transform:none;min-height:2.75rem;width:max-content;max-width:100%;margin:.35rem 0;padding:.5rem .9rem;background:var(--surface-input);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:.3rem}
- .scrim{background:rgba(0,0,0,.65)}
- nav.panel{background:var(--surface-panel-raised);border-right:1px solid var(--border-subtle);box-shadow:var(--elevation-3);transition:transform .18s ease-out,visibility .18s ease-out}
- nav.panel > .closeControl > button.close{width:44px;height:44px;min-width:44px;min-height:44px;background:var(--surface-input);color:var(--text-primary);border:1px solid var(--border-subtle)}
-}
-@media(max-width:699px){nav.panel{width:100vw;max-width:none;right:0;padding:calc(1rem + env(safe-area-inset-top)) 1rem calc(1rem + env(safe-area-inset-bottom))}}
-@media(prefers-reduced-motion:reduce){nav.panel{transition:none!important}}
-
 @media(max-width:699px){
- .tab{position:sticky;top:calc(var(--site-header-height,64px) + 8.7rem);z-index:82;width:100%;max-width:none;justify-content:flex-start;margin:0 0 .6rem;padding:.6rem 1rem;border-radius:0;background:var(--surface-canvas)}
+  .tab{position:sticky;top:calc(var(--site-header-height,64px) + var(--compendium-nav-height,8.5rem));z-index:82;width:100%;max-width:none;justify-content:flex-start;margin:0 0 .6rem;border-radius:0;background:var(--surface-canvas)}
+  nav.panel{width:100vw;max-width:none;right:0;border:0}
 }
+@media(prefers-reduced-motion:reduce){nav.panel{transition:none}}
