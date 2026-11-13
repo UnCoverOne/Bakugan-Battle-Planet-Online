@@ -41,112 +41,108 @@ export function RulingsReference({ query = "", onCopy }: {
   onCopy: (path: string, label: string) => Promise<void>;
 }) {
   const [category, setCategory] = useState("All");
+  const [expanded, setExpanded] = useState<string[]>([]);
   const [selected, setSelected] = useState<RulingRecord | null>(null);
   const trigger = useRef<HTMLButtonElement | null>(null);
   const closeButton = useRef<HTMLButtonElement | null>(null);
   const normalized = query.trim().toLowerCase();
   const matches = useMemo(() => DEVELOPER_RULINGS.filter((ruling) =>
-    (category === "All" || ruling.category === category)
+    (normalized || category === "All" || ruling.category === category)
     && (!normalized || [ruling.title, ruling.preview, ruling.category, ruling.transcript, ...ruling.mentionedCards]
       .some((value) => value.toLowerCase().includes(normalized)))
   ), [category, normalized]);
-  const groups = categories.map((name) => ({
-    name, entries: matches.filter((ruling) => ruling.category === name),
-  })).filter((group) => group.entries.length > 0);
-
+  const groups = categories.map((name) => ({name, entries: matches.filter((ruling) => ruling.category === name)}))
+    .filter((group) => group.entries.length > 0);
   const relatedCards = useMemo(() => {
     if (!selected) return [];
     const seen = new Set<string>();
     return selected.mentionedCards.flatMap((name) => {
-      const normalizedName = normalizeCardName(name);
+      const key = normalizeCardName(name);
       const card = CARDS.find((candidate) =>
-        normalizeCardName(candidate.displayName) === normalizedName
-        || normalizeCardName(candidate.name) === normalizedName
-        || normalizeCardName(candidate.faction + " " + candidate.name) === normalizedName
-      );
+        normalizeCardName(candidate.displayName) === key ||
+        normalizeCardName(candidate.name) === key ||
+        normalizeCardName(candidate.faction + " " + candidate.name) === key);
       if (!card || seen.has(card.catalogId)) return [];
       seen.add(card.catalogId);
       return [card];
     });
   }, [selected]);
-
+  useEffect(() => {
+    const reveal = () => {
+      const id = window.location.hash.match(/^#ruling-(.+)$/)?.[1];
+      if (!id) return;
+      const record = DEVELOPER_RULINGS.find((item) => item.slug === id);
+      if (!record) return;
+      setCategory(record.category);
+      setExpanded((current) => current.includes(id) ? current : [...current, id]);
+      requestAnimationFrame(() => document.getElementById("ruling-" + id)?.scrollIntoView({block: "start"}));
+    };
+    reveal();
+    window.addEventListener("hashchange", reveal);
+    return () => window.removeEventListener("hashchange", reveal);
+  }, []);
   useEffect(() => {
     if (!selected) return;
-    const previousOverflow = document.body.style.overflow;
+    const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     closeButton.current?.focus();
-    const dismiss = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setSelected(null);
-        trigger.current?.focus();
-      }
-    };
-    window.addEventListener("keydown", dismiss);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", dismiss);
-    };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { event.preventDefault(); setSelected(null); trigger.current?.focus(); }};
+    addEventListener("keydown", escape);
+    return () => { document.body.style.overflow = overflow; removeEventListener("keydown", escape); };
   }, [selected]);
-  const close = () => {
-    setSelected(null);
-    trigger.current?.focus();
+  const close = () => {setSelected(null); trigger.current?.focus();};
+  const chooseCategory = (next: string) => {
+    setCategory(next);
+    requestAnimationFrame(() => document.getElementById("rulings-reading")?.scrollIntoView({block: "start"}));
   };
-  const open = (ruling: RulingRecord, source: HTMLButtonElement) => {
-    trigger.current = source;
-    setSelected(ruling);
-  };
-
   return <div className={chrome.layout}>
-    <ReferenceContentsDrawer className={chrome.contents} label="Rulings contents">
-      <h2>Contents</h2>
-      <h3>Categories</h3>
-      <button type="button" aria-pressed={category === "All"} onClick={() => setCategory("All")}>All rulings</button>
-      {categories.map((name) => <button type="button" key={name}
-        aria-pressed={category === name} onClick={() => setCategory(name)}>{name}</button>)}
+    <ReferenceContentsDrawer className={chrome.contents} label="Rulings categories">
+      <h2>Categories</h2>
+      <button type="button" aria-pressed={category === "All"} onClick={() => chooseCategory("All")}>All Rulings</button>
+      {categories.map((name) => <button type="button" key={name} aria-pressed={category === name}
+        onClick={() => chooseCategory(name)}>{name}</button>)}
     </ReferenceContentsDrawer>
-    <main className={chrome.main}>
-      {groups.map(({ name, entries }) => <section className={styles.group} key={name}>
+    <main className={chrome.main} id="rulings-reading">
+      {groups.map(({name, entries}) => <section className={styles.group} key={name}>
         <h2>{name}</h2>
         <div className={styles.list}>
-          {entries.map((ruling) => <article id={"ruling-" + ruling.slug} className={styles.article} key={ruling.slug}>
-            <h3>{ruling.title}</h3>
-            <p>{ruling.preview}</p>
-            <footer>
-              <button type="button" onClick={(event) => open(ruling, event.currentTarget)}>Details</button>
-              <button type="button" onClick={() => void onCopy("/compendium/rulings#ruling-" + ruling.slug, ruling.title)}>Copy link</button>
-            </footer>
-          </article>)}
+          {entries.map((ruling) => {
+            const isExpanded = expanded.includes(ruling.slug);
+            return <article id={"ruling-" + ruling.slug} className={styles.article} key={ruling.slug}>
+              <h3><button className={styles.expandButton} type="button" aria-expanded={isExpanded}
+                aria-controls={"ruling-body-" + ruling.slug}
+                onClick={() => setExpanded((current) => isExpanded ? current.filter((id) => id !== ruling.slug) : [...current, ruling.slug])}>
+                <span>{ruling.title}</span><span className={styles.chevron} aria-hidden="true">{isExpanded ? "⌃" : "⌄"}</span>
+              </button></h3>
+              {isExpanded && <div className={styles.answer} id={"ruling-body-" + ruling.slug}>
+                <p>{ruling.preview}</p>
+                <footer>
+                  <span>Developer ruling · Site-formatted explanation</span>
+                  <button type="button" onClick={(event) => {trigger.current = event.currentTarget; setSelected(ruling);}}>Original Q&amp;A</button>
+                  <button type="button" onClick={() => void onCopy("/compendium/rulings#ruling-" + ruling.slug, ruling.title)}>Copy link</button>
+                </footer>
+              </div>}
+            </article>;
+          })}
         </div>
       </section>)}
-      {groups.length === 0 && <section className={styles.empty} role="status">
-        <h2>No rulings found</h2>
-        <p>Try another search or select All rulings.</p>
-        <button type="button" onClick={() => setCategory("All")}>All rulings</button>
-      </section>}
+      {groups.length === 0 && <section className={styles.empty} role="status"><h2>No rulings found</h2><p>Try another search or select All Rulings.</p><button type="button" onClick={() => chooseCategory("All")}>All Rulings</button></section>}
     </main>
-    {selected && <div role="presentation" className={styles.backdrop} onMouseDown={(event) => {
-      if (event.target === event.currentTarget) close();
-    }}>
+    {selected && <div role="presentation" className={styles.backdrop} onMouseDown={(event) => {if (event.target === event.currentTarget) close();}}>
       <section role="dialog" aria-modal="true" aria-labelledby="ruling-dialog-title" className={styles.modal}>
-        <button ref={closeButton} className={styles.close} type="button" aria-label="Close details" onClick={close}>×</button>
+        <button ref={closeButton} className={styles.close} type="button" aria-label="Close original Q and A" onClick={close}>×</button>
         <h2 id="ruling-dialog-title">{selected.title}</h2>
-        <p className={styles.modalPreview}>{selected.preview}</p>
         <h3>Original question and developer response</h3>
         <div className={styles.transcript}>
           {selected.transcript.split(/\n\s*\n/).filter(Boolean).map((part, i) =>
             <p key={i} className={/^\s*Dev Response/i.test(part) ? styles.response : undefined}>
               {linkOriginalReferences(part.trim())}
-            </p>
-          )}
+            </p>)}
         </div>
         {relatedCards.length > 0 && <section className={styles.related} aria-label="Related cards">
           <h3>Related cards</h3>
           <div className={styles.cardLinks}>
-            {relatedCards.map((card) => <a key={card.catalogId}
-              href={"/compendium?card=" + encodeURIComponent(card.slug || card.catalogId)}>
-              {card.displayName} <span>{cardSetCode(card)}</span>
-            </a>)}
+            {relatedCards.map((card) => <a key={card.catalogId} href={"/compendium?card=" + encodeURIComponent(card.slug || card.catalogId)}>{card.displayName} <span>{cardSetCode(card)}</span></a>)}
           </div>
         </section>}
       </section>
