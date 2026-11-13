@@ -28,7 +28,7 @@ import {
   type CompendiumState,
 } from "../../lib/compendium";
 import { CARDS, CORE_COMPENDIUM, RULE_ENTRIES } from "../../lib/data";
-import { cardCollectionIds, updateCollection, type CollectionField } from "../../lib/collection";
+import { updateCollection, type CollectionField } from "../../lib/collection";
 import { cardSetCode } from "../../lib/content/catalogue";
 import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT } from "../../lib/reference";
 import { useAppFields } from "../application/AppProvider";
