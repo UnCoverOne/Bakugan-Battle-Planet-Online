@@ -33,3 +33,11 @@
 
   }
 }
+
+/* Modal depth matches the Compendium's restrained motion language. */
+.backdrop{background:rgba(0,0,0,.72);animation:inspectorBackdropEnter .19s ease-out}
+.panel{background:var(--surface-panel-raised);border:1px solid var(--border-strong);border-radius:.65rem;box-shadow:var(--elevation-3);animation:inspectorPanelEnter .21s ease-out}
+@keyframes inspectorBackdropEnter{from{opacity:0}to{opacity:1}}
+@keyframes inspectorPanelEnter{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+@media(max-width:900px){.panel{border-radius:0;border:0;animation:inspectorBackdropEnter .16s ease-out}}
+@media(prefers-reduced-motion:reduce){.backdrop,.panel{animation:none!important}}
