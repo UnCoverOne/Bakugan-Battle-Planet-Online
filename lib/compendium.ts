@@ -27,6 +27,7 @@ export type CardInspectorTab = (typeof CARD_INSPECTOR_TABS)[number];
 export type CompendiumState = CardFilterState & {
   q: string;
   sort: CompendiumSort;
+  direction: "asc" | "desc";
   density: CompendiumDensity;
   page: number;
   card: string;
@@ -37,6 +38,7 @@ export const DEFAULT_COMPENDIUM_STATE: CompendiumState = Object.freeze({
   ...createEmptyCardFilters(),
   q: "",
   sort: "collector",
+  direction: "asc",
   density: "gallery",
   page: 1,
   card: "",
@@ -65,6 +67,7 @@ export function parseCompendiumState(input: URLSearchParams | string): Compendiu
     rarity: choices(params, "rarity"),
     keyword: choices(params, "keyword"),
     sort: oneOf(params.get("sort"), COMPENDIUM_SORTS, DEFAULT_COMPENDIUM_STATE.sort),
+    direction: params.get("direction") === "desc" ? "desc" : "asc",
     density: oneOf(params.get("density"), COMPENDIUM_DENSITIES, DEFAULT_COMPENDIUM_STATE.density),
     page: Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1,
     card: params.get("card")?.trim() ?? "",
@@ -90,6 +93,7 @@ export function compendiumSearchParams(state: CompendiumState) {
   appendChoices("rarity", state.rarity);
   appendChoices("keyword", state.keyword);
   setIfChanged("sort", state.sort, DEFAULT_COMPENDIUM_STATE.sort);
+  setIfChanged("direction", state.direction, "asc");
   setIfChanged("density", state.density, DEFAULT_COMPENDIUM_STATE.density);
   if (state.page > 1) params.set("page", String(state.page));
   if (state.card) {
@@ -157,7 +161,7 @@ export function filterAndSortCompendiumCards(
     (options.includeFusionBack || card.fusionFace !== "b")
     && cardMatchesFilters(card, state)
     && (!query || searchableText(card).includes(query))
-  )).toSorted((left, right) => compareCompendiumCards(left, right, state.sort, options.rollingByCardId));
+  )).toSorted((left, right) => (state.direction === "desc" ? -1 : 1) * compareCompendiumCards(left, right, state.sort, options.rollingByCardId));
 }
 
 export function selectedCompendiumCard(cards: readonly GameCard[], identity: string) {
@@ -193,6 +197,7 @@ export type CoreCompendiumState = {
   type: string;
   bonusType: string;
   sort: CoreCompendiumSort;
+  direction: "asc" | "desc";
   density: CoreCompendiumDensity;
   page: number;
   core: string;
@@ -220,6 +225,7 @@ export function parseCoreCompendiumState(input: URLSearchParams | string): CoreC
     type: choice(params.get("coreType")),
     bonusType: choice(params.get("coreBonusType")),
     sort: oneOf(params.get("coreSort"), CORE_COMPENDIUM_SORTS, DEFAULT_CORE_COMPENDIUM_STATE.sort),
+    direction: params.get("coreDirection") === "desc" ? "desc" : "asc",
     density: oneOf(params.get("coreDensity"), CORE_COMPENDIUM_DENSITIES, DEFAULT_CORE_COMPENDIUM_STATE.density),
     page: Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1,
     core: params.get("core")?.trim() ?? "",
@@ -234,6 +240,7 @@ export function coreCompendiumSearchParams(state: CoreCompendiumState) {
   if (state.type !== DEFAULT_CORE_COMPENDIUM_STATE.type) params.set("coreType", state.type);
   if (state.bonusType !== DEFAULT_CORE_COMPENDIUM_STATE.bonusType) params.set("coreBonusType", state.bonusType);
   if (state.sort !== DEFAULT_CORE_COMPENDIUM_STATE.sort) params.set("coreSort", state.sort);
+  if (state.direction !== "asc") params.set("coreDirection", state.direction);
   if (state.density !== DEFAULT_CORE_COMPENDIUM_STATE.density) params.set("coreDensity", state.density);
   if (state.page > 1) params.set("corePage", String(state.page));
   if (state.core) {
@@ -314,7 +321,7 @@ export function filterAndSortCompendiumCores(cores: readonly Core[], state: Core
     && (state.type === "All" || core.type === state.type)
     && coreMatchesBonusType(core, state.bonusType)
     && (!query || coreSearchableText(core).includes(query))
-  )).toSorted((left, right) => compareCompendiumCores(left, right, state.sort, state.set));
+  )).toSorted((left, right) => (state.direction === "desc" ? -1 : 1) * compareCompendiumCores(left, right, state.sort, state.set));
 }
 
 export function selectedCompendiumCore(cores: readonly Core[], identity: string) {
