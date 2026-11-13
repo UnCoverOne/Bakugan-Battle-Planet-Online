@@ -1,0 +1,29 @@
+name: Compendium Redesign Validation
+
+on:
+  push:
+    branches:
+      - redesign/frontend-clean-slate
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compendium-redesign-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+      - run: npm ci
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Compendium regression tests
+        run: node --import tsx --test tests/compendium-experience.test.ts
