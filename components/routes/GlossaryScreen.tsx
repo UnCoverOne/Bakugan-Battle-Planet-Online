@@ -301,54 +301,56 @@ const getRule = (id: string): OfficialRuleNode | undefined => {
 const sections = [...glossaryCategories.map(({ name }) => name),
   ...(fullTerms.some((term) => term.category === "Other Terms") ? ["Other Terms"] : [])];
 export function GlossaryScreen({ query = "" }: { query?: string }) {
-  const [category, setCategory] = useState("All");
-  const [selected, setSelected] = useState<Term | null>(null);
+  const [category, setCategory] = useState("Printed Icons");
   const normalized = query.trim().toLowerCase();
+  // Searching spans every category but does not overwrite the reading category.
   const filtered = useMemo(() => fullTerms.filter((term) =>
-    (category === "All" || term.category === category)
-    && (!normalized || [term.title,term.definition,term.category,term.rule].some((part) => part.toLowerCase().includes(normalized)))
-  ),[category,normalized]);
+    (!normalized ? category === "All Terms" || term.category === category
+      : [term.title, term.definition, term.category, term.rule].some((part) => part.toLowerCase().includes(normalized)))
+  ), [category, normalized]);
   const filteredIcons = useMemo(() => SYMBOL_ENTRIES.filter((symbol) =>
     !normalized || [symbol.name, symbol.token, symbol.description].some((part) => part.toLowerCase().includes(normalized))
   ), [normalized]);
+  const showIcons = Boolean(normalized) || category === "Printed Icons";
+  const groups = sections.map((name) => ({
+    name, items: filtered.filter((term) => term.category === name),
+  })).filter((group) => group.items.length);
+  const chooseCategory = (name: string) => {
+    setCategory(name);
+    requestAnimationFrame(() => document.getElementById("glossary-reading")?.scrollIntoView({ block: "start" }));
+  };
   useEffect(() => {
-    if (!selected) return;
-    const dismiss = (event:KeyboardEvent) => {if(event.key === "Escape") setSelected(null);};
-    addEventListener("keydown",dismiss);
-    return () => removeEventListener("keydown",dismiss);
-  }, [selected]);
-  const byCategory = sections.map((name) => ({name,items:filtered.filter((item)=>item.category===name)})).filter((group)=>group.items.length);
+    const match = window.location.hash.match(/^#glossary-(?!category-)([a-z0-9-]+)$/);
+    if (!match) return;
+    const item = fullTerms.find((term) => term.key === match[1]);
+    if (!item) return;
+    setCategory(item.category);
+    requestAnimationFrame(() => document.getElementById("glossary-" + item.key)?.scrollIntoView({ block: "start" }));
+  }, []);
   return <div className={styles.layout}>
     <ReferenceContentsDrawer className={styles.rail} label="Glossary navigation">
-      <h2>Contents</h2>
-      {filteredIcons.length > 0 && <a href="#glossary-icons">Printed icons</a>}
-      <h3>Categories</h3>
-      <button type="button" aria-pressed={category==="All"} onClick={()=>setCategory("All")}>All terms</button>
-      {sections.map((section)=><button key={section} type="button" aria-pressed={category===section} onClick={()=>setCategory(section)}>{section}</button>)}
+      <h2>Categories</h2>
+      <button type="button" aria-pressed={category === "Printed Icons"} onClick={() => chooseCategory("Printed Icons")}>Printed Icons</button>
+      <button type="button" aria-pressed={category === "All Terms"} onClick={() => chooseCategory("All Terms")}>All Terms</button>
+      {sections.map((name) => <button key={name} type="button" aria-pressed={category === name} onClick={() => chooseCategory(name)}>{name}</button>)}
     </ReferenceContentsDrawer>
-    <main className={styles.main}>
-      {filteredIcons.length > 0 && <section className={styles.printedIcons} id="glossary-icons" aria-labelledby="glossary-icons-heading">
+    <main className={styles.main} id="glossary-reading">
+      {showIcons && filteredIcons.length > 0 && <section className={styles.printedIcons} id="glossary-icons" aria-labelledby="glossary-icons-heading">
         <div className={styles.iconHeading}><h2 id="glossary-icons-heading">Printed Icons</h2><span className={styles.iconCount}>{filteredIcons.length}</span></div>
         <div className={styles.iconGrid}>{filteredIcons.map((symbol) => <article className={styles.iconCard} key={symbol.token}>
           <OriginalImage className={styles.iconArtwork} src={symbol.asset} alt="" />
           <strong>{symbol.name}</strong><p>{symbol.description}</p>
         </article>)}</div>
       </section>}
-      {byCategory.map(({name,items})=><section key={name} className={styles.group} id={`glossary-category-${makeKey(name)}`}>
-        <h2>{name}</h2><div className={styles.entries}>{items.map((item)=><article key={item.key} className={styles.entry} id={`glossary-${item.key}`}>
+      {groups.map(({name,items}) => <section key={name} className={styles.group} id={`glossary-category-${makeKey(name)}`}>
+        {(!normalized && category === name) || category === "All Terms" || Boolean(normalized) ? <h2>{name}</h2> : null}
+        <div className={styles.entries}>{items.map((item) => <article key={item.key} className={styles.entry} id={`glossary-${item.key}`}>
           <div className={styles.entryHeading}><h3>{item.title}</h3></div>
-          <p>{item.preview}</p>
-          <footer><span>{item.category}</span>{item.editorial && <span>Site reference</span>}{item.rule && <a href={`/compendium/rules#section-${item.rule}`}>Rule {item.rule} →</a>}<button type="button" onClick={()=>setSelected(item)}>Details</button></footer>
+          <p>{item.definition}</p>
+          <footer>{item.editorial && <span>Site reference</span>}{item.rule && <a href={`/compendium/rules#section-${item.rule}`}>Rule {item.rule} →</a>}<a href={`#glossary-${item.key}`} aria-label={`Link to ${item.title}`}>Copyable link</a></footer>
         </article>)}</div>
       </section>)}
-      {byCategory.length === 0 && filteredIcons.length === 0 && <section className={styles.empty} role="status"><h2>No matching glossary entries or printed icons</h2><p>Try a different search or category filter.</p><button type="button" onClick={()=>setCategory("All")}>All categories</button></section>}
+      {!groups.length && (!showIcons || !filteredIcons.length) && <section className={styles.empty} role="status"><h2>No matching glossary entries</h2><p>Try another search or category.</p><button type="button" onClick={() => chooseCategory("All Terms")}>All Terms</button></section>}
     </main>
-    {selected && <div role="presentation" className={styles.backdrop} onMouseDown={(event)=>{if(event.target===event.currentTarget)setSelected(null);}}><section role="dialog" aria-modal="true" aria-labelledby="glossary-dialog-title" className={styles.modal}>
-      <button className={styles.close} type="button" aria-label="Close definition" onClick={()=>setSelected(null)}>×</button>
-      <span className={styles.eyebrow}>{selected.category}</span><h2 id="glossary-dialog-title">{selected.title}</h2>
-      <p>{selected.definition}</p>
-      {selected.rule && <><h3>Original rulebook context</h3><div className={styles.context}>{getRule(selected.rule)?.children.slice(0,5).map((node,i)=><p key={i}><strong>{selected.rule}.{i+1}</strong> {node.text}</p>)}</div><a href={`/compendium/rules#section-${selected.rule}`}>Read complete rule {selected.rule} →</a></>}
-      {!selected.rule && <p className={styles.count}>Site glossary reference; no exact numbered rule was identified.</p>}
-    </section></div>}
   </div>;
 }
