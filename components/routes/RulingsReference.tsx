@@ -42,6 +42,21 @@ export function RulingsReference({ query = "", onCopy }: {
 }) {
   const [category, setCategory] = useState("All");
   const [expanded, setExpanded] = useState<string[]>([]);
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    try {
+      const savedCategory=sessionStorage.getItem("compendium:rulings-category");
+      const savedExpanded=sessionStorage.getItem("compendium:rulings-expanded");
+      if (savedCategory) setCategory(savedCategory);
+      if (savedExpanded) setExpanded(JSON.parse(savedExpanded) as string[]);
+    } catch { /* Invalid saved navigation never prevents browsing. */ }
+    setRestored(true);
+  }, []);
+  useEffect(() => {
+    if (!restored) return;
+    sessionStorage.setItem("compendium:rulings-category",category);
+    sessionStorage.setItem("compendium:rulings-expanded",JSON.stringify(expanded));
+  },[category,expanded,restored]);
   const [selected, setSelected] = useState<RulingRecord | null>(null);
   const trigger = useRef<HTMLButtonElement | null>(null);
   const closeButton = useRef<HTMLButtonElement | null>(null);
