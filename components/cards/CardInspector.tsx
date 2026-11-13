@@ -71,15 +71,17 @@ function CollectionPanel({
   ids,
   collection,
   onChange,
+  selectedId,
 }: {
   ids: readonly string[];
   collection: Collection;
   onChange?: (catalogId: string, field: CollectionField, delta: number) => void;
+  selectedId?: string;
 }) {
-  const [activeId, setActiveId] = useState(ids[0] ?? "");
+  const [activeId, setActiveId] = useState(selectedId ?? ids[0] ?? "");
   const idsKey = ids.join("|");
   const firstId = ids[0] ?? "";
-  useEffect(() => setActiveId(firstId), [firstId, idsKey]);
+  useEffect(() => setActiveId(selectedId && ids.includes(selectedId) ? selectedId : firstId), [firstId, idsKey, selectedId]);
   const entry = collectionEntry(collection, activeId);
   return (
     <div className={styles.collectionPanel}>
@@ -302,11 +304,9 @@ export function CardInspector(props: InspectorProps) {
   const [activeCardPrintingId, setActiveCardPrintingId] = useState(card?.catalogId ?? "");
   const cardPrintings = useMemo(() => {
     if (!baseCard || !allCards) return baseCard ? [baseCard] : [];
-    return allCards.filter((candidate) => candidate.fusionFace !== "b" && candidate.displayName === baseCard.displayName
-      && candidate.type === baseCard.type && candidate.faction === baseCard.faction
-      && candidate.effect === baseCard.effect && candidate.cost === baseCard.cost
-      && candidate.bPower === baseCard.bPower && candidate.damage === baseCard.damage
-      && candidate.coreTypes.join("|") === baseCard.coreTypes.join("|"));
+    const identity = baseCard.constructionIdentity ?? baseCard.catalogId;
+    return allCards.filter((candidate) => candidate.fusionFace !== "b"
+      && (candidate.constructionIdentity ?? candidate.catalogId) === identity);
   }, [allCards, baseCard]);
   const itemKey = baseCard?.fusionPairId
     ? "fusion-" + baseCard.fusionPairId
@@ -463,7 +463,7 @@ export function CardInspector(props: InspectorProps) {
               </button>)}</div> : <InspectorEmpty message="No related cards found." />}
         </div>}
         {effectiveTab === "collection" && (collectionEnabled
-          ? <CollectionPanel ids={collectionIds} collection={collection} onChange={onCollectionChange} />
+          ? <CollectionPanel ids={collectionIds} selectedId={core ? (activePrintingId === "primary" ? core.catalogId ?? core.id : activePrintingId) : activeCardPrintingId} collection={collection} onChange={onCollectionChange} />
           : <InspectorEmpty message="Sign in to manage your collection." />)}
         </div>
       </div>
