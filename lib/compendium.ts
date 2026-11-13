@@ -3,7 +3,7 @@ import { bakuganRollingValues, type BakuganRollingValues } from "./bakugan-rolli
 import { cardSetCode, compareCardCollectorOrder } from "./content/catalogue";
 import type { Core, GameCard } from "./game";
 
-export const COMPENDIUM_PAGE_SIZE = 24;
+export const COMPENDIUM_PAGE_SIZE = 48;
 
 export const COMPENDIUM_SORTS = [
   "name-asc",
@@ -181,7 +181,7 @@ export function relatedCompendiumCards(card: GameCard, cards: readonly GameCard[
   }).slice(0, 12);
 }
 
-export const CORE_COMPENDIUM_PAGE_SIZE = 24;
+export const CORE_COMPENDIUM_PAGE_SIZE = 48;
 export const CORE_COMPENDIUM_SORTS = ["collector", "type", "bonus", "damage"] as const;
 export const CORE_COMPENDIUM_DENSITIES = ["gallery", "compact"] as const;
 
