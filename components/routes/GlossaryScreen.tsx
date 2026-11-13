@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { OFFICIAL_RULEBOOK, type OfficialRuleNode } from "../../lib/official-rulebook";
 import { GLOSSARY_ENTRIES, SYMBOL_ENTRIES } from "../../lib/reference";
 import { EXTENDED_TAG_WORDS } from "../../lib/extended-glossary";
@@ -310,6 +310,19 @@ export function GlossaryScreen({ query = "" }: { query?: string }) {
   }, []);
   useEffect(() => {if(restored) sessionStorage.setItem("compendium:glossary-category",category);},[category,restored]);
   const normalized = query.trim().toLowerCase();
+  const wasSearching = useRef(Boolean(normalized));
+  const readingPositionBeforeSearch = useRef<number | null>(null);
+  useEffect(() => {
+    const searching = Boolean(normalized);
+    if (searching && !wasSearching.current) {
+      readingPositionBeforeSearch.current = window.scrollY;
+    } else if (!searching && wasSearching.current && readingPositionBeforeSearch.current !== null) {
+      const scrollY = readingPositionBeforeSearch.current;
+      readingPositionBeforeSearch.current = null;
+      requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo({ top: scrollY, behavior: "instant" })));
+    }
+    wasSearching.current = searching;
+  }, [normalized]);
   // Searching spans every category but does not overwrite the reading category.
   const filtered = useMemo(() => fullTerms.filter((term) =>
     (!normalized ? category === "All Terms" || term.category === category
