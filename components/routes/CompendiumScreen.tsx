@@ -173,6 +173,22 @@ function CoreFilterControls({
 
 
 
+
+function GalleryPagination({page,pages,label,onSelect}: {
+  page:number;pages:number;label:string;onSelect:(page:number)=>void;
+}) {
+  const numbers = Array.from({length:pages},(_,index)=>index+1)
+    .filter((number) => number === 1 || number === pages || Math.abs(number-page) <= 2);
+  return <nav className={styles.pagination} aria-label={label}>
+    <button type="button" disabled={page===1} onClick={()=>onSelect(page-1)} aria-label="Previous page">‹</button>
+    {numbers.map((number,index) => <span className={styles.pageSlot} key={number}>
+      {index > 0 && number > numbers[index-1]+1 && <span aria-hidden="true">…</span>}
+      <button type="button" aria-current={number===page?"page":undefined} onClick={()=>onSelect(number)}>{number}</button>
+    </span>)}
+    <button type="button" disabled={page===pages} onClick={()=>onSelect(page+1)} aria-label="Next page">›</button>
+  </nav>;
+}
+
 export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -612,15 +628,15 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 onClear={clearFilters}
               />
             </Surface>
-            <main className={styles.gallery} ref={resultsAnchor}>              {activeFilterCount > 0 && <div className={styles.activeFilters} aria-label="Active card filters">
+            <main className={styles.gallery} ref={resultsAnchor}>
+              {activeFilterCount > 0 && <div className={styles.activeFilters} aria-label="Active card filters">
                 {CARD_FILTER_FACETS.flatMap((facet) => state[facet].map((value) =>
                   <button type="button" key={facet+":"+value} onClick={() => setFilter(facet,state[facet].filter((entry) => entry !== value))}
                     aria-label={`Remove ${value} ${CARD_FILTER_LABELS[facet]} filter`}>{value}<span aria-hidden="true">×</span></button>))}
                 <button type="button" className={styles.clearChips} onClick={clearFilters}>Clear all</button>
               </div>}
-              
-{cards.length > 0 && (<nav className={styles.pagination} aria-label="Card result pages"><button type="button" disabled={page === 1} onClick={() => navigate({page:page-1},{push:true,scroll:true})} aria-label="Previous page">‹</button>{Array.from({length:pages},(_,i)=>i+1).filter(v=>v===1||v===pages||Math.abs(v-page)<=2).map((v,i,arr)=><span className={styles.pageSlot} key={v}>{i>0&&v>arr[i-1]+1&&<span>…</span>}<button type="button" aria-current={v===page?"page":undefined} onClick={()=>navigate({page:v},{push:true,scroll:true})}>{v}</button></span>)}<button type="button" disabled={page===pages} onClick={()=>navigate({page:page+1},{push:true,scroll:true})} aria-label="Next page">›</button></nav>)}
-{visible.length ? (
+              {cards.length > 0 && <GalleryPagination label="Card result pages" page={page} pages={pages} onSelect={(nextPage) => navigate({page:nextPage},{push:true,scroll:true})} />}
+              {visible.length ? (
                 <CardGrid
                   className={`${styles.cardGrid} ${state.density === "compact" ? styles.cardGridCompact : ""}`}
                   minCardWidth={state.density === "compact" ? "6.75rem" : "10rem"}
@@ -655,7 +671,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                   <div className={styles.emptyActions}><ActionButton tone="secondary" onClick={clearFilters}>Clear filters</ActionButton><ActionButton tone="secondary" onClick={() => handleSearchChange("")}>Clear search</ActionButton></div>
                 </Surface>
               )}
-              {cards.length > 0 && (<nav className={styles.pagination} aria-label="Card result pages"><button type="button" disabled={page === 1} onClick={() => navigate({page:page-1},{push:true,scroll:true})} aria-label="Previous page">‹</button>{Array.from({length:pages},(_,i)=>i+1).filter(v=>v===1||v===pages||Math.abs(v-page)<=2).map((v,i,arr)=><span className={styles.pageSlot} key={v}>{i>0&&v>arr[i-1]+1&&<span>…</span>}<button type="button" aria-current={v===page?"page":undefined} onClick={()=>navigate({page:v},{push:true,scroll:true})}>{v}</button></span>)}<button type="button" disabled={page===pages} onClick={()=>navigate({page:page+1},{push:true,scroll:true})} aria-label="Next page">›</button></nav>)}
+              {cards.length > 0 && <GalleryPagination label="Card result pages" page={page} pages={pages} onSelect={(nextPage) => navigate({page:nextPage},{push:true,scroll:true})} />}
             </main>
             {selected && (
               <CardInspector
@@ -731,9 +747,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                     aria-label={`Remove ${value} filter`}>{value}<span aria-hidden="true">×</span></button>))}
                 <button type="button" className={styles.clearChips} onClick={clearCoreFilters}>Clear all</button>
               </div>}
-              
-{cores.length > 0 && (<nav className={styles.pagination} aria-label="BakuCore result pages"><button type="button" disabled={corePage === 1} onClick={() => navigateCore({page:corePage-1},{push:true,scroll:true})} aria-label="Previous page">‹</button>{Array.from({length:corePages},(_,i)=>i+1).filter(v=>v===1||v===corePages||Math.abs(v-corePage)<=2).map((v,i,arr)=><span className={styles.pageSlot} key={v}>{i>0&&v>arr[i-1]+1&&<span>…</span>}<button type="button" aria-current={v===corePage?"page":undefined} onClick={()=>navigateCore({page:v},{push:true,scroll:true})}>{v}</button></span>)}<button type="button" disabled={corePage===corePages} onClick={()=>navigateCore({page:corePage+1},{push:true,scroll:true})} aria-label="Next page">›</button></nav>)}
-{visibleCores.length ? (
+              {cores.length > 0 && <GalleryPagination label="BakuCore result pages" page={corePage} pages={corePages} onSelect={(nextPage) => navigateCore({page:nextPage},{push:true,scroll:true})} />}
+              {visibleCores.length ? (
                 <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "6.75rem" : "10rem"}>
                   {visibleCores.map((core) => {
                     const displayedCore = coreForSet(core, coreState.set.length === 1 ? coreState.set[0] : "All");
@@ -758,7 +773,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                   <div className={styles.emptyActions}><ActionButton tone="secondary" onClick={clearCoreFilters}>Clear filters</ActionButton><ActionButton tone="secondary" onClick={() => handleSearchChange("")}>Clear search</ActionButton></div>
                 </Surface>
               )}
-              {cores.length > 0 && (<nav className={styles.pagination} aria-label="BakuCore result pages"><button type="button" disabled={corePage === 1} onClick={() => navigateCore({page:corePage-1},{push:true,scroll:true})} aria-label="Previous page">‹</button>{Array.from({length:corePages},(_,i)=>i+1).filter(v=>v===1||v===corePages||Math.abs(v-corePage)<=2).map((v,i,arr)=><span className={styles.pageSlot} key={v}>{i>0&&v>arr[i-1]+1&&<span>…</span>}<button type="button" aria-current={v===corePage?"page":undefined} onClick={()=>navigateCore({page:v},{push:true,scroll:true})}>{v}</button></span>)}<button type="button" disabled={corePage===corePages} onClick={()=>navigateCore({page:corePage+1},{push:true,scroll:true})} aria-label="Next page">›</button></nav>)}
+              {cores.length > 0 && <GalleryPagination label="BakuCore result pages" page={corePage} pages={corePages} onSelect={(nextPage) => navigateCore({page:nextPage},{push:true,scroll:true})} />}
             </main>
             {selectedCore && (
               <CardInspector
