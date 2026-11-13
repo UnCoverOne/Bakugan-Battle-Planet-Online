@@ -113,3 +113,7 @@
 }
 @media(max-width:699px){nav.panel{width:100vw;max-width:none;right:0;padding:calc(1rem + env(safe-area-inset-top)) 1rem calc(1rem + env(safe-area-inset-bottom))}}
 @media(prefers-reduced-motion:reduce){nav.panel{transition:none!important}}
+
+@media(max-width:699px){
+ .tab{position:sticky;top:calc(var(--site-header-height,64px) + 8.7rem);z-index:82;width:100%;max-width:none;justify-content:flex-start;margin:0 0 .6rem;padding:.6rem 1rem;border-radius:0;background:var(--surface-canvas)}
+}
