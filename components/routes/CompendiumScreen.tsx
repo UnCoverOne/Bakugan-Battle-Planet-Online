@@ -30,7 +30,7 @@ import {
 import { CARDS, CORE_COMPENDIUM, RULE_ENTRIES } from "../../lib/data";
 import { updateCollection, type Collection, type CollectionField } from "../../lib/collection";
 import { cardSetCode } from "../../lib/content/catalogue";
-import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT } from "../../lib/reference";
+import { PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT } from "../../lib/reference";
 import { useAppFields } from "../application/AppProvider";
 import { copyText } from "../application/ui";
 import { ActionButton, CardGrid, StatusChip, Surface, Tabs } from "../design-system/primitives";
@@ -88,7 +88,6 @@ const ruleReferences = [
     sourceSection: entry.category,
     reviewedAt: REFERENCE_REVIEWED_AT,
   })),
-  ...GLOSSARY_ENTRIES,
 ];
 
 function FilterControls({
