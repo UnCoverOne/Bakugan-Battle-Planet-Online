@@ -103,3 +103,13 @@
   nav.panel{transition:none}
   nav.panel[data-open="true"]{transition:none}
 }
+
+/* Responsive category/contents button and full-screen mobile navigation. */
+@media(max-width:900px){
+ .tab{position:relative;display:inline-flex;align-items:center;justify-content:center;z-index:1;left:auto;top:auto;transform:none;min-height:2.75rem;width:max-content;max-width:100%;margin:.35rem 0;padding:.5rem .9rem;background:var(--surface-input);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:.3rem}
+ .scrim{background:rgba(0,0,0,.65)}
+ nav.panel{background:var(--surface-panel-raised);border-right:1px solid var(--border-subtle);box-shadow:var(--elevation-3);transition:transform .18s ease-out,visibility .18s ease-out}
+ nav.panel > .closeControl > button.close{width:44px;height:44px;min-width:44px;min-height:44px;background:var(--surface-input);color:var(--text-primary);border:1px solid var(--border-subtle)}
+}
+@media(max-width:699px){nav.panel{width:100vw;max-width:none;right:0;padding:calc(1rem + env(safe-area-inset-top)) 1rem calc(1rem + env(safe-area-inset-bottom))}}
+@media(prefers-reduced-motion:reduce){nav.panel{transition:none!important}}
