@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import styles from "./ReferenceContentsDrawer.module.css";
 
-const MOBILE_QUERY = "(max-width: 900px)";
+const MOBILE_QUERY = "(max-width: 1099px)";
 
 export function ReferenceContentsDrawer({
   label,
