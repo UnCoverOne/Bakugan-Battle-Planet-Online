@@ -998,3 +998,10 @@
 .activeFilters button:hover{border-color:var(--brand-blue);color:var(--text-primary)}
 .activeFilters button:focus-visible{outline:2px solid var(--focus-color)}
 .activeFilters .clearChips{background:transparent;border-color:transparent;color:var(--brand-blue-bright)}
+
+.desktopRailToggle{display:inline-flex;align-items:center;justify-content:center;min-height:2.5rem;padding:.4rem .7rem;border:1px solid var(--border-subtle);border-radius:.3rem;background:var(--surface-input);color:var(--text-secondary);cursor:pointer;font-size:.8rem}
+.desktopRailToggle:hover{color:var(--text-primary);border-color:var(--border-strong)}
+.desktopRailToggle:focus-visible{outline:2px solid var(--focus-color)}
+.workspaceCollapsed{grid-template-columns:minmax(0,1fr)!important}
+.workspaceCollapsed .filterRail{display:none}
+@media(max-width:1100px){.desktopRailToggle{display:none}.workspaceCollapsed .filterRail.tabletRailOpen{display:grid}}
