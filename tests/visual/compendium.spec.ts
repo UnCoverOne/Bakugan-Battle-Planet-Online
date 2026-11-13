@@ -100,7 +100,7 @@ test("desktop rail and tablet overlay use floating options, mobile stages filter
     await picker.getByRole("option",{name:/Aquos/}).click();
     expect(new URL(page.url()).searchParams.getAll("faction")).toEqual([]);
     await picker.getByRole("button",{name:"Done"}).click();
-    await sheet.getByRole("button",{name:"Show Results"}).click();
+    await sheet.getByRole("button",{name:/Show \d+ results/i}).click();
     await expect.poll(()=>new URL(page.url()).searchParams.getAll("faction")).toEqual(["Aquos"]);
   }
 });
