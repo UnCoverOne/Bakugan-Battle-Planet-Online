@@ -61,6 +61,19 @@ export function RulingsReference({ query = "", onCopy }: {
   const trigger = useRef<HTMLButtonElement | null>(null);
   const closeButton = useRef<HTMLButtonElement | null>(null);
   const normalized = query.trim().toLowerCase();
+  const wasSearching = useRef(Boolean(normalized));
+  const readingPositionBeforeSearch = useRef<number | null>(null);
+  useEffect(() => {
+    const searching = Boolean(normalized);
+    if (searching && !wasSearching.current) {
+      readingPositionBeforeSearch.current = window.scrollY;
+    } else if (!searching && wasSearching.current && readingPositionBeforeSearch.current !== null) {
+      const scrollY = readingPositionBeforeSearch.current;
+      readingPositionBeforeSearch.current = null;
+      requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo({ top: scrollY, behavior: "instant" })));
+    }
+    wasSearching.current = searching;
+  }, [normalized]);
   const matches = useMemo(() => DEVELOPER_RULINGS.filter((ruling) =>
     (normalized || category === "All" || ruling.category === category)
     && (!normalized || [ruling.title, ruling.preview, ruling.category, ruling.transcript, ...ruling.mentionedCards]
