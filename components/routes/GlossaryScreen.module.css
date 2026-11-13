@@ -21,3 +21,26 @@
   .entry h3{font-size:.9rem}
   .entry p{line-height:1.5}
 }
+
+/* The glossary is a reading list, not a gallery of expandable cards. */
+.rail,.group,.printedIcons,.empty{background:transparent;clip-path:none;box-shadow:none;border:0}
+.rail{padding:0 1rem 0 0;border-right:1px solid var(--border-subtle);top:12rem}
+.rail button{border:0;border-left:3px solid transparent;padding:.7rem .8rem}
+.rail button[aria-pressed="true"]{border-left-color:var(--brand-blue);color:var(--text-primary);background:var(--surface-input)}
+.main{max-width:100%;scroll-margin-top:18rem}
+.group{padding:.25rem 0 1.5rem;margin-bottom:1rem;scroll-margin-top:18rem}
+.group>h2{padding-bottom:.5rem;border-bottom:1px solid var(--border-subtle)}
+.entries{display:block}
+.entry{padding:1.15rem 0;border:0;border-bottom:1px solid var(--border-subtle);scroll-margin-top:18rem}
+.entry h3{font-size:1.08rem}
+.entry p{max-width:78ch;margin:.6rem 0;line-height:1.7;color:var(--text-secondary)}
+.entry footer{padding:0;gap:1rem;font-size:.8rem}
+.entry:target{outline:0;animation:glossaryTarget 1.4s ease-out}
+@keyframes glossaryTarget{from{background:var(--surface-input)}to{background:transparent}}
+.printedIcons{padding:0}
+.iconGrid{grid-template-columns:repeat(auto-fill,minmax(min(100%,180px),1fr));gap:1.4rem 1rem}
+.iconCard{background:transparent;border:0;padding:.7rem}
+.iconCard p{color:var(--text-secondary)}
+@media(max-width:900px){.rail{border:0;padding:0;max-height:none}.entries{display:block}}
+@media(max-width:700px){.group,.printedIcons{padding:0}.entries{display:block}.entry{padding:1rem 0}.entry p{line-height:1.65}.iconGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){.entry:target{animation:none}}
