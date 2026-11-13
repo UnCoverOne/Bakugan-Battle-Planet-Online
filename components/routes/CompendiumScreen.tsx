@@ -222,6 +222,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const [tabletRailOpen, setTabletRailOpen] = useState(false);
   const [referenceReturn, setReferenceReturn] = useState<{url:string;label:string;section:string;scrollY:number}|null>(null);
   const sectionQueries = useRef<Partial<Record<CompendiumSection, string>>>({});
+  const sectionUrls = useRef<Partial<Record<CompendiumSection, string>>>({});
   const resultsAnchor = useRef<HTMLElement | null>(null);
   const inspectorTrigger = useRef<HTMLElement | null>(null);
   const localSearchEditRef = useRef(false);
@@ -302,8 +303,10 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   }, [section]);
   const returnToReferenceSource = () => {
     if (!referenceReturn) return;
+    const restoration = sessionStorage.getItem("compendium:reference-return");
+    if (restoration) sessionStorage.setItem("compendium:restore-inspector",restoration);
     window.history.pushState(null, "", referenceReturn.url);
-    window.scrollTo({top:referenceReturn.scrollY});
+    requestAnimationFrame(() => window.scrollTo({top:referenceReturn.scrollY}));
     sessionStorage.removeItem("compendium:reference-return");
     setReferenceReturn(null);
   };
@@ -427,7 +430,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     if (searchTimerRef.current !== null) window.clearTimeout(searchTimerRef.current);
     localSearchEditRef.current = false;
     sectionQueries.current[section] = searchQuery;
-    window.history.pushState(null, "", compendiumSectionHref(next, sectionQueries.current[next] ?? ""));
+    sectionUrls.current[section] = window.location.pathname + window.location.search + window.location.hash;
+    window.history.pushState(null, "", sectionUrls.current[next] ?? compendiumSectionHref(next, sectionQueries.current[next] ?? ""));
     setSearchQuery(sectionQueries.current[next] ?? "");
   };
   const copyLink = async (path: string, label: string) => {
