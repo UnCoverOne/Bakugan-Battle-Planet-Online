@@ -222,6 +222,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const [pendingCardFilters, setPendingCardFilters] = useState<CompendiumState | null>(null);
   const [pendingCoreFilters, setPendingCoreFilters] = useState<CoreCompendiumState | null>(null);
   const [tabletRailOpen, setTabletRailOpen] = useState(false);
+  const [desktopRailCollapsed, setDesktopRailCollapsed] = useState(false);
   const [referenceReturn, setReferenceReturn] = useState<{url:string;label:string;section:string;scrollY:number}|null>(null);
   const sectionQueries = useRef<Partial<Record<CompendiumSection, string>>>({});
   const sectionUrls = useRef<Partial<Record<CompendiumSection, string>>>({});
@@ -494,7 +495,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             <button type="button" className={styles.sortDirection} aria-label={state.direction === "asc" ? "Sort descending" : "Sort ascending"} title={state.direction === "asc" ? "Ascending" : "Descending"} onClick={() => navigate({direction:state.direction === "asc" ? "desc" : "asc"}, {resetPage:true})}>{state.direction === "asc" ? "↑" : "↓"}</button>
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("Filtered results")}>Share results</button>
           </section>
-          <div className={styles.workspace}>
+          <div className={`${styles.workspace} ${desktopRailCollapsed ? styles.workspaceCollapsed : ""}`}>
             <button className={styles.tabletFilterButton} type="button" aria-expanded={tabletRailOpen} onClick={() => setTabletRailOpen((current) => !current)}>Filters</button>
             <Surface as="aside" className={`${styles.filterRail} ${tabletRailOpen ? styles.tabletRailOpen : ""}`} aria-label="Card filters">
               <FilterControls
@@ -608,7 +609,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             <button type="button" className={styles.sortDirection} aria-label={coreState.direction === "asc" ? "Sort descending" : "Sort ascending"} title={coreState.direction === "asc" ? "Ascending" : "Descending"} onClick={() => navigateCore({direction:coreState.direction === "asc" ? "desc" : "asc"}, {resetPage:true})}>{coreState.direction === "asc" ? "↑" : "↓"}</button>
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("BakuCore results")}>Share results</button>
           </section>
-          <div className={styles.coreWorkspace}>
+          <div className={`${styles.coreWorkspace} ${desktopRailCollapsed ? styles.workspaceCollapsed : ""}`}>
             <button className={styles.tabletFilterButton} type="button" aria-expanded={tabletRailOpen} onClick={() => setTabletRailOpen((current) => !current)}>Filters</button>
             <Surface as="aside" className={`${styles.filterRail} ${styles.coreFilterRail} ${tabletRailOpen ? styles.tabletRailOpen : ""}`} aria-label="BakuCore filters">
               <CoreFilterControls
