@@ -258,9 +258,9 @@ test("BakuCore compendium state filters, sorts, and selects both sets", () => {
   const state = parseCoreCompendiumState("q=fusion&coreSet=Armored+Alliance&coreType=Fist&coreSort=bonus&coreDensity=compact&corePage=2&core=aa-core-70");
   assert.deepEqual(state, {
     q: "fusion",
-    set: "Armored Alliance",
-    type: "Fist",
-    bonusType: "All",
+    set: ["Armored Alliance"],
+    type: ["Fist"],
+    bonusType: [],
     sort: "bonus",
     direction: "asc",
     density: "compact",
@@ -281,7 +281,7 @@ test("BakuCore compendium state filters, sorts, and selects both sets", () => {
 
 test("BakuCore bonus type and sort direction serialize and filter independently", () => {
   const filtered = parseCoreCompendiumState("coreBonusType=Fusion&coreDirection=desc");
-  assert.equal(filtered.bonusType,"Fusion");
+  assert.deepEqual(filtered.bonusType,["Fusion"]);
   assert.equal(filtered.direction,"desc");
   assert.equal(coreCompendiumSearchParams(filtered).get("coreBonusType"),"Fusion");
   assert.equal(coreCompendiumSearchParams(filtered).get("coreDirection"),"desc");
@@ -311,10 +311,28 @@ test("BakuCore collector ordering groups sets and sorts each set numerically", (
     ["core-2", "core-11", "aa-core-2", "aa-core-10"],
   );
   assert.deepEqual(
-    filterAndSortCompendiumCores(candidates, { ...DEFAULT_CORE_COMPENDIUM_STATE, set: "Armored Alliance" })
+    filterAndSortCompendiumCores(candidates, { ...DEFAULT_CORE_COMPENDIUM_STATE, set: ["Armored Alliance"] })
       .map((item) => item.id),
     ["aa-core-2", "core-11", "aa-core-10"],
   );
+});
+
+test("BakuCore facets support repeated selections (OR within, AND across) and URL sharing", () => {
+  const state = parseCoreCompendiumState(
+    "coreType=Fist&coreType=Shield&coreSet=Battle+Brawlers&coreSet=Armored+Alliance&coreBonusType=Fusion&coreBonusType=Damage",
+  );
+  assert.deepEqual(state.type, ["Fist", "Shield"]);
+  assert.deepEqual(state.set, ["Battle Brawlers", "Armored Alliance"]);
+  assert.deepEqual(state.bonusType, ["Fusion", "Damage"]);
+  assert.deepEqual(coreCompendiumSearchParams(state).getAll("coreType"), ["Fist", "Shield"]);
+  assert.deepEqual(parseCoreCompendiumState(coreCompendiumSearchParams(state)), state);
+  const candidates = [
+    core({id:"fist",name:"Fusion Fist",type:"Fist",number:1,set:"Battle Brawlers",fusionBonus:100}),
+    core({id:"shield",name:"Damage Shield",type:"Shield",number:2,set:"Armored Alliance",damageBonus:4}),
+    core({id:"helix",name:"Fusion Helix",type:"Helix",number:3,set:"Battle Brawlers",fusionBonus:100}),
+    core({id:"fist-other",name:"Fist other",type:"Fist",number:4,set:"Other",fusionBonus:100}),
+  ];
+  assert.deepEqual(filterAndSortCompendiumCores(candidates,state).map((item) => item.id),["fist","shield"]);
 });
 
 test("Collection reuses the complete filter controls in desktop and mobile surfaces", async () => {
