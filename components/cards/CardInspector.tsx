@@ -352,6 +352,13 @@ export function CardInspector(props: InspectorProps) {
     ? { ...core, set: activePrinting.set, number: activePrinting.number, art: activePrinting.art, hasProvidedScan: true }
     : core;
   const panelId = `${isCore ? "core" : "card"}-inspector-${itemKey}-${effectiveTab}`;
+  const [inspectorScrollY, setInspectorScrollY] = useState(0);
+  const inspectorLayoutRef = useRef<HTMLDivElement>(null);
+  const rememberOrigin = (destination: string) => {
+    if (typeof window === "undefined") return;
+    const current = window.location.pathname + window.location.search + window.location.hash;
+    window.sessionStorage.setItem("compendium:reference-return", JSON.stringify({url:current,label,section:destination.split("/")[2],scrollY:window.scrollY,inspectorScrollY:inspectorLayoutRef.current?.scrollTop ?? 0,printing:activePrintingId,cardPrinting:activeCardPrintingId,fusionFace}));
+  };
   const titleId = `${isCore ? "core" : "card"}-inspector-title-${itemKey}`;
 
   const inspectorContent = (
@@ -371,7 +378,7 @@ export function CardInspector(props: InspectorProps) {
           {onClose && <button type="button" data-inspector-close onClick={onClose} aria-label={`Close ${isCore ? "BakuCore" : "card"} inspector`}>Close</button>}
         </div>
       </header>
-      <div className={styles.inspectorLayout}>
+      <div className={styles.inspectorLayout} ref={inspectorLayoutRef} onScroll={(event) => setInspectorScrollY(event.currentTarget.scrollTop)}>
         <div className={styles.anchorArtwork} aria-label={isCore ? "BakuCore artwork" : "Card artwork"}>
           {displayedCard && <div className={styles.artFrame}>
             <ResponsiveCardImage card={displayedCard} presentation="inspector" />
@@ -432,9 +439,9 @@ export function CardInspector(props: InspectorProps) {
         {effectiveTab === "overview" && core && displayedCore && <CoreOverview core={core} displayedCore={displayedCore} />}
         {effectiveTab === "references" && <div className={styles.referenceSections}>
           <h3>Rules</h3>
-          <ReferenceList entries={relevantRules} label="Relevant rule" empty="No automatically matched rulebook references." />
+          <ReferenceList entries={relevantRules} label="Relevant rule" empty="No automatically matched rulebook references." onNavigate={rememberOrigin} section="rules" />
           <h3>Rulings</h3>
-          <ReferenceList entries={relevantRulings} label="Published ruling" ruling empty="No published ruling is linked to this item." />
+          <ReferenceList entries={relevantRulings} label="Published ruling" ruling empty="No published ruling is linked to this item." onNavigate={rememberOrigin} section="rulings" />
           <h3>{isCore ? "Alternate printings" : "Related cards"}</h3>
           {core ? <CoreRelated core={core} activePrintingId={activePrintingId} onSelectPrinting={setActivePrintingId} />
             : relatedCards.length ? <div className={styles.relatedGrid}>{relatedCards.map((candidate) =>
@@ -484,11 +491,15 @@ function ReferenceList({
   empty,
   label,
   ruling = false,
+  onNavigate,
+  section,
 }: {
   entries: readonly ReferenceEntry[];
   empty: string;
   label: string;
   ruling?: boolean;
+  onNavigate?: (destination: string) => void;
+  section?: "rules" | "rulings";
 }) {
   if (!entries.length) return <InspectorEmpty message={empty} />;
   return (
@@ -500,6 +511,11 @@ function ReferenceList({
             <small>Reviewed {entry.reviewedAt}</small>
           </div>
           <h3>{entry.title}</h3>
+          {section && <a className={styles.referenceLink} href={section === "rulings"
+            ? `/compendium/rulings#ruling-${entry.slug}`
+            : `/compendium/rules#section-${entry.sourceSection.match(/\\d+(?:\\.\\d+)+/)?.[0] ?? "1.1"}`}
+            onClick={(event) => onNavigate?.(event.currentTarget.href)}>
+            Open {section === "rulings" ? "ruling" : "rule"} ↗</a>}
           <p>{entry.body}</p>
           <footer>{entry.source} · {entry.sourceSection}</footer>
         </article>
