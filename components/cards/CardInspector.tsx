@@ -12,7 +12,7 @@ import {
 } from "../../lib/compendium";
 import type { Core, GameCard } from "../../lib/game";
 import { cardCollectionIds, collectionEntry, coreCollectionIds, type Collection, type CollectionField } from "../../lib/collection";
-import { SYMBOL_ENTRIES, type ReferenceEntry } from "../../lib/reference";
+import { GLOSSARY_ENTRIES, SYMBOL_ENTRIES, type ReferenceEntry } from "../../lib/reference";
 import { StatusChip, Tabs } from "../design-system/primitives";
 import { InspectorModal } from "./InspectorModal";
 import { ResponsiveCardImage } from "./ResponsiveCardImage";
@@ -351,6 +351,10 @@ export function CardInspector(props: InspectorProps) {
     () => displayedCard ? matchingReferences(displayedCard, rulings, 8) : core ? matchingCoreReferences(core, rulings, 8) : [],
     [displayedCard, core, rulings],
   );
+  const relevantGlossary = useMemo(
+    () => displayedCard ? matchingReferences(displayedCard, GLOSSARY_ENTRIES, 8) : core ? matchingCoreReferences(core, GLOSSARY_ENTRIES, 8) : [],
+    [displayedCard, core],
+  );
   const relatedCards = useMemo(() => displayedCard ? relatedCompendiumCards(displayedCard, allCards ?? []) : [], [allCards, displayedCard]);
   const activePrinting = core?.printings?.find((printing) => printing.id === activePrintingId);
   const displayedCore = core && activePrinting
@@ -496,6 +500,8 @@ export function CardInspector(props: InspectorProps) {
         {effectiveTab === "references" && <div className={styles.referenceSections}>
           <h3>Rules</h3>
           <ReferenceList entries={relevantRules} label="Relevant rule" empty="No automatically matched rulebook references." onNavigate={rememberOrigin} section="rules" />
+          <h3>Glossary</h3>
+          <ReferenceList entries={relevantGlossary} label="Glossary definition" empty="No directly related glossary definitions." section="glossary" onNavigate={rememberOrigin} />
           <h3>Rulings</h3>
           <ReferenceList entries={relevantRulings} label="Published ruling" ruling empty="No published ruling is linked to this item." onNavigate={rememberOrigin} section="rulings" />
           <h3>{isCore ? "Alternate printings" : "Related cards"}</h3>
@@ -542,6 +548,15 @@ export function CardInspector(props: InspectorProps) {
   );
 }
 
+function referenceHref(entry: ReferenceEntry, section: "rules" | "rulings" | "glossary") {
+  if (section === "glossary") return "/compendium/glossary#glossary-" + entry.slug;
+  if (section === "rulings") {
+    const number=entry.sourceSection.match(/Question\s*(\d+)/i)?.[1];
+    return number ? "/compendium/rulings#ruling-q" + number : "/compendium/rulings";
+  }
+  const rule=entry.sourceSection.match(/\d+(?:\.\d+)+/)?.[0];
+  return rule ? "/compendium/rules#section-" + rule : "/compendium/rules";
+}
 function ReferenceList({
   entries,
   empty,
@@ -555,7 +570,7 @@ function ReferenceList({
   label: string;
   ruling?: boolean;
   onNavigate?: (destination: string) => void;
-  section?: "rules" | "rulings";
+  section?: "rules" | "rulings" | "glossary";
 }) {
   if (!entries.length) return <InspectorEmpty message={empty} />;
   return (
@@ -567,14 +582,9 @@ function ReferenceList({
             <small>Reviewed {entry.reviewedAt}</small>
           </div>
           <h3>{entry.title}</h3>
-          {section && <a className={styles.referenceLink} href={section === "rulings"
-            ? entry.sourceSection.match(/Question\s*(\d+)/i)?.[1]
-              ? `/compendium/rulings#ruling-q${entry.sourceSection.match(/Question\s*(\d+)/i)?.[1]}`
-              : "/compendium/rulings"
-            : entry.sourceSection.match(/\d+(?:\.\d+)+/)?.[0]
-              ? `/compendium/rules#section-${entry.sourceSection.match(/\d+(?:\.\d+)+/)?.[0]}` : "/compendium/rules"}
+          {section && <a className={styles.referenceLink} href={referenceHref(entry,section)}
             onClick={(event) => onNavigate?.(event.currentTarget.href)}>
-            Open {section === "rulings" ? "ruling" : "rule"} ↗</a>}
+            Open {section === "rulings" ? "ruling" : section === "glossary" ? "definition" : "rule"} ↗</a>}
           <p>{entry.body}</p>
           <footer>{entry.source} · {entry.sourceSection}</footer>
         </article>
