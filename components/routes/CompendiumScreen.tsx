@@ -220,6 +220,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const [pendingCardFilters, setPendingCardFilters] = useState<CompendiumState | null>(null);
   const [pendingCoreFilters, setPendingCoreFilters] = useState<CoreCompendiumState | null>(null);
   const [tabletRailOpen, setTabletRailOpen] = useState(false);
+  const [referenceReturn, setReferenceReturn] = useState<{url:string;label:string;section:string;scrollY:number}|null>(null);
   const sectionQueries = useRef<Partial<Record<CompendiumSection, string>>>({});
   const resultsAnchor = useRef<HTMLElement | null>(null);
   const inspectorTrigger = useRef<HTMLElement | null>(null);
@@ -292,6 +293,20 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     navigate({ card: "", tab: "overview" });
   }, [navigate]);
 
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("compendium:reference-return");
+      const origin = raw ? JSON.parse(raw) as {url:string;label:string;section:string;scrollY:number} : null;
+      setReferenceReturn(origin?.section === section ? origin : null);
+    } catch {setReferenceReturn(null);}
+  }, [section]);
+  const returnToReferenceSource = () => {
+    if (!referenceReturn) return;
+    window.history.pushState(null, "", referenceReturn.url);
+    window.scrollTo({top:referenceReturn.scrollY});
+    sessionStorage.removeItem("compendium:reference-return");
+    setReferenceReturn(null);
+  };
   useEffect(() => {
     setCompendiumTab(section);
     setFilterSheetOpen(false);
@@ -440,6 +455,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
       </section>
 
       <div key={section} data-ui="compendium-section-content">
+      {referenceReturn && ["rules","glossary","rulings"].includes(section) && <div className={styles.referenceReturn}><button type="button" onClick={returnToReferenceSource}>← Back to {referenceReturn.label}</button><button type="button" aria-label="Dismiss return link" onClick={() => {sessionStorage.removeItem("compendium:reference-return");setReferenceReturn(null);}}>×</button></div>}
       {section === "cards" && (
         <>
           <section className={styles.resultsToolbar}>
