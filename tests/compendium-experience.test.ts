@@ -368,8 +368,9 @@ test("Compendium redesign uses five sections, fixed search and 48-item dual pagi
   assert.match(css, /\.sectionNav/);
   assert.match(css, /\.cardTile:hover \.cardArtFrame/);
   assert.match(css, /\.resultsToolbar\s*\{[^}]*position:\s*sticky/s);
-  assert.equal((route.match(/aria-label="Card result pages"/g) || []).length,2);
-  assert.equal((route.match(/aria-label="BakuCore result pages"/g) || []).length,2);
+  assert.match(route, /function GalleryPagination/);
+  assert.equal((route.match(/label="Card result pages"/g) || []).length,2);
+  assert.equal((route.match(/label="BakuCore result pages"/g) || []).length,2);
   assert.match(route,/pendingCardFilters/);
   assert.match(route,/pendingCoreFilters/);
   assert.match(route, /className=\{styles\.desktopRailToggle\}/);
@@ -388,6 +389,8 @@ test("Compendium redesign uses five sections, fixed search and 48-item dual pagi
   assert.match(route,/bonusType/);
   assert.match(inspector,/const visibleTabs: CardInspectorTab\[\] = \["overview", "collection", "references"\]/);
   assert.match(inspector,/activeCardPrintingId/);
+  assert.match(inspector, /compendium:inspector:/);
+  assert.match(inspector, /restoreOnBack/);
   assert.match(inspector,/onPrevious/);
   assert.match(rulebook,/handleCrossRef/);
   assert.match(rulebook,/returnContext/);
