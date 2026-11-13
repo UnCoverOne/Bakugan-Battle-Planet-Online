@@ -7,4 +7,4 @@
 .contents>a:hover,.contents>button:hover{color:var(--text-primary);background:var(--surface-input)}
 .contents>button[aria-pressed="true"]{border-left-color:var(--brand-blue);background:var(--surface-input);color:var(--text-primary);font-weight:700}
 .main{min-width:0;width:100%;scroll-margin-top:var(--compendium-scroll-offset,18rem)}
-@media(max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}.contents{border:0;max-height:none;padding:1rem}}
+@media(max-width:1099px){.layout{grid-template-columns:minmax(0,1fr)}.contents{border:0;max-height:none;padding:1rem}}
