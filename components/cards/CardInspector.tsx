@@ -359,6 +359,19 @@ export function CardInspector(props: InspectorProps) {
     window.sessionStorage.setItem("compendium:reference-return", JSON.stringify({url:current,label,section:new URL(destination,window.location.origin).pathname.split("/")[2],scrollY:window.scrollY,inspectorScrollY:inspectorLayoutRef.current?.scrollTop ?? 0,printing:activePrintingId,cardPrinting:activeCardPrintingId,fusionFace}));
   };
   const titleId = `${isCore ? "core" : "card"}-inspector-title-${itemKey}`;
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("compendium:restore-inspector");
+      const origin = raw ? JSON.parse(raw) as {url:string;printing:string;cardPrinting:string;fusionFace:"a"|"b";inspectorScrollY:number} : null;
+      if (!origin || origin.url !== window.location.pathname + window.location.search + window.location.hash) return;
+      setActivePrintingId(origin.printing || "primary");
+      setActiveCardPrintingId(origin.cardPrinting || baseCard?.catalogId || "");
+      setFusionFace(origin.fusionFace || "a");
+      requestAnimationFrame(() => { if (inspectorLayoutRef.current) inspectorLayoutRef.current.scrollTop=origin.inspectorScrollY || 0; });
+      sessionStorage.removeItem("compendium:restore-inspector");
+    } catch { /* A stale or invalid return context must not prevent the inspector opening. */ }
+  }, [itemKey]);
+
 
   const inspectorContent = (
     <>
