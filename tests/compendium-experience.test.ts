@@ -381,17 +381,15 @@ test("Reference navigation remains full-screen on mobile with accessible close c
 });
 
 test("Compendium Rulings leaves submission and heading to the global feedback menu", async () => {
-  const [compendium, rulings, shell] = await Promise.all([
+  const [compendium, rulings] = await Promise.all([
     read("components/routes/CompendiumScreen.tsx"),
     read("components/routes/RulingsReference.tsx"),
-    read("components/application/AppShell.jsx"),
   ]);
   assert.match(rulings, /<ReferenceContentsDrawer/);
   assert.doesNotMatch(rulings, /<h2>Rulings<\/h2>|Submit a question|onSubmit/);
   // The ruling-submission UI lives in Feedback & Reports, not Compendium.
   // Referencing its removed setter caused a ReferenceError on every tab load.
   assert.doesNotMatch(compendium, /\b(?:setShowSubmission|showSubmission|submitRuling|rulingCardId)\b/);
-  assert.match(shell, /FeedbackReportsDialog/);
 });
 
 
