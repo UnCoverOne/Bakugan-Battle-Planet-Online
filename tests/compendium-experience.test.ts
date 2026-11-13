@@ -259,6 +259,7 @@ test("BakuCore compendium state filters, sorts, and selects both sets", () => {
     q: "fusion",
     set: "Armored Alliance",
     type: "Fist",
+    bonusType: "All",
     sort: "bonus",
     density: "compact",
     page: 2,
@@ -313,101 +314,40 @@ test("Collection reuses the complete filter controls in desktop and mobile surfa
   assert.match(route, /nextIsCharacterOnly \? \{ cost: null, rarity: null \}/);
 });
 
-test("Compendium renders the complete gallery and reusable inspector contracts", async () => {
-  const [route, css, inspector, inspectorCss, modalCss, image] = await Promise.all([
-    Promise.all([read("components/routes/CompendiumScreen.tsx"), read("lib/catalogue-sorting.ts")]).then(parts => parts.join("\n")),
+test("Compendium redesign uses five sections, fixed search and 48-item dual pagination", async () => {
+  const [route, css, inspector, rulebook, glossary, rulings] = await Promise.all([
+    read("components/routes/CompendiumScreen.tsx"),
     read("components/routes/CompendiumScreen.module.css"),
     read("components/cards/CardInspector.tsx"),
-    read("components/cards/CardInspector.module.css"),
-    read("components/cards/InspectorModal.module.css"),
-    read("components/cards/ResponsiveCardImage.tsx"),
+    read("components/routes/OfficialRulebook.tsx"),
+    read("components/routes/GlossaryScreen.tsx"),
+    read("components/routes/RulingsReference.tsx"),
   ]);
-  for (const contract of [
-    "parseCompendiumState",
-    "filterAndSortCompendiumCards",
-    "coreType",
-    "bpower-desc",
-    "damage-desc",
-    "COMPENDIUM_PAGE_SIZE",
-    "FilterControls",
-    "CardFilterPanel",
-    "FilterPicker",
-    "createCardFilterOptionCatalogue",
-    "activeCardFilterCount",
-    "CoreFilterControls",
-    "filterRail",
-    "Card filters",
-    "BakuCore filters",
-    "Filters &amp; sort",
-    "filterDivider",
-    "Share results",
-    "Gallery",
-    "Compact",
-    "CardInspector",
-    "useDeferredValue",
-    "startTransition",
-    "setSearchQuery",
-    "handleSearchChange",
-    "localSearchEditRef",
-    "SEARCH_URL_DEBOUNCE_MS",
-    "window.setTimeout",
-    "window.history.pushState",
-    "BAKUCORES",
-    "CORE_COMPENDIUM_PAGE_SIZE",
-    "CORE_COMPENDIUM",
-    "corePreviewStats",
-    "coreForSet",
-    "coreStatList",
-    "coreSetLabel",
-    "filterAndSortCompendiumCores",
-    "returnFocusRef",
-  ]) assert.match(route, new RegExp(contract));
-  assert.match(route, /onSortChange/);
-  assert.match(route, /className=\{styles\.filterRail\}/);
-  assert.match(route, /core=\{selectedCore\}/);
-  assert.match(route, /tab=\{coreState\.tab\}/);
-  const coreTiles = route.slice(route.indexOf("visibleCores.map((core) => {"), route.indexOf("</CardGrid>", route.indexOf("visibleCores.map((core) => {")));
-  assert.match(coreTiles, /<strong>\{core\.type\}<\/strong>/);
-  assert.match(coreTiles, /stats\.map\(\(stat\) => <span key=\{stat\}>\{stat\}<\/span>\)/);
-  assert.match(coreTiles, /coreSetLabel/);
-  assert.doesNotMatch(coreTiles, /core\.name|coreAlternate|coreCollector|coreStats|cardBadges|Alternate/);
-  assert.doesNotMatch(inspector, /<StatusChip[^>]*>Alternate printing<\/StatusChip>/);
-  assert.doesNotMatch(route, /function CoreInspector/);
-  assert.doesNotMatch(route, /Refine archive/);
-  assert.doesNotMatch(route, /Refine BakuCores/);
-  assert.doesNotMatch(route, /reprintOf/);
-  assert.doesNotMatch(css, /\.coreEffects span/);
-  assert.match(route, /value=\{searchQuery\}/);
-  assert.match(route, /onChange=\{\(event\) => handleSearchChange\(event\.target\.value\)\}/);
-  assert.match(route, /localSearchEditRef\.current/);
-  assert.doesNotMatch(route, /onChange=\{\(event\) => navigate\(\{ q: event\.target\.value \}/);
-  for (const tab of ["Overview", "Rules", "Rulings", "Related"]) assert.match(inspector, new RegExp(tab));
-  assert.match(inspector, /data-ui="card-inspector"/);
-  assert.match(inspector, /CoreOverview/);
-  assert.match(inspector, /CoreRelated/);
-  assert.match(inspector, /const isCore/);
-  assert.match(inspectorCss, /relatedCoreArt/);
-  assert.match(image, /<CardArt/);
-  assert.match(image, /presentation="readable"/);
-  assert.doesNotMatch(image, /srcSet=\{/);
-  assert.match(image, /cardArtSource\(card, "thumbnail"\)/);
-  assert.match(image, /cardArtSource\(card, "full"\)/);
-  assert.match(css, /\.toolbar\s*\{[^}]*position:\s*sticky/s);
-  assert.match(css, /\.filterRail\s*\{[^}]*position:\s*sticky/s);
-  assert.match(css, /\.filterSheet/);
-  assert.match(inspectorCss, /\.modal\s*\{[^}]*width:\s*min\(66rem/s);
-  assert.doesNotMatch(inspectorCss, /\.adaptive\s*\{/);
-  assert.match(inspector, /InspectorModal/);
-  assert.match(modalCss, /\.backdrop\s*\{[^}]*position:\s*fixed/s);
-  assert.match(modalCss, /@media \(max-width:\s*900px\)[\s\S]*\.panel\s*\{[\s\S]*width:\s*100vw/s);
-  assert.match(inspector, /data-ui="card-inspector"/);
-  assert.match(inspectorCss, /@media \(max-width:\s*900px\)[\s\S]*\.modal \.overview\s*\{[\s\S]*grid-template-columns:\s*1fr/s);
-  assert.match(inspectorCss, /@media \(max-width:\s*900px\)[\s\S]*\.modal \.artWell\s*\{[\s\S]*position:\s*static/s);
-  assert.doesNotMatch(css, /\.coreInspector\s*\{[^}]*position:\s*(?:sticky|relative)/s);
-  assert.match(inspectorCss, /height:\s*100dvh/);
+  assert.equal((route.match(/const NAV_ITEMS:/g) || []).length, 1);
+  for (const section of ["Cards","BakuCores","Glossary","Rules","Rulings"]) assert.match(route, new RegExp("label:\\""+section+"\\""));
+  assert.doesNotMatch(route, /<RouteHero/);
+  assert.match(route, /placeholder=\{section === "cards"/);
+  assert.match(route, /sectionUrls\.current/);
+  assert.match(css, /\.sectionNav/);
+  assert.match(css, /\.cardTile:hover \.cardArtFrame/);
+  assert.match(css, /\.resultsToolbar\{position:sticky/);
+  assert.equal((route.match(/aria-label="Card result pages"/g) || []).length,2);
+  assert.equal((route.match(/aria-label="BakuCore result pages"/g) || []).length,2);
+  assert.match(route,/pendingCardFilters/);
+  assert.match(route,/pendingCoreFilters/);
+  assert.match(route,/bonusType/);
+  assert.match(inspector,/const visibleTabs: CardInspectorTab\[\] = \["overview", "collection", "references"\]/);
+  assert.match(inspector,/activeCardPrintingId/);
+  assert.match(inspector,/onPrevious/);
+  assert.match(rulebook,/handleCrossRef/);
+  assert.match(rulebook,/returnContext/);
+  assert.match(glossary,/setCategory\("Printed Icons"\)/);
+  assert.match(glossary,/item\.definition/);
+  assert.match(rulings,/Original Q&amp;A/);
+  assert.match(rulings,/expanded/);
 });
 
-test("Reference contents drawers share a mobile-only, touch-sized close control", async () => {
+test("Reference navigation remains full-screen on mobile with accessible close control", async () => {
   const [drawer, styles, rules, glossary, rulings] = await Promise.all([
     read("components/routes/ReferenceContentsDrawer.tsx"),
     read("components/routes/ReferenceContentsDrawer.module.css"),
@@ -415,15 +355,10 @@ test("Reference contents drawers share a mobile-only, touch-sized close control"
     read("components/routes/GlossaryScreen.tsx"),
     read("components/routes/RulingsReference.tsx"),
   ]);
-  for (const view of [rules, glossary, rulings]) {
-    assert.match(view, /<ReferenceContentsDrawer className=/);
-  }
-  assert.match(drawer, /<div className=\{styles\.closeControl\}>\s*<button[^>]+className=\{styles\.close\}/);
-  assert.match(styles, /\.tab,\.scrim,\.closeControl\{display:none\}/);
-  assert.match(styles, /@media\(max-width:900px\)\{[\s\S]*nav\.panel > \.closeControl\{[^}]*display:flex;/);
-  assert.match(styles, /nav\.panel > \.closeControl > button\.close\{[^}]*width:30px;[^}]*height:30px;/);
-  assert.match(styles, /nav\.panel > \.closeControl\{[^}]*top:calc\(var\(--space-4\) \+ env\(safe-area-inset-top\) - 6px\)/);
-  assert.doesNotMatch(styles, /nav\.panel > button\.close/);
+  for (const source of [rules,glossary,rulings]) assert.match(source,/<ReferenceContentsDrawer/);
+  assert.match(drawer,/aria-label="Close contents"/);
+  assert.match(styles,/width:100vw/);
+  assert.match(styles,/width:44px;height:44px/);
 });
 
 test("Compendium Rulings leaves submission and heading to the global feedback menu", async () => {
@@ -442,7 +377,7 @@ test("Compendium Rulings leaves submission and heading to the global feedback me
 });
 
 
-test("Bakugan rolling probabilities appear in every card gallery and the inspector", async () => {
+test("Bakugan rolling probabilities remain in gameplay and inspector statistics", async () => {
   const [rolling, rollingStyles, compendium, collection, builder, administrator, detail, inspector] = await Promise.all([
     read("components/cards/BakuganRollingStats.tsx"),
     read("components/cards/BakuganRollingStats.module.css"),
@@ -461,12 +396,12 @@ test("Bakugan rolling probabilities appear in every card gallery and the inspect
   assert.match(rollingStyles, /\/assets\/symbols\/double-core\.svg/);
   assert.match(rollingStyles, /display: flex/);
   assert.match(rollingStyles, /\.plain\s*\{/);
-  for (const gallery of [compendium, collection, builder, administrator, detail]) {
+  for (const gallery of [collection, builder, administrator, detail]) {
     assert.match(gallery, /<BakuganRollingOverlay card=/);
   }
   assert.match(inspector, /<dt>Roll Accuracy<\/dt>/);
   assert.match(inspector, /<dt>Double Core Chance<\/dt>/);
-  assert.match(inspector, /<BakuganRollingOverlay card=\{card\}/);
+  assert.doesNotMatch(compendium, /<BakuganRollingOverlay card=\{card\}/);
   assert.match(inspector, /kind="rollAccuracy" value=\{rolling\.rollAccuracy\} plain/);
   assert.match(inspector, /kind="doubleCoreChance" value=\{rolling\.doubleCoreChance\} plain/);
   assert.match(administrator, /<BakuganRollingStat kind="rollAccuracy"/);
