@@ -28,3 +28,28 @@
 .cardLinks a{display:inline-flex;align-items:center;gap:.65rem;padding:.55rem .8rem;font-size:.86rem}
 .cardLinks span{font-size:var(--type-meta)}
 @media(max-width:700px){.group,.empty{padding:var(--space-4)}.list{grid-template-columns:minmax(0,1fr)}.article{padding:var(--space-3);overflow-wrap:anywhere}.article h3{font-size:.95rem}.article p{line-height:1.5}.modal{padding:var(--space-4);max-height:92dvh}.modal h2{font-size:1.18rem}}
+
+/* Borderless multi-open rulings and a separate primary-source dialog. */
+.group,.empty{background:transparent;clip-path:none;padding:0;max-width:100%}
+.group>h2{border-bottom:1px solid var(--border-subtle)}
+.list{display:block}
+.article{display:block;padding:0;border-bottom:1px solid var(--border-subtle);scroll-margin-top:18rem}
+.article:target{outline:0;animation:rulingTarget 1.4s ease-out}
+.article h3{font-size:1rem}
+.expandButton{display:flex;align-items:center;justify-content:space-between;gap:1rem;width:100%;min-height:3.5rem;padding:.9rem .15rem;border:0;background:transparent;color:var(--text-primary);text-align:left;font:600 1rem var(--font-body);cursor:pointer}
+.expandButton:hover{color:var(--brand-blue-bright)}
+.expandButton:focus-visible{outline:2px solid var(--focus-color)}
+.chevron{font-size:1.4rem;color:var(--text-secondary)}
+.answer{padding:0 .2rem 1.25rem;animation:rulingExpand .16s ease-out}
+.answer p{color:var(--text-secondary);margin:0 0 .9rem;max-width:76ch;line-height:1.7}
+.answer footer{margin:0;border:0;padding:0;justify-content:flex-start}
+.answer footer span{color:var(--text-muted);font-size:.8rem}
+.answer footer button{color:var(--brand-blue-bright);font-size:.84rem}
+.backdrop{animation:rulingBackdrop .18s ease-out;background:rgba(0,0,0,.7)}
+.modal{background:var(--surface-panel-raised);clip-path:none;border-radius:.6rem;animation:rulingDialog .2s ease-out}
+@keyframes rulingExpand{from{opacity:.5}to{opacity:1}}
+@keyframes rulingTarget{from{background:var(--surface-input)}to{background:transparent}}
+@keyframes rulingBackdrop{from{opacity:0}to{opacity:1}}
+@keyframes rulingDialog{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+@media(max-width:700px){.group{padding:0}.article{padding:0}.modal{width:100vw;height:100dvh;max-height:none;border-radius:0;padding:1.2rem}.backdrop{padding:0}}
+@media(prefers-reduced-motion:reduce){.answer,.article:target,.backdrop,.modal{animation:none}}
