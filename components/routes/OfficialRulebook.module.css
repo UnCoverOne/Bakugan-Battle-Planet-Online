@@ -47,6 +47,6 @@
 .close{position:absolute;right:.7rem;top:.7rem;min-width:2.5rem;min-height:2.5rem;border:1px solid var(--border-subtle);background:var(--surface-input);color:var(--text-primary);cursor:pointer}
 .reader :is(button,a):focus-visible{outline:2px solid var(--focus-color);outline-offset:2px}
 @keyframes ruleHighlight{from{background:var(--surface-input)}to{background:transparent}}
-@media(max-width:900px){.reader{grid-template-columns:minmax(0,1fr)}.contents{max-height:none;border:0;padding:1rem}.tocScroll{max-height:none}.main{max-width:78ch}}
+@media(max-width:1099px){.reader{grid-template-columns:minmax(0,1fr)}.contents{max-height:none;border:0;padding:1rem}.tocScroll{max-height:none}.main{max-width:78ch}}
 @media(max-width:700px){.main{max-width:100%}.number{flex-basis:3.2rem}.ruleCopy{gap:.6rem}.nestedList{margin-left:.35rem;padding-left:.6rem}.section{padding:.85rem 0}}
 @media(prefers-reduced-motion:reduce){.rule:target,.section:target{animation:none}}
