@@ -75,9 +75,6 @@ function RuleParagraph({ node, id, depth, onTerm, onCrossRef, returnContext, onR
   </li>;
 }
 
-function matches(node: OfficialRuleNode, query: string): boolean {
-  return node.text.toLowerCase().includes(query) || node.children.some((child) => matches(child, query));
-}
 export function OfficialRulebook({ query = "" }: { query?: string }) {
   const [term, setTerm] = useState<IndexedRule | null>(null);
   const [activeSection, setActiveSection] = useState("1.1");
@@ -86,20 +83,29 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
   const tocRef = useRef<HTMLDivElement>(null);
   const manualUntil = useRef(0);
   useEffect(() => {
+    // Deep-linked clauses are always present: the official rulebook is continuous.
     const reveal = () => {
-      const match = window.location.hash.match(/^#rule-(\d+(?:\.\d+)*)$/);
-      if (!match) return;
-      const id = match[1];
-      document.querySelectorAll(`[id^="rule-"] details`).forEach((element) => {
-        const owner = element.closest("[id]");
-        if (owner && id.startsWith(owner.id.replace("rule-", "") + ".")) (element as HTMLDetailsElement).open = true;
-      });
+      const id = decodeURIComponent(window.location.hash.slice(1));
+      if (!/^(rule-|section-|chapter-)/.test(id)) return;
+      requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({block:"start",behavior:"instant"}));
     };
     reveal();
     window.addEventListener("hashchange", reveal);
     return () => window.removeEventListener("hashchange", reveal);
   }, []);
   const filter = query.trim().toLowerCase();
+  const previousSearch = useRef(Boolean(filter));
+  const positionBeforeSearch = useRef<number | null>(null);
+  useEffect(() => {
+    const searching = Boolean(filter);
+    if (searching && !previousSearch.current) positionBeforeSearch.current = window.scrollY;
+    else if (!searching && previousSearch.current && positionBeforeSearch.current !== null) {
+      const previousPosition = positionBeforeSearch.current;
+      positionBeforeSearch.current = null;
+      requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo({top:previousPosition,behavior:"instant"})));
+    }
+    previousSearch.current = searching;
+  }, [filter]);
   const hits = useMemo(() => filter ? indexed.filter((rule) => rule.depth >= 3 && rule.text.toLowerCase().includes(filter)) : [], [filter]);
   useEffect(() => {
     if (!term) return;
@@ -145,12 +151,9 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
   };
   const jumpTo = (id: string) => {
     setTerm(null);
-    // Nested rules may be collapsed; reveal ancestors before scrolling.
-    document.querySelectorAll(`[id^="rule-"] details`).forEach((element) => {
-      const owner = element.closest("[id]");
-      if (owner && id.startsWith(owner.id.replace("rule-", "") + ".")) (element as HTMLDetailsElement).open = true;
-    });
-    window.location.hash = id.split(".").length === 2 ? `section-${id}` : `rule-${id}`;
+    const hash = id.split(".").length === 2 ? `section-${id}` : `rule-${id}`;
+    window.location.hash = hash;
+    requestAnimationFrame(() => document.getElementById(hash)?.scrollIntoView({block:"start",behavior:"instant"}));
   };
   return <div className={styles.reader} data-rulebook-reader>
     <ReferenceContentsDrawer className={styles.contents} label="Rulebook contents">
@@ -187,9 +190,9 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
       {filter && <section className={styles.searchResults} role="search" aria-label="Rulebook matches">
         <h2>{hits.length} matching rules</h2>
         <div>{hits.slice(0,100).map((hit) => <button type="button" key={hit.id} onClick={() => {
-          const target=document.getElementById("rule-"+hit.id);
-          target?.scrollIntoView({block:"start"});
-          window.history.replaceState(null, "", "#rule-"+hit.id);
+          const id="rule-"+hit.id;
+          window.history.replaceState(null, "", "#"+id);
+          document.getElementById(id)?.scrollIntoView({block:"start",behavior:"instant"});
         }}><strong>{hit.id}</strong> {hit.text}</button>)}</div>
         {hits.length>100 && <p>Showing the first 100 matches; refine the search for more precise results.</p>}
       </section>}
