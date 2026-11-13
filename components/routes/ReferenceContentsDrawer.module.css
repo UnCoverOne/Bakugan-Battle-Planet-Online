@@ -1,6 +1,6 @@
 /* Reference sidebars are inline on desktop and full-screen on phones. */
 .tab,.scrim,.closeControl{display:none}
-@media(max-width:900px){
+@media(max-width:1099px){
   .tab{position:relative;z-index:1;display:inline-flex;align-items:center;justify-content:center;min-height:2.75rem;width:max-content;max-width:100%;margin:.35rem 0;padding:.5rem .85rem;border:1px solid var(--border-subtle);border-radius:.3rem;background:var(--surface-input);color:var(--text-primary);cursor:pointer}
   .tab[data-open="true"]{visibility:hidden;pointer-events:none}
   .scrim{position:fixed;inset:0;z-index:1035;display:block;background:rgba(0,0,0,.68)}
