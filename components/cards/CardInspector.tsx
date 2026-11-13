@@ -362,6 +362,11 @@ export function CardInspector(props: InspectorProps) {
     : core;
   const panelId = `${isCore ? "core" : "card"}-inspector-${itemKey}-${effectiveTab}`;
   const inspectorLayoutRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Moving to another catalogue identity keeps the selected tab but starts at its top.
+    // Cross-section history restoration below is deliberately applied after this reset.
+    inspectorLayoutRef.current?.scrollTo({top:0,behavior:"instant"});
+  }, [itemKey]);
   const touchStart = useRef<{x:number;y:number}|null>(null);
   const shiftPrinting = (delta: number) => {
     if (core?.printings?.length) {
