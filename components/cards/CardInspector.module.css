@@ -617,3 +617,14 @@
 }
 @media(max-width:480px){.resultNavigation span{font-size:.7rem}.headerActions button{padding:0 .3rem}}
 @media(prefers-reduced-motion:reduce){.anchorArtwork .artFrame,.coreArtwork{animation:none}}
+
+.bonuses h3{font-size:.95rem;font-weight:700;margin:0 0 .65rem}
+.bonuses dl{display:grid;gap:.1rem;margin:0}
+.bonuses dl>div{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.55rem 0;border-bottom:1px solid var(--border-subtle)}
+.bonuses dt{display:flex;align-items:center;gap:.65rem;min-width:0;color:var(--text-secondary);font-size:.85rem}
+.bonuses dt img{flex:0 0 20px;width:20px;height:20px;object-fit:contain}
+.bonuses dd{margin:0;color:var(--text-primary);font-weight:700;white-space:nowrap}
+.bonuses>p{margin:.9rem 0 0;color:var(--text-secondary);line-height:1.55}
+.collectorNote{margin:1rem 0 0;color:var(--text-muted);font-size:.8rem}
+.referenceLink{display:inline-block;padding:.35rem 0;color:var(--brand-blue-bright);font-size:.88rem}
+.referenceLink:focus-visible{outline:2px solid var(--focus-color)}
