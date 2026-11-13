@@ -28,3 +28,5 @@ jobs:
         run: npx tsc --noEmit
       - name: Compendium regression tests
         run: node --import tsx --test tests/compendium-experience.test.ts
+      - name: Build redesigned routes and CSS Modules
+        run: npm run build
