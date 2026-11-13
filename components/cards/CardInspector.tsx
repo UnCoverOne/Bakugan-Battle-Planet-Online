@@ -529,8 +529,11 @@ function ReferenceList({
           </div>
           <h3>{entry.title}</h3>
           {section && <a className={styles.referenceLink} href={section === "rulings"
-            ? `/compendium/rulings#ruling-${entry.slug}`
-            : `/compendium/rules#section-${entry.sourceSection.match(/\d+(?:\.\d+)+/)?.[0] ?? "1.1"}`}
+            ? entry.sourceSection.match(/Question\s*(\d+)/i)?.[1]
+              ? `/compendium/rulings#ruling-q${entry.sourceSection.match(/Question\s*(\d+)/i)?.[1]}`
+              : "/compendium/rulings"
+            : entry.sourceSection.match(/\d+(?:\.\d+)+/)?.[0]
+              ? `/compendium/rules#section-${entry.sourceSection.match(/\d+(?:\.\d+)+/)?.[0]}` : "/compendium/rules"}
             onClick={(event) => onNavigate?.(event.currentTarget.href)}>
             Open {section === "rulings" ? "ruling" : "rule"} ↗</a>}
           <p>{entry.body}</p>
