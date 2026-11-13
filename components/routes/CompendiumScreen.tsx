@@ -94,21 +94,15 @@ function FilterControls({
   state,
   filterOptions,
   onChange,
-  onSortChange,
   onClear,
 }: {
   state: CompendiumState;
   filterOptions: CardFilterOptionCatalogue;
   onChange: (key: FilterKey, values: string[]) => void;
-  onSortChange: (sort: CompendiumState["sort"]) => void;
   onClear: () => void;
 }) {
   const isCharacterOnly = state.type.length === 1 && state.type[0] === "Character";
   const includesCharacter = state.type.includes("Character");
-  const sortOptions = Object.entries(SORT_LABELS).filter(([value]) => (
-    (isCharacterOnly ? CHARACTER_SORTS : NON_CHARACTER_SORTS).has(value as CompendiumState["sort"])
-  ));
-  const selectedSort = sortOptions.some(([value]) => value === state.sort) ? state.sort : "collector";
   const secondaryFacets: CardFilterFacet[] = ["set", "faction"];
   if (!isCharacterOnly) secondaryFacets.push("cost", "rarity");
   if (includesCharacter) secondaryFacets.push("coreType");
@@ -131,18 +125,6 @@ function FilterControls({
         onChange={updateFilters}
       />
       <div className={styles.filterDivider} role="separator" />
-      <FilterPicker
-        label="Sort"
-        values={[selectedSort]}
-        options={sortOptions.map(([value, label]) => ({ value, label }))}
-        onChange={(values) => {
-          const next = values[0] as CompendiumState["sort"] | undefined;
-          if (next) onSortChange(next);
-        }}
-        mode="single"
-        clearable={false}
-      />
-      <div className={styles.filterDivider} role="separator" />
       <CardFilterPanel
         filters={state}
         facets={secondaryFacets}
@@ -156,12 +138,10 @@ function FilterControls({
 function CoreFilterControls({
   state,
   onChange,
-  onSortChange,
   onClear,
 }: {
   state: CoreCompendiumState;
   onChange: (patch: Partial<CoreCompendiumState>) => void;
-  onSortChange: (sort: CoreCompendiumState["sort"]) => void;
   onClear: () => void;
 }) {
   return (
@@ -179,18 +159,6 @@ function CoreFilterControls({
       />
       <FilterPicker label="Bonus type" values={state.bonusType === "All" ? [] : [state.bonusType]}
         options={CORE_BONUS_OPTIONS} onChange={(values) => onChange({bonusType: values[0] ?? "All"})} mode="single" />
-      <div className={styles.filterDivider} role="separator" />
-      <FilterPicker
-        label="Sort"
-        values={[state.sort]}
-        options={CORE_SORT_OPTIONS}
-        onChange={(values) => {
-          const next = values[0] as CoreCompendiumState["sort"] | undefined;
-          if (next) onSortChange(next);
-        }}
-        mode="single"
-        clearable={false}
-      />
       <div className={styles.filterDivider} role="separator" />
       <FilterPicker
         label="Set"
@@ -625,7 +593,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 state={state}
                 filterOptions={filterOptions}
                 onChange={setFilter}
-                onSortChange={(sort) => navigate({ sort }, { resetPage: true })}
                 onClear={clearFilters}
               />
             </Surface>
@@ -704,7 +671,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                   state={pendingCardFilters ?? state}
                   filterOptions={filterOptions}
                   onChange={(key, values) => setPendingCardFilters((previous) => previous ? {...previous,[key]:values} : previous)}
-                  onSortChange={(sort) => setPendingCardFilters((previous) => previous ? {...previous,sort} : previous)}
                   onClear={() => setPendingCardFilters((previous) => previous ? {...previous,set:[],type:[],coreType:[],faction:[],cost:[],rarity:[],keyword:[]} : previous)}
                 />
                 <ActionButton onClick={applyMobileCardFilters}>Show {stagedCardResultCount} results</ActionButton>
@@ -739,7 +705,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               <CoreFilterControls
                 state={coreState}
                 onChange={(patch) => navigateCore(patch, { resetPage: true })}
-                onSortChange={(sort) => navigateCore({ sort }, { resetPage: true })}
                 onClear={clearCoreFilters}
               />
             </Surface>
@@ -807,7 +772,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 <CoreFilterControls
                   state={pendingCoreFilters ?? coreState}
                   onChange={(patch) => setPendingCoreFilters((previous) => previous ? {...previous,...patch} : previous)}
-                  onSortChange={(sort) => setPendingCoreFilters((previous) => previous ? {...previous,sort} : previous)}
                   onClear={() => setPendingCoreFilters((previous) => previous ? {...previous,set:"All",type:"All",bonusType:"All"} : previous)}
                 />
                 <ActionButton onClick={applyMobileCoreFilters}>Show {stagedCoreResultCount} results</ActionButton>
