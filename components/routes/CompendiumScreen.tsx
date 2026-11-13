@@ -519,11 +519,20 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const applyMobileCoreFilters = () => {if (pendingCoreFilters) navigateCore({set:pendingCoreFilters.set,type:pendingCoreFilters.type,bonusType:pendingCoreFilters.bonusType,sort:pendingCoreFilters.sort}, {resetPage:true});setFilterSheetOpen(false);};
   const selectCard = (card: typeof CARDS[number], trigger?: HTMLElement | null, preserveTab = false) => {
     inspectorTrigger.current = trigger ?? inspectorTrigger.current;
-    navigate({ card: card.slug ?? card.catalogId, tab: preserveTab ? state.tab : "overview" }, { push: true });
+    const identity = card.slug ?? card.catalogId;
+    if (!preserveTab) {
+      // A new gallery opening is not a history restoration: use the primary scan.
+      try { sessionStorage.removeItem("compendium:inspector:" + urlFor({...state,q:searchQuery,card:identity,tab:"overview"})); } catch {}
+    }
+    navigate({ card: identity, tab: preserveTab ? state.tab : "overview" }, { push: true });
   };
   const selectCore = (core: typeof CORE_COMPENDIUM[number], trigger?: HTMLElement | null, preserveTab = false) => {
     inspectorTrigger.current = trigger ?? inspectorTrigger.current;
-    navigateCore({ core: core.catalogId ?? core.id, tab: preserveTab ? coreState.tab : "overview" }, { push: true });
+    const identity = core.catalogId ?? core.id;
+    if (!preserveTab) {
+      try { sessionStorage.removeItem("compendium:inspector:" + coreUrlFor({...coreState,q:searchQuery,core:identity,tab:"overview"})); } catch {}
+    }
+    navigateCore({ core: identity, tab: preserveTab ? coreState.tab : "overview" }, { push: true });
   };
   const copyCurrentLink = async (label: string) => {
     const path = section === "cores"
