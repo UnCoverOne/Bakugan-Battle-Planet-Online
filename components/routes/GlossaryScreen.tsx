@@ -302,6 +302,13 @@ const sections = [...glossaryCategories.map(({ name }) => name),
   ...(fullTerms.some((term) => term.category === "Other Terms") ? ["Other Terms"] : [])];
 export function GlossaryScreen({ query = "" }: { query?: string }) {
   const [category, setCategory] = useState("Printed Icons");
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    const saved=sessionStorage.getItem("compendium:glossary-category");
+    if (saved) setCategory(saved);
+    setRestored(true);
+  }, []);
+  useEffect(() => {if(restored) sessionStorage.setItem("compendium:glossary-category",category);},[category,restored]);
   const normalized = query.trim().toLowerCase();
   // Searching spans every category but does not overwrite the reading category.
   const filtered = useMemo(() => fullTerms.filter((term) =>
