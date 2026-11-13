@@ -28,7 +28,7 @@ import {
   type CompendiumState,
 } from "../../lib/compendium";
 import { CARDS, CORE_COMPENDIUM, RULE_ENTRIES } from "../../lib/data";
-import { updateCollection, type CollectionField } from "../../lib/collection";
+import { cardCollectionIds, updateCollection, type CollectionField } from "../../lib/collection";
 import { cardSetCode } from "../../lib/content/catalogue";
 import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT } from "../../lib/reference";
 import { useAppFields } from "../application/AppProvider";
@@ -238,10 +238,25 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     () => ({ ...state, q: deferredSearchQuery }),
     [deferredSearchQuery, state],
   );
-  const cards = useMemo(
-    () => section === "cards" ? filterAndSortCompendiumCards(CARDS, searchState) : [],
-    [searchState, section, catalogueRevision],
-  );
+  const cards = useMemo(() => {
+    if (section !== "cards") return [];
+    const seen = new Set<string>();
+    return filterAndSortCompendiumCards(CARDS, searchState).filter((card) => {
+      const identity = card.constructionIdentity ?? card.catalogId;
+      if (seen.has(identity)) return false;
+      seen.add(identity);
+      return true;
+    });
+  }, [searchState, section, catalogueRevision]);
+  const printingCounts = useMemo(() => {
+    const counts = new Map<string,number>();
+    for (const card of CARDS) {
+      if (card.fusionFace === "b") continue;
+      const id = card.constructionIdentity ?? card.catalogId;
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    return counts;
+  }, [catalogueRevision]);
   const cores = useMemo(
     () => section === "cores" ? filterAndSortCompendiumCores(CORE_COMPENDIUM, { ...coreState, q: deferredSearchQuery }) : [],
     [coreState, deferredSearchQuery, section],
@@ -506,6 +521,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                       <span className={styles.cardArt}>
                         <span className={styles.cardArtFrame}>
                           <ResponsiveCardImage card={card} presentation="tile" />
+                          {(printingCounts.get(card.constructionIdentity ?? card.catalogId) ?? 0) > 1 &&
+                            <span className={styles.printingsBadge} aria-label="Multiple printings">▣</span>}
                           {card.fusionPairId && (
                             <span className={styles.fusionBadge} aria-label="Fusion Character Card">
                               <FusionSymbol alt="" width={24} height={24} />
