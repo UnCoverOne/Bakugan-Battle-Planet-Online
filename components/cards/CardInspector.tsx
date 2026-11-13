@@ -401,7 +401,7 @@ export function CardInspector(props: InspectorProps) {
   const titleId = `${isCore ? "core" : "card"}-inspector-title-${itemKey}`;
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem("compendium:restore-inspector");
+      const raw = sessionStorage.getItem("compendium:restore-inspector") || sessionStorage.getItem("compendium:reference-return");
       const origin = raw ? JSON.parse(raw) as {url:string;printing:string;cardPrinting:string;fusionFace:"a"|"b";inspectorScrollY:number} : null;
       if (!origin || origin.url !== window.location.pathname + window.location.search + window.location.hash) return;
       setActivePrintingId(origin.printing || "primary");
@@ -409,6 +409,7 @@ export function CardInspector(props: InspectorProps) {
       setFusionFace(origin.fusionFace || "a");
       requestAnimationFrame(() => { if (inspectorLayoutRef.current) inspectorLayoutRef.current.scrollTop=origin.inspectorScrollY || 0; });
       sessionStorage.removeItem("compendium:restore-inspector");
+      sessionStorage.removeItem("compendium:reference-return");
     } catch { /* A stale or invalid return context must not prevent the inspector opening. */ }
   }, [itemKey]);
 
