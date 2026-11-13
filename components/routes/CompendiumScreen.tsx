@@ -455,6 +455,11 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     [pendingCoreFilters,searchQuery,cores.length],
   );
   const activeFilterCount = activeCardFilterCount(state);
+  const cardSortOptions = Object.entries(SORT_LABELS).filter(([sort]) => (
+    (state.type.length === 1 && state.type[0] === "Character" ? CHARACTER_SORTS : NON_CHARACTER_SORTS)
+      .has(sort as CompendiumState["sort"])
+  ));
+  const cardSortValue = cardSortOptions.some(([sort]) => sort === state.sort) ? state.sort : "collector";
   const activeCoreFilterCount = (["set", "type", "bonusType"] as const)
     .reduce((count, key) => count + coreState[key].length, 0);
 
@@ -583,7 +588,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               <button className={state.density === "gallery" ? "active" : ""} onClick={() => changeDensity("gallery")}>Detailed</button>
               <button className={state.density === "compact" ? "active" : ""} onClick={() => changeDensity("compact")}>Compact</button>
             </Tabs>
-            <label className={styles.sortControl}>Sort <select value={state.sort} onChange={(event) => navigate({ sort: event.target.value as CompendiumState["sort"] }, { resetPage: true })}>{Object.entries(SORT_LABELS).map(([value,label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+            <label className={styles.sortControl}>Sort <select value={cardSortValue} onChange={(event) => navigate({ sort: event.target.value as CompendiumState["sort"] }, { resetPage: true })}>{cardSortOptions.map(([value,label]) => <option value={value} key={value}>{label}</option>)}</select></label>
             <button type="button" className={styles.sortDirection} aria-label={state.direction === "asc" ? "Sort descending" : "Sort ascending"} title={state.direction === "asc" ? "Ascending" : "Descending"} onClick={() => navigate({direction:state.direction === "asc" ? "desc" : "asc"}, {resetPage:true})}>{state.direction === "asc" ? "↑" : "↓"}</button>
             <button type="button" className={styles.desktopRailToggle} aria-expanded={!desktopRailCollapsed} aria-controls="compendium-card-filter-rail" onClick={() => setDesktopRailCollapsed((value) => !value)}>{desktopRailCollapsed ? "Show filters" : "Hide filters"}</button>
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("Filtered results")}>Share results</button>
