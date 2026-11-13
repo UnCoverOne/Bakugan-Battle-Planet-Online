@@ -400,6 +400,27 @@ test("Compendium redesign uses five sections, fixed search and 48-item dual pagi
   assert.match(rulings,/expanded/);
 });
 
+test("Compendium section navigation matches the approved desktop and mobile tile design", async () => {
+  const [route, css] = await Promise.all([
+    read("components/routes/CompendiumScreen.tsx"),
+    read("components/routes/CompendiumScreen.module.css"),
+  ]);
+  const labels = ["Cards", "BakuCores", "Glossary", "Rules", "Rulings"];
+  for (const label of labels) assert.match(route, new RegExp('label:"' + label + '"'));
+  assert.match(route, /<nav ref=\{sectionNavRef\} className=\{styles\.sectionNav\}/);
+  assert.match(route, /aria-current=\{section === entry\.section \? "page" : undefined\}/);
+  assert.match(route, /onClick=\{\(\) => switchSection\(entry\.section\)\}/);
+  assert.match(route, /const destination = sectionUrls\.current\[next\]/);
+  assert.match(route, /sectionScrolls\.current\[section\] = window\.scrollY/);
+  assert.match(route, /nav\.scrollLeft/);
+  assert.match(css, /\.sectionNav\{[\s\S]*?overflow-x:auto/);
+  assert.match(css, /\.sectionNav button\{[\s\S]*?width:8\.125rem;[\s\S]*?min-height:5\.5rem/);
+  assert.match(css, /\.sectionNav button\.sectionActive\{[^}]*border-bottom-color:var\(--brand-blue\)/);
+  assert.match(css, /\.sectionNav button:focus-visible\{[^}]*outline:2px/);
+  assert.match(css, /\.sectionIcon svg\{[^}]*width:1\.625rem;height:1\.625rem/);
+  assert.match(css, /\.sectionNav button\{flex:0 0 7rem;width:7rem;min-width:7rem;min-height:4\.75rem/);
+});
+
 test("Reference navigation remains full-screen on mobile with accessible close control", async () => {
   const [drawer, styles, rules, glossary, rulings] = await Promise.all([
     read("components/routes/ReferenceContentsDrawer.tsx"),
