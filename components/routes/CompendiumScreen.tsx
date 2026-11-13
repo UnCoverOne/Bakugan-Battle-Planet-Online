@@ -490,6 +490,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               <button className={state.density === "compact" ? "active" : ""} onClick={() => navigate({ density: "compact" })}>Compact</button>
             </Tabs>
             <label className={styles.sortControl}>Sort <select value={state.sort} onChange={(event) => navigate({ sort: event.target.value as CompendiumState["sort"] }, { resetPage: true })}>{Object.entries(SORT_LABELS).map(([value,label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+            <button type="button" className={styles.sortDirection} aria-label={state.direction === "asc" ? "Sort descending" : "Sort ascending"} title={state.direction === "asc" ? "Ascending" : "Descending"} onClick={() => navigate({direction:state.direction === "asc" ? "desc" : "asc"}, {resetPage:true})}>{state.direction === "asc" ? "↑" : "↓"}</button>
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("Filtered results")}>Share results</button>
           </section>
           <div className={styles.workspace}>
@@ -604,6 +605,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               <button className={coreState.density === "compact" ? "active" : ""} onClick={() => navigateCore({ density: "compact" })}>Compact</button>
             </Tabs>
             <label className={styles.sortControl}>Sort <select value={coreState.sort} onChange={(event) => navigateCore({ sort: event.target.value as CoreCompendiumState["sort"] }, { resetPage: true })}>{CORE_SORT_OPTIONS.map(({value,label}) => <option value={value} key={value}>{label}</option>)}</select></label>
+            <button type="button" className={styles.sortDirection} aria-label={coreState.direction === "asc" ? "Sort descending" : "Sort ascending"} title={coreState.direction === "asc" ? "Ascending" : "Descending"} onClick={() => navigateCore({direction:coreState.direction === "asc" ? "desc" : "asc"}, {resetPage:true})}>{coreState.direction === "asc" ? "↑" : "↓"}</button>
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("BakuCore results")}>Share results</button>
           </section>
           <div className={styles.coreWorkspace}>
