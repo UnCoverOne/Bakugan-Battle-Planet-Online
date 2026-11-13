@@ -5,6 +5,7 @@ import { GlossaryScreen } from "./GlossaryScreen";
 import { RulingsReference } from "./RulingsReference";
 import { FusionSymbol } from "@/components/media/FusionSymbol";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
+import { OriginalImage } from "@/components/media/OriginalImage";
 
 import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -40,6 +41,7 @@ import {
   CORE_SET_OPTIONS,
   CORE_TYPE_OPTIONS,
   createCardFilterOptionCatalogue,
+  FACTION_SYMBOLS,
   type CardFilterFacet,
   type CardFilterOptionCatalogue,
 } from "../../lib/card-filters";
@@ -48,7 +50,24 @@ import { coreForSet } from "../../lib/core-preview";
 import styles from "./CompendiumScreen.module.css";
 
 const SEARCH_URL_DEBOUNCE_MS = 250;
-const NAV_ITEMS: { section: CompendiumSection; label: string; icon: string }[] = [{section:"cards",label:"Cards",icon:"▤"},{section:"cores",label:"BakuCores",icon:"⬡"},{section:"glossary",label:"Glossary",icon:"▣"},{section:"rules",label:"Rules",icon:"▥"},{section:"rulings",label:"Rulings",icon:"⚖"}];
+const NAV_ITEMS: { section: CompendiumSection; label: string; icon: "cards"|"cores"|"glossary"|"rules"|"rulings" }[] = [
+  {section:"cards",label:"Cards",icon:"cards"},
+  {section:"cores",label:"BakuCores",icon:"cores"},
+  {section:"glossary",label:"Glossary",icon:"glossary"},
+  {section:"rules",label:"Rules",icon:"rules"},
+  {section:"rulings",label:"Rulings",icon:"rulings"},
+];
+function SectionIcon({name}:{name:typeof NAV_ITEMS[number]["icon"]}) {
+  const paths: Record<typeof name, React.ReactNode> = {
+    cards: <><rect x="6" y="3" width="12" height="17" rx="1"/><path d="M3 7v14h12M9 8h6M9 12h6"/></>,
+    cores: <path d="M12 2 21 7v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10"/>,
+    glossary: <><path d="M4 5c3-1 6-1 8 1 2-2 5-2 8-1v14c-3-1-6-1-8 1-2-2-5-2-8-1zM12 6v14"/><path d="M6 9h3m-3 3h3"/></>,
+    rules: <><path d="M4 4h7l2 3h7v13H4zM7 11h10M7 15h8"/></>,
+    rulings: <><path d="M12 3v17M5 7h14M6 7l-3 7h6zM18 7l-3 7h6zM8 21h8"/></>,
+  };
+  return <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
+    strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
+}
 
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const CORE_BONUS_OPTIONS: FilterOption[] = ["B-Power", "Damage", "FrostStrike", "ShadowStrike", "Baku-Gear reduction", "Fusion"].map((value) => ({value,label:value}));
@@ -408,7 +427,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             aria-current={section === entry.section ? "page" : undefined}
             className={section === entry.section ? styles.sectionActive : ""}
             onClick={() => switchSection(entry.section)}>
-            <span className={styles.sectionIcon} aria-hidden="true">{entry.icon}</span><span>{entry.label}</span>
+            <span className={styles.sectionIcon} aria-hidden="true"><SectionIcon name={entry.icon}/></span><span>{entry.label}</span>
           </button>)}
         </nav>
         <div className={styles.search}>
@@ -454,7 +473,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               {visible.length ? (
                 <CardGrid
                   className={`${styles.cardGrid} ${state.density === "compact" ? styles.cardGridCompact : ""}`}
-                  minCardWidth={state.density === "compact" ? "9.25rem" : "11.5rem"}
+                  minCardWidth={state.density === "compact" ? "6.75rem" : "10rem"}
                 >
                   {visible.map((card) => (
                     <button
@@ -474,7 +493,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                           )}
                         </span>
                       </span>
-                      {state.density !== "compact" && <span className={styles.cardCopy}><strong>{card.displayName}</strong><span className={styles.cardBadges}><StatusChip tone="info">{card.faction}</StatusChip><StatusChip>{card.type}</StatusChip><StatusChip>{cardSetCode(card)}</StatusChip></span></span>}
+                      {state.density !== "compact" && <span className={styles.cardCopy}><strong>{card.displayName}</strong><span className={styles.cardBadges}><StatusChip tone="info"><OriginalImage src={FACTION_SYMBOLS[card.faction] ?? FACTION_SYMBOLS.Aquos} alt="" width={15} height={15} className={styles.factionIcon} /> {card.faction}</StatusChip><StatusChip>{card.type}</StatusChip><StatusChip>{cardSetCode(card)}</StatusChip></span></span>}
                     </button>
                   ))}
                 </CardGrid>
@@ -563,7 +582,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             <main className={styles.gallery} ref={resultsAnchor}>
 <nav className={styles.pagination} aria-label="BakuCore result pages"><button type="button" disabled={corePage === 1} onClick={() => navigateCore({page:corePage-1},{push:true,scroll:true})} aria-label="Previous page">‹</button>{Array.from({length:corePages},(_,i)=>i+1).filter(v=>v===1||v===corePages||Math.abs(v-corePage)<=2).map((v,i,arr)=><span className={styles.pageSlot} key={v}>{i>0&&v>arr[i-1]+1&&<span>…</span>}<button type="button" aria-current={v===corePage?"page":undefined} onClick={()=>navigateCore({page:v},{push:true,scroll:true})}>{v}</button></span>)}<button type="button" disabled={corePage===corePages} onClick={()=>navigateCore({page:corePage+1},{push:true,scroll:true})} aria-label="Next page">›</button></nav>
               {visibleCores.length ? (
-                <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>
+                <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "6.75rem" : "10rem"}>
                   {visibleCores.map((core) => {
                     const displayedCore = coreForSet(core, coreState.set);
                     const printedSet = displayedCore.set ?? "Battle Brawlers";
