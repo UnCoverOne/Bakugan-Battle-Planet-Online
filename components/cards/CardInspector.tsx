@@ -16,7 +16,7 @@ import { SYMBOL_ENTRIES, type ReferenceEntry } from "../../lib/reference";
 import { StatusChip, Tabs } from "../design-system/primitives";
 import { InspectorModal } from "./InspectorModal";
 import { ResponsiveCardImage } from "./ResponsiveCardImage";
-import { BakuganRollingOverlay, BakuganRollingStat, bakuganRollingValues } from "./BakuganRollingStats";
+import { BakuganRollingStat, bakuganRollingValues } from "./BakuganRollingStats";
 import styles from "./CardInspector.module.css";
 import { MotionValue } from "../design-system/MotionValue";
 
@@ -220,27 +220,32 @@ function CardOverview({ card }: { card: GameCard }) {
 
 function CoreOverview({ core, displayedCore }: { core: Core; displayedCore: Core }) {
   const displayedSet = displayedCore.set ?? "Battle Brawlers";
+  const bonusRows: { label: string; amount: string; icon: string }[] = [];
+  if (core.bonus) bonusRows.push({label:"B-Power",amount:signedCoreValue(core.bonus),icon:"/assets/symbols/b-power.svg"});
+  if (core.damageBonus) bonusRows.push({label:"Damage",amount:signedCoreValue(core.damageBonus),icon:"/assets/symbols/damage.svg"});
+  if (core.conditionalBonus) bonusRows.push({label:`${core.conditionalFactions?.join(" / ") ?? "Conditional"} B-Power`,amount:signedCoreValue(core.conditionalBonus),icon:"/assets/symbols/b-power.svg"});
+  if (core.conditionalDamage) bonusRows.push({label:`${core.conditionalFactions?.join(" / ") ?? "Conditional"} Damage`,amount:signedCoreValue(core.conditionalDamage),icon:"/assets/symbols/damage.svg"});
+  if (core.frostStrike) bonusRows.push({label:"FrostStrike",amount:"+" + core.frostStrike,icon:"/assets/symbols/frost-strike.svg"});
+  if (core.shadowStrike) bonusRows.push({label:"ShadowStrike",amount:"Granted",icon:"/assets/symbols/shadow-strike.svg"});
+  if (core.bakuGearCostReduction) bonusRows.push({label:"Baku-Gear Energy reduction",amount:"−" + core.bakuGearCostReduction,icon:"/assets/symbols/energy.svg"});
+  if (core.fusionBonus) bonusRows.push({label:"Fusion B-Power",amount:signedCoreValue(core.fusionBonus),icon:"/assets/symbols/b-power.svg"});
+  if (core.fusionDamageBonus) bonusRows.push({label:"Fusion Damage",amount:signedCoreValue(core.fusionDamageBonus),icon:"/assets/symbols/damage.svg"});
+  if (core.fusionFrostStrike) bonusRows.push({label:"Fusion FrostStrike",amount:"+" + core.fusionFrostStrike,icon:"/assets/symbols/frost-strike.svg"});
   const rules = coreRules(core);
-  return (
-    <div className={styles.overview}>
-      <div className={styles.identity}>
-        <div className={styles.chips}>
-          <StatusChip tone="info">{core.type}</StatusChip>
-          <StatusChip>{displayedSet}</StatusChip>
-        </div>
-        {rules.length
-          ? <p className={styles.effect}>{rules.join(" ")}</p>
-          : <p className={styles.muted}>This BakuCore has no additional rules text.</p>}
-        <dl className={styles.metadata}>
-          <div><dt>Collector</dt><dd>{displayedSet === "Armored Alliance" ? "AA" : "BB"} #{displayedCore.number}</dd></div>
-          {(core.bonus !== 0 || core.fusionBonus) && <div><dt>B-Power</dt><dd>{signedCoreValue(core.bonus)}{core.fusionBonus ? ` / ${signedCoreValue(core.fusionBonus)} fused` : ""}</dd></div>}
-          {(core.damageBonus !== 0 || core.fusionDamageBonus) && <div><dt>Damage</dt><dd>{signedCoreValue(core.damageBonus)}{core.fusionDamageBonus ? ` / ${signedCoreValue(core.fusionDamageBonus)} fused` : ""}</dd></div>}
-          <div><dt>Catalogue ID</dt><dd>{core.catalogId ?? core.id}</dd></div>
-          {displayedCore !== core && <div><dt>Rules profile</dt><dd>BB #{core.number}</dd></div>}
-        </dl>
-      </div>
+  return <div className={styles.overview}>
+    <div className={styles.identity}>
+      <div className={styles.chips}><StatusChip tone="info">{core.type}</StatusChip><StatusChip>{displayedSet}</StatusChip></div>
+      <section className={styles.bonuses}>
+        <h3>Bonuses &amp; Effects</h3>
+        {bonusRows.length ? <dl>{bonusRows.map((bonus) => <div key={bonus.label}>
+          <dt><OriginalImage src={bonus.icon} alt="" width={20} height={20}/>{bonus.label}</dt>
+          <dd>{bonus.amount}</dd>
+        </div>)}</dl> : <p className={styles.muted}>No numerical bonuses.</p>}
+        {rules.length > 0 && <p className={styles.muted}>{rules.join(" ")}</p>}
+      </section>
+      <p className={styles.collectorNote}>{displayedSet === "Armored Alliance" ? "AA" : "BB"} #{displayedCore.number}</p>
     </div>
-  );
+  </div>;
 }
 
 function CoreRelated({
