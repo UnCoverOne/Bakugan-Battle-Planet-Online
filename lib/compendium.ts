@@ -191,6 +191,7 @@ export type CoreCompendiumState = {
   q: string;
   set: string;
   type: string;
+  bonusType: string;
   sort: CoreCompendiumSort;
   density: CoreCompendiumDensity;
   page: number;
@@ -202,6 +203,7 @@ export const DEFAULT_CORE_COMPENDIUM_STATE: CoreCompendiumState = Object.freeze(
   q: "",
   set: "All",
   type: "All",
+  bonusType: "All",
   sort: "collector",
   density: "gallery",
   page: 1,
@@ -216,6 +218,7 @@ export function parseCoreCompendiumState(input: URLSearchParams | string): CoreC
     q: params.get("q") ?? "",
     set: choice(params.get("coreSet")),
     type: choice(params.get("coreType")),
+    bonusType: choice(params.get("coreBonusType")),
     sort: oneOf(params.get("coreSort"), CORE_COMPENDIUM_SORTS, DEFAULT_CORE_COMPENDIUM_STATE.sort),
     density: oneOf(params.get("coreDensity"), CORE_COMPENDIUM_DENSITIES, DEFAULT_CORE_COMPENDIUM_STATE.density),
     page: Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1,
@@ -229,6 +232,7 @@ export function coreCompendiumSearchParams(state: CoreCompendiumState) {
   if (state.q) params.set("q", state.q);
   if (state.set !== DEFAULT_CORE_COMPENDIUM_STATE.set) params.set("coreSet", state.set);
   if (state.type !== DEFAULT_CORE_COMPENDIUM_STATE.type) params.set("coreType", state.type);
+  if (state.bonusType !== DEFAULT_CORE_COMPENDIUM_STATE.bonusType) params.set("coreBonusType", state.bonusType);
   if (state.sort !== DEFAULT_CORE_COMPENDIUM_STATE.sort) params.set("coreSort", state.sort);
   if (state.density !== DEFAULT_CORE_COMPENDIUM_STATE.density) params.set("coreDensity", state.density);
   if (state.page > 1) params.set("corePage", String(state.page));
@@ -269,6 +273,17 @@ const coreSearchableText = (core: Core) => {
   return value;
 };
 
+const coreMatchesBonusType = (core: Core, type: string) => {
+  if (type === "All") return true;
+  if (type === "B-Power") return Boolean(core.bonus || core.conditionalBonus);
+  if (type === "Damage") return Boolean(core.damageBonus || core.conditionalDamage);
+  if (type === "FrostStrike") return Boolean(core.frostStrike || core.fusionFrostStrike);
+  if (type === "ShadowStrike") return Boolean(core.shadowStrike);
+  if (type === "Baku-Gear reduction") return Boolean(core.bakuGearCostReduction);
+  if (type === "Fusion") return Boolean(core.fusionBonus || core.fusionDamageBonus || core.fusionFrostStrike);
+  return true;
+};
+
 const coreMatchesSet = (core: Core, set: string) =>
   set === "All"
   || (core.set ?? "Battle Brawlers") === set
@@ -297,6 +312,7 @@ export function filterAndSortCompendiumCores(cores: readonly Core[], state: Core
   return cores.filter((core) => (
     coreMatchesSet(core, state.set)
     && (state.type === "All" || core.type === state.type)
+    && coreMatchesBonusType(core, state.bonusType)
     && (!query || coreSearchableText(core).includes(query))
   )).toSorted((left, right) => compareCompendiumCores(left, right, state.sort, state.set));
 }
