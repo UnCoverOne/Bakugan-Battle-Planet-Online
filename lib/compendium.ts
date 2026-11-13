@@ -210,6 +210,7 @@ export const DEFAULT_CORE_COMPENDIUM_STATE: CoreCompendiumState = Object.freeze(
   type: "All",
   bonusType: "All",
   sort: "collector",
+  direction: "asc",
   density: "gallery",
   page: 1,
   core: "",
