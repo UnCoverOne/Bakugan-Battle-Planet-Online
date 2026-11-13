@@ -975,3 +975,14 @@
 }
 @media(max-width:380px){.sectionNav button{min-width:5.5rem}.cardBadges>span{font-size:.62rem}}
 @media(prefers-reduced-motion:reduce){[data-ui="compendium-section-content"]{animation:none!important}.cardArtFrame,.coreArt{transition:none!important}}
+
+.factionIcon{display:inline-block;width:15px;height:15px;vertical-align:-3px;margin-right:.15rem;object-fit:contain}
+.sheetClose{display:none}
+.referenceReturn{display:flex;justify-content:space-between;align-items:center;gap:1rem;width:min(calc(100% - 2rem),var(--content-wide));margin:.7rem auto;padding:.55rem .85rem;background:var(--surface-input);border-left:3px solid var(--brand-blue);color:var(--brand-blue-bright)}
+.referenceReturn button{border:0;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.referenceReturn button:focus-visible{outline:2px solid var(--focus-color)}
+@media(max-width:700px){
+ .filterSheet .sheetClose{display:block;grid-column:1/-1;justify-self:end;min-height:2.75rem;border:1px solid var(--border-subtle);background:var(--surface-input);color:var(--text-primary);border-radius:.3rem;padding:.4rem .7rem}
+ .filterSheet> :global([data-ui="action-button"]){position:sticky;bottom:0;z-index:4;min-height:3rem;background:var(--surface-panel-raised)}
+ .referenceReturn{width:calc(100% - 1.5rem)}
+}
