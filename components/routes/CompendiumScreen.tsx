@@ -28,7 +28,7 @@ import {
   type CompendiumState,
 } from "../../lib/compendium";
 import { CARDS, CORE_COMPENDIUM, RULE_ENTRIES } from "../../lib/data";
-import { updateCollection, type CollectionField } from "../../lib/collection";
+import { updateCollection, type Collection, type CollectionField } from "../../lib/collection";
 import { cardSetCode } from "../../lib/content/catalogue";
 import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT } from "../../lib/reference";
 import { useAppFields } from "../application/AppProvider";
@@ -44,6 +44,7 @@ import {
   FACTION_SYMBOLS,
   CARD_FILTER_FACETS,
   CARD_FILTER_LABELS,
+  type CardFilterState,
   type CardFilterFacet,
   type CardFilterOptionCatalogue,
 } from "../../lib/card-filters";
@@ -114,7 +115,7 @@ function FilterControls({
   if (includesCharacter) secondaryFacets.push("coreType");
   secondaryFacets.push("keyword");
 
-  const updateFilters = (next: CompendiumState, facet: CardFilterFacet) => {
+  const updateFilters = (next: CardFilterState, facet: CardFilterFacet) => {
     onChange(facet, next[facet]);
   };
 
@@ -211,7 +212,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const { setCompendiumTab, authUser, notify, collection, setCollection, catalogueRevision } = useAppFields(["setCompendiumTab", "authUser", "notify", "collection", "setCollection", "catalogueRevision"]);
   const changeCollection = useCallback((catalogId: string, field: CollectionField, delta: number) => {
     if (!authUser) return;
-    setCollection((current) => updateCollection(current, catalogId, field, delta));
+    setCollection((current: Collection) => updateCollection(current, catalogId, field, delta));
   }, [authUser, setCollection]);
   const { section, legacyDetail } = compendiumLocation(pathname, segments);
   const state = useMemo(() => parseCompendiumState(searchParams.toString()), [searchParams]);
