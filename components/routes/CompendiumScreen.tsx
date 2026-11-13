@@ -395,6 +395,18 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     return () => removeEventListener("keydown", closeOverlays);
   }, [closeInspector, filterSheetOpen, navigateCore, selected, selectedCore]);
 
+  const stagedCardResultCount = useMemo(() => {
+    if (!pendingCardFilters) return cards.length;
+    const seen=new Set<string>();
+    for (const candidate of filterAndSortCompendiumCards(CARDS,{...pendingCardFilters,q:searchQuery})) {
+      seen.add(candidate.constructionIdentity ?? candidate.catalogId);
+    }
+    return seen.size;
+  },[pendingCardFilters,searchQuery,cards.length]);
+  const stagedCoreResultCount = useMemo(
+    () => pendingCoreFilters ? filterAndSortCompendiumCores(CORE_COMPENDIUM,{...pendingCoreFilters,q:searchQuery}).length : cores.length,
+    [pendingCoreFilters,searchQuery,cores.length],
+  );
   const activeFilterCount = activeCardFilterCount(state);
   const activeCoreFilterCount = (["set", "type", "bonusType"] as const)
     .filter((key) => coreState[key] !== "All").length;
@@ -584,7 +596,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                   onSortChange={(sort) => setPendingCardFilters((previous) => previous ? {...previous,sort} : previous)}
                   onClear={() => setPendingCardFilters((previous) => previous ? {...previous,set:[],type:[],coreType:[],faction:[],cost:[],rarity:[],keyword:[]} : previous)}
                 />
-                <ActionButton onClick={applyMobileCardFilters}>Show Results</ActionButton>
+                <ActionButton onClick={applyMobileCardFilters}>Show {stagedCardResultCount} results</ActionButton>
               </Surface>
             </div>
           )}
@@ -686,7 +698,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                   onSortChange={(sort) => setPendingCoreFilters((previous) => previous ? {...previous,sort} : previous)}
                   onClear={() => setPendingCoreFilters((previous) => previous ? {...previous,set:"All",type:"All",bonusType:"All"} : previous)}
                 />
-                <ActionButton onClick={applyMobileCoreFilters}>Show Results</ActionButton>
+                <ActionButton onClick={applyMobileCoreFilters}>Show {stagedCoreResultCount} results</ActionButton>
               </Surface>
             </div>
           )}
