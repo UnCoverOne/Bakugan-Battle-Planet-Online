@@ -432,6 +432,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   useEffect(() => {
     const closeOverlays = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
+      // Esc dismisses the uppermost facet picker before the mobile filter sheet.
+      if (document.querySelector('[data-ui="filter-popover"]')) return;
       if (filterSheetOpen) setFilterSheetOpen(false);
       else if (tabletRailOpen) setTabletRailOpen(false);
       else if (selectedCore) navigateCore({ core: "" });
