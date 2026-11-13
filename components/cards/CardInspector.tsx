@@ -358,6 +358,37 @@ export function CardInspector(props: InspectorProps) {
     : core;
   const panelId = `${isCore ? "core" : "card"}-inspector-${itemKey}-${effectiveTab}`;
   const inspectorLayoutRef = useRef<HTMLDivElement>(null);
+  const touchStart = useRef<{x:number;y:number}|null>(null);
+  const shiftPrinting = (delta: number) => {
+    if (core?.printings?.length) {
+      const ids=["primary",...core.printings.map((printing) => printing.id)];
+      setActivePrintingId((id) => ids[(Math.max(0,ids.indexOf(id))+delta+ids.length)%ids.length]);
+      return;
+    }
+    if (cardPrintings.length>1) {
+      setActiveCardPrintingId((id) => {
+        const index=Math.max(0,cardPrintings.findIndex((printing)=>printing.catalogId===id));
+        return cardPrintings[(index+delta+cardPrintings.length)%cardPrintings.length].catalogId;
+      });
+    }
+  };
+  useEffect(() => {
+    if (mode === "embedded") return;
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      if (document.querySelectorAll('[role="dialog"][aria-modal="true"]').length > 1) return;
+      const target=event.target as HTMLElement | null;
+      if (target?.closest("input,textarea,select,[contenteditable=true],[role=slider],[role=tablist]")) return;
+      const action=event.key === "ArrowLeft" ? onPrevious : onNext;
+      if (!action) return;
+      event.preventDefault();
+      action();
+    };
+    window.addEventListener("keydown",keyboard);
+    return () => window.removeEventListener("keydown",keyboard);
+  },[mode,onPrevious,onNext]);
+
   const rememberOrigin = (destination: string) => {
     if (typeof window === "undefined") return;
     const current = window.location.pathname + window.location.search + window.location.hash;
@@ -396,7 +427,15 @@ export function CardInspector(props: InspectorProps) {
         </div>
       </header>
       <div className={styles.inspectorLayout} ref={inspectorLayoutRef}>
-        <div className={styles.anchorArtwork} aria-label={isCore ? "BakuCore artwork" : "Card artwork"}>
+        <div className={styles.anchorArtwork} aria-label={isCore ? "BakuCore artwork" : "Card artwork"}
+          onTouchStart={(event) => {touchStart.current={x:event.touches[0].clientX,y:event.touches[0].clientY};}}
+          onTouchEnd={(event) => {
+            const first=touchStart.current;touchStart.current=null;
+            if(!first) return;
+            const dx=event.changedTouches[0].clientX-first.x;
+            const dy=event.changedTouches[0].clientY-first.y;
+            if(Math.abs(dx)>45 && Math.abs(dx)>Math.abs(dy)*1.25) shiftPrinting(dx<0?1:-1);
+          }}>
           {displayedCard && <div className={styles.artFrame}>
             <ResponsiveCardImage card={displayedCard} presentation="inspector" />
             {hasFusion && <button type="button" className={styles.fusionToggle}
