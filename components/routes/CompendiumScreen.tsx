@@ -33,7 +33,7 @@ import { CARD_SET_INFO, cardSetCode } from "../../lib/content/catalogue";
 import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT } from "../../lib/reference";
 import { useAppFields } from "../application/AppProvider";
 import { copyText } from "../application/ui";
-import { ActionButton, CardGrid, Field, RouteHero, StatusChip, Surface, Tabs } from "../design-system/primitives";
+import { ActionButton, CardGrid, StatusChip, Surface, Tabs } from "../design-system/primitives";
 import { CardFilterPanel } from "../filters/CardFilterPanel";
 import { FilterPicker, type FilterOption } from "../filters/FilterPicker";
 import {
@@ -45,10 +45,11 @@ import {
   type CardFilterOptionCatalogue,
 } from "../../lib/card-filters";
 import { SORT_LABELS, CHARACTER_SORTS, NON_CHARACTER_SORTS, CORE_SORT_LABELS } from "../../lib/catalogue-sorting";
-import { coreForSet, corePreviewStats } from "../../lib/core-preview";
+import { coreForSet } from "../../lib/core-preview";
 import styles from "./CompendiumScreen.module.css";
 
-const SEARCH_URL_DEBOUNCE_MS = 450;
+const SEARCH_URL_DEBOUNCE_MS = 250;
+const NAV_ITEMS: { section: CompendiumSection; label: string; icon: string }[] = [{section:"cards",label:"Cards",icon:"▤"},{section:"cores",label:"BakuCores",icon:"⬡"},{section:"glossary",label:"Glossary",icon:"▣"},{section:"rules",label:"Rules",icon:"▥"},{section:"rulings",label:"Rulings",icon:"⚖"}];
 
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const CORE_SORT_OPTIONS: FilterOption[] = Object.entries(CORE_SORT_LABELS)
@@ -195,6 +196,9 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const [searchQuery, setSearchQuery] = useState(state.q);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [tabletRailOpen, setTabletRailOpen] = useState(false);
+  const sectionQueries = useRef<Partial<Record<CompendiumSection, string>>>({});
+  const resultsAnchor = useRef<HTMLElement | null>(null);
   const inspectorTrigger = useRef<HTMLElement | null>(null);
   const localSearchEditRef = useRef(false);
   const searchTimerRef = useRef<number | null>(null);
@@ -246,7 +250,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     };
     const method = options.push ? "push" : "replace";
     window.history[method === "push" ? "pushState" : "replaceState"](null, "", urlFor(next));
-    if (options.scroll) window.scrollTo({ top: 0 });
+    if (options.scroll) requestAnimationFrame(() => resultsAnchor.current?.scrollIntoView({ block: "start" }));
   }, [searchQuery, state, urlFor]);
 
   const navigateCore = useCallback((patch: Partial<CoreCompendiumState>, options: { push?: boolean; resetPage?: boolean; scroll?: boolean } = {}) => {
@@ -258,7 +262,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     };
     const method = options.push ? "push" : "replace";
     window.history[method === "push" ? "pushState" : "replaceState"](null, "", coreUrlFor(next));
-    if (options.scroll) window.scrollTo({ top: 0 });
+    if (options.scroll) requestAnimationFrame(() => resultsAnchor.current?.scrollIntoView({ block: "start" }));
   }, [coreState, coreUrlFor, searchQuery]);
 
   const closeInspector = useCallback(() => {
@@ -268,6 +272,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   useEffect(() => {
     setCompendiumTab(section);
     setFilterSheetOpen(false);
+    setTabletRailOpen(false);
+    setSearchQuery(section === "cores" ? coreState.q : state.q);
   }, [section, setCompendiumTab]);
   useEffect(() => {
     const onPopState = () => {
@@ -352,7 +358,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     keyword: [],
   }, { resetPage: true });
   const clearCoreFilters = () => navigateCore({
-    q: "",
     set: "All",
     type: "All",
     sort: "collector",
@@ -379,7 +384,9 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     if (next === section) return;
     if (searchTimerRef.current !== null) window.clearTimeout(searchTimerRef.current);
     localSearchEditRef.current = false;
-    window.history.pushState(null, "", compendiumSectionHref(next, searchQuery));
+    sectionQueries.current[section] = searchQuery;
+    window.history.pushState(null, "", compendiumSectionHref(next, sectionQueries.current[next] ?? ""));
+    setSearchQuery(sectionQueries.current[next] ?? "");
   };
   const copyLink = async (path: string, label: string) => {
     await copyText(`${location.origin}${path}`);
@@ -387,27 +394,22 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   };
   return (
     <div className={styles.route}>
-      <RouteHero
-        eyebrow="AUTHORITATIVE REFERENCE"
-        title="Compendium"
-        aside={<div className={styles.sourceSummary}><strong>{Object.keys(CARD_SET_INFO).length} sets · {CARDS.length} cards · {CORE_COMPENDIUM.length} BakuCores</strong></div>}
-      />
-      <section className={styles.toolbar}>
-        <Field className={styles.search} label="Search the archive">
-          <input type="search" value={searchQuery} onChange={(event) => handleSearchChange(event.target.value)} placeholder="Cards, effects, IDs, mechanics…" />
-        </Field>
-        {(section === "cards" || section === "cores") && (
-          <ActionButton className={styles.toolbarFilterButton} tone="secondary" onClick={() => setFilterSheetOpen(true)}>
-            Filters{section === "cards" ? (activeFilterCount ? ` (${activeFilterCount})` : "") : (activeCoreFilterCount ? ` (${activeCoreFilterCount})` : "")}
-          </ActionButton>
-        )}
-        <Tabs label="Compendium sections">
-          <button type="button" className={section === "cards" ? "active" : ""} onClick={() => switchSection("cards")}>CARDS</button>
-          <button type="button" className={section === "cores" ? "active" : ""} onClick={() => switchSection("cores")}>BAKUCORES</button>
-          <button type="button" className={section === "rules" ? "active" : ""} onClick={() => switchSection("rules")}>RULES</button>
-          <button type="button" className={section === "glossary" ? "active" : ""} onClick={() => switchSection("glossary")}>GLOSSARY</button>
-          <button type="button" className={section === "rulings" ? "active" : ""} onClick={() => switchSection("rulings")}>RULINGS</button>
-        </Tabs>
+      <section className={styles.toolbar} aria-label="Compendium navigation and search">
+        <nav className={styles.sectionNav} aria-label="Compendium sections">
+          {NAV_ITEMS.map((entry) => <button type="button" key={entry.section}
+            aria-current={section === entry.section ? "page" : undefined}
+            className={section === entry.section ? styles.sectionActive : ""}
+            onClick={() => switchSection(entry.section)}>
+            <span className={styles.sectionIcon} aria-hidden="true">{entry.icon}</span><span>{entry.label}</span>
+          </button>)}
+        </nav>
+        <div className={styles.search}>
+          <label className={styles.visuallyHidden} htmlFor="compendium-search">Search the current Compendium section</label>
+          <span aria-hidden="true">⌕</span>
+          <input id="compendium-search" type="search" value={searchQuery} onChange={(event) => handleSearchChange(event.target.value)}
+            placeholder={section === "cards" ? "Search cards…" : section === "cores" ? "Search BakuCores…" : section === "glossary" ? "Search glossary terms…" : section === "rules" ? "Search rules…" : "Search rulings…"} />
+          {searchQuery && <button type="button" aria-label="Clear search" onClick={() => handleSearchChange("")}>×</button>}
+        </div>
       </section>
 
       <div key={section} data-ui="compendium-section-content">
@@ -416,19 +418,21 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
           <section className={styles.resultsToolbar}>
             <div>
               <strong>{cards.length.toLocaleString()} cards</strong>
-              <span>Page {page} of {pages}</span>
+              <span>Showing {cards.length ? (page - 1) * COMPENDIUM_PAGE_SIZE + 1 : 0}–{Math.min(page * COMPENDIUM_PAGE_SIZE, cards.length)} of {cards.length}</span>
             </div>
             <ActionButton className={styles.mobileFilterButton} tone="secondary" onClick={() => setFilterSheetOpen(true)}>
               Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}
             </ActionButton>
             <Tabs className={styles.densityTabs} label="Gallery density">
-              <button className={state.density === "gallery" ? "active" : ""} onClick={() => navigate({ density: "gallery" })}>Gallery</button>
+              <button className={state.density === "gallery" ? "active" : ""} onClick={() => navigate({ density: "gallery" })}>Detailed</button>
               <button className={state.density === "compact" ? "active" : ""} onClick={() => navigate({ density: "compact" })}>Compact</button>
             </Tabs>
+            <label className={styles.sortControl}>Sort <select value={state.sort} onChange={(event) => navigate({ sort: event.target.value as CompendiumState["sort"] }, { resetPage: true })}>{Object.entries(SORT_LABELS).map(([value,label]) => <option value={value} key={value}>{label}</option>)}</select></label>
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("Filtered results")}>Share results</button>
           </section>
           <div className={styles.workspace}>
-            <Surface as="aside" className={styles.filterRail} aria-label="Card filters">
+            <button className={styles.tabletFilterButton} type="button" aria-expanded={tabletRailOpen} onClick={() => setTabletRailOpen((current) => !current)}>Filters</button>
+            <Surface as="aside" className={`${styles.filterRail} ${tabletRailOpen ? styles.tabletRailOpen : ""}`} aria-label="Card filters">
               <FilterControls
                 state={state}
                 filterOptions={filterOptions}
@@ -437,7 +441,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 onClear={clearFilters}
               />
             </Surface>
-            <main className={styles.gallery}>
+            <main className={styles.gallery} ref={resultsAnchor}>
+<nav className={styles.pagination} aria-label="Card result pages"><button type="button" disabled={page === 1} onClick={() => navigate({page:page-1},{push:true,scroll:true})} aria-label="Previous page">‹</button>{Array.from({length:pages},(_,i)=>i+1).filter(v=>v===1||v===pages||Math.abs(v-page)<=2).map((v,i,arr)=><span className={styles.pageSlot} key={v}>{i>0&&v>arr[i-1]+1&&<span>…</span>}<button type="button" aria-current={v===page?"page":undefined} onClick={()=>navigate({page:v},{push:true,scroll:true})}>{v}</button></span>)}<button type="button" disabled={page===pages} onClick={()=>navigate({page:page+1},{push:true,scroll:true})} aria-label="Next page">›</button></nav>
               {visible.length ? (
                 <CardGrid
                   className={`${styles.cardGrid} ${state.density === "compact" ? styles.cardGridCompact : ""}`}
@@ -454,7 +459,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                       <span className={styles.cardArt}>
                         <span className={styles.cardArtFrame}>
                           <ResponsiveCardImage card={card} presentation="tile" />
-                          <BakuganRollingOverlay card={card} />
                           {card.fusionPairId && (
                             <span className={styles.fusionBadge} aria-label="Fusion Character Card">
                               <FusionSymbol alt="" width={24} height={24} />
@@ -462,11 +466,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                           )}
                         </span>
                       </span>
-                      <span className={styles.cardCopy}>
-                        <span className={styles.cardBadges}><StatusChip tone="info">{card.faction}</StatusChip><StatusChip>{cardSetCode(card)}</StatusChip></span>
-                        <strong>{card.displayName}</strong>
-                        <small>{card.type} · {card.cost} Energy · {card.rarity}</small>
-                      </span>
+                      {state.density !== "compact" && <span className={styles.cardCopy}><strong>{card.displayName}</strong><span className={styles.cardBadges}><StatusChip tone="info">{card.faction}</StatusChip><StatusChip>{card.type}</StatusChip><StatusChip>{cardSetCode(card)}</StatusChip></span></span>}
                     </button>
                   ))}
                 </CardGrid>
@@ -476,11 +476,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                   <ActionButton tone="secondary" onClick={clearFilters}>Clear filters</ActionButton>
                 </Surface>
               )}
-              <nav className={styles.pagination} aria-label="Card result pages">
-                <button disabled={page === 1} onClick={() => navigate({ page: page - 1 }, { push: true })}>← Previous</button>
-                <span>Page {page} of {pages}</span>
-                <button disabled={page === pages} onClick={() => navigate({ page: page + 1 }, { push: true })}>Next →</button>
-              </nav>
+              <nav className={styles.pagination} aria-label="Card result pages"><button type="button" disabled={page === 1} onClick={() => navigate({page:page-1},{push:true,scroll:true})} aria-label="Previous page">‹</button>{Array.from({length:pages},(_,i)=>i+1).filter(v=>v===1||v===pages||Math.abs(v-page)<=2).map((v,i,arr)=><span className={styles.pageSlot} key={v}>{i>0&&v>arr[i-1]+1&&<span>…</span>}<button type="button" aria-current={v===page?"page":undefined} onClick={()=>navigate({page:v},{push:true,scroll:true})}>{v}</button></span>)}<button type="button" disabled={page===pages} onClick={()=>navigate({page:page+1},{push:true,scroll:true})} aria-label="Next page">›</button></nav>
             </main>
             {selected && (
               <CardInspector
@@ -513,7 +509,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 <div className={styles.sheetDensity}>
                   <strong>Display</strong>
                   <Tabs label="Card gallery density">
-                    <button type="button" className={state.density === "gallery" ? "active" : ""} onClick={() => navigate({ density: "gallery" })}>Gallery</button>
+                    <button type="button" className={state.density === "gallery" ? "active" : ""} onClick={() => navigate({ density: "gallery" })}>Detailed</button>
                     <button type="button" className={state.density === "compact" ? "active" : ""} onClick={() => navigate({ density: "compact" })}>Compact</button>
                   </Tabs>
                 </div>
@@ -529,19 +525,21 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
           <section className={styles.resultsToolbar}>
             <div>
               <strong>{cores.length.toLocaleString()} BakuCores</strong>
-              <span>Page {corePage} of {corePages}</span>
+              <span>Showing {cores.length ? (corePage - 1) * CORE_COMPENDIUM_PAGE_SIZE + 1 : 0}–{Math.min(corePage * CORE_COMPENDIUM_PAGE_SIZE, cores.length)} of {cores.length}</span>
             </div>
             <ActionButton className={styles.mobileFilterButton} tone="secondary" onClick={() => setFilterSheetOpen(true)}>
               Filters{activeCoreFilterCount ? ` (${activeCoreFilterCount})` : ""}
             </ActionButton>
             <Tabs className={styles.densityTabs} label="BakuCore gallery density">
-              <button className={coreState.density === "gallery" ? "active" : ""} onClick={() => navigateCore({ density: "gallery" })}>Gallery</button>
+              <button className={coreState.density === "gallery" ? "active" : ""} onClick={() => navigateCore({ density: "gallery" })}>Detailed</button>
               <button className={coreState.density === "compact" ? "active" : ""} onClick={() => navigateCore({ density: "compact" })}>Compact</button>
             </Tabs>
+            <label className={styles.sortControl}>Sort <select value={coreState.sort} onChange={(event) => navigateCore({ sort: event.target.value as CoreCompendiumState["sort"] }, { resetPage: true })}>{CORE_SORT_OPTIONS.map(({value,label}) => <option value={value} key={value}>{label}</option>)}</select></label>
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("BakuCore results")}>Share results</button>
           </section>
           <div className={styles.coreWorkspace}>
-            <Surface as="aside" className={`${styles.filterRail} ${styles.coreFilterRail}`} aria-label="BakuCore filters">
+            <button className={styles.tabletFilterButton} type="button" aria-expanded={tabletRailOpen} onClick={() => setTabletRailOpen((current) => !current)}>Filters</button>
+            <Surface as="aside" className={`${styles.filterRail} ${styles.coreFilterRail} ${tabletRailOpen ? styles.tabletRailOpen : ""}`} aria-label="BakuCore filters">
               <CoreFilterControls
                 state={coreState}
                 onChange={(patch) => navigateCore(patch, { resetPage: true })}
@@ -549,12 +547,12 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 onClear={clearCoreFilters}
               />
             </Surface>
-            <main className={styles.gallery}>
+            <main className={styles.gallery} ref={resultsAnchor}>
+<nav className={styles.pagination} aria-label="BakuCore result pages"><button type="button" disabled={corePage === 1} onClick={() => navigateCore({page:corePage-1},{push:true,scroll:true})} aria-label="Previous page">‹</button>{Array.from({length:corePages},(_,i)=>i+1).filter(v=>v===1||v===corePages||Math.abs(v-corePage)<=2).map((v,i,arr)=><span className={styles.pageSlot} key={v}>{i>0&&v>arr[i-1]+1&&<span>…</span>}<button type="button" aria-current={v===corePage?"page":undefined} onClick={()=>navigateCore({page:v},{push:true,scroll:true})}>{v}</button></span>)}<button type="button" disabled={corePage===corePages} onClick={()=>navigateCore({page:corePage+1},{push:true,scroll:true})} aria-label="Next page">›</button></nav>
               {visibleCores.length ? (
                 <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>
                   {visibleCores.map((core) => {
                     const displayedCore = coreForSet(core, coreState.set);
-                    const stats = corePreviewStats(core);
                     const printedSet = displayedCore.set ?? "Battle Brawlers";
                     return (
                       <button
@@ -565,15 +563,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                         onClick={(event) => selectCore(core, event.currentTarget)}
                       >
                         <span className={styles.coreArt}><BakuCoreArt core={displayedCore} alt="" /></span>
-                        <span className={styles.cardCopy}>
-                          <strong>{core.type}</strong>
-                          <span className={styles.coreStatList} aria-label="BakuCore stats">
-                            {stats.map((stat) => <span key={stat}>{stat}</span>)}
-                          </span>
-                          <span className={styles.coreSetLabel} aria-label={`${printedSet}, collector number ${displayedCore.number}`}>
-                            {printedSet === "Armored Alliance" ? "AA" : "BB"} #{displayedCore.number}
-                          </span>
-                        </span>
+                        {coreState.density !== "compact" && <span className={styles.cardCopy}><strong>{core.type}</strong><span className={styles.coreSetLabel} aria-label={`${printedSet}, collector number ${displayedCore.number}`}>{printedSet === "Armored Alliance" ? "AA" : "BB"}</span></span>}
                       </button>
                     );
                   })}
@@ -584,11 +574,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                   <ActionButton tone="secondary" onClick={clearCoreFilters}>Clear filters</ActionButton>
                 </Surface>
               )}
-              <nav className={styles.pagination} aria-label="BakuCore result pages">
-                <button disabled={corePage === 1} onClick={() => navigateCore({ page: corePage - 1 }, { push: true })}>← Previous</button>
-                <span>Page {corePage} of {corePages}</span>
-                <button disabled={corePage === corePages} onClick={() => navigateCore({ page: corePage + 1 }, { push: true })}>Next →</button>
-              </nav>
+              <nav className={styles.pagination} aria-label="BakuCore result pages"><button type="button" disabled={corePage === 1} onClick={() => navigateCore({page:corePage-1},{push:true,scroll:true})} aria-label="Previous page">‹</button>{Array.from({length:corePages},(_,i)=>i+1).filter(v=>v===1||v===corePages||Math.abs(v-corePage)<=2).map((v,i,arr)=><span className={styles.pageSlot} key={v}>{i>0&&v>arr[i-1]+1&&<span>…</span>}<button type="button" aria-current={v===corePage?"page":undefined} onClick={()=>navigateCore({page:v},{push:true,scroll:true})}>{v}</button></span>)}<button type="button" disabled={corePage===corePages} onClick={()=>navigateCore({page:corePage+1},{push:true,scroll:true})} aria-label="Next page">›</button></nav>
             </main>
             {selectedCore && (
               <CardInspector
@@ -619,7 +605,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 <div className={styles.sheetDensity}>
                   <strong>Display</strong>
                   <Tabs label="BakuCore gallery density">
-                    <button type="button" className={coreState.density === "gallery" ? "active" : ""} onClick={() => navigateCore({ density: "gallery" })}>Gallery</button>
+                    <button type="button" className={coreState.density === "gallery" ? "active" : ""} onClick={() => navigateCore({ density: "gallery" })}>Detailed</button>
                     <button type="button" className={coreState.density === "compact" ? "active" : ""} onClick={() => navigateCore({ density: "compact" })}>Compact</button>
                   </Tabs>
                 </div>
