@@ -29,6 +29,6 @@
 .empty h2,.empty p{margin:0}.empty p{color:var(--text-secondary)}
 .empty button{min-height:2.5rem;padding:.5rem 1rem;border:1px solid var(--border-subtle);background:var(--surface-input);color:var(--text-primary);cursor:pointer}
 @keyframes glossaryHighlight{from{background:var(--surface-input)}to{background:transparent}}
-@media(max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}.rail{max-height:none;border:0;padding:1rem}}
+@media(max-width:1099px){.layout{grid-template-columns:minmax(0,1fr)}.rail{max-height:none;border:0;padding:1rem}}
 @media(max-width:700px){.iconGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}.entry{padding:.9rem 0}.entry p{line-height:1.6}}
 @media(prefers-reduced-motion:reduce){.entry:target{animation:none}}
