@@ -224,10 +224,14 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const [tabletRailOpen, setTabletRailOpen] = useState(false);
   const [desktopRailCollapsed, setDesktopRailCollapsed] = useState(false);
   const [referenceReturn, setReferenceReturn] = useState<{url:string;label:string;section:string;scrollY:number}|null>(null);
-  const sectionQueries = useRef<Partial<Record<CompendiumSection, string>>>({});
   const sectionUrls = useRef<Partial<Record<CompendiumSection, string>>>({});
   const sectionScrolls = useRef<Partial<Record<CompendiumSection, number>>>({});
+  const routeRef = useRef<HTMLDivElement | null>(null);
+  const toolbarRef = useRef<HTMLElement | null>(null);
+  const resultsToolbarRef = useRef<HTMLElement | null>(null);
   const resultsAnchor = useRef<HTMLElement | null>(null);
+  const viewAnchor = useRef<{id:string;top:number}|null>(null);
+  const filterTrigger = useRef<HTMLButtonElement | null>(null);
   const inspectorTrigger = useRef<HTMLElement | null>(null);
   const localSearchEditRef = useRef(false);
   const searchTimerRef = useRef<number | null>(null);
@@ -274,7 +278,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const visibleCores = cores.slice((corePage - 1) * CORE_COMPENDIUM_PAGE_SIZE, corePage * CORE_COMPENDIUM_PAGE_SIZE);
   const selected = section === "cards" ? selectedCompendiumCard(CARDS, state.card || legacyDetail) : null;
   const selectedCore = section === "cores" ? selectedCompendiumCore(CORE_COMPENDIUM, coreState.core) : null;
-  const normalized = deferredSearchQuery.trim().toLowerCase();
 
   const urlFor = useCallback((next: CompendiumState, path = "/compendium") => {
     const query = compendiumSearchParams(next).toString();
@@ -320,6 +323,57 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     window.history[method === "push" ? "pushState" : "replaceState"](null, "", coreUrlFor(next));
     if (options.scroll) pageNavigationPending.current = true;
   }, [coreState, coreUrlFor, searchQuery]);
+
+  useEffect(() => {
+    // The sticky toolbar can wrap at narrow widths; measure rather than guessing offsets.
+    const root = routeRef.current;
+    const nav = toolbarRef.current;
+    const controls = resultsToolbarRef.current;
+    if (!root || !nav) return;
+    const update = () => {
+      const navHeight = nav.getBoundingClientRect().height;
+      const controlsHeight = controls?.getBoundingClientRect().height ?? 0;
+      root.style.setProperty("--compendium-nav-height", `${navHeight}px`);
+      root.style.setProperty("--compendium-controls-height", `${controlsHeight}px`);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(nav);
+    if (controls) observer.observe(controls);
+    return () => observer.disconnect();
+  }, [section]);
+
+  const changeDensity = (density: CompendiumState["density"] | CoreCompendiumState["density"]) => {
+    const root = resultsAnchor.current;
+    const offset = (toolbarRef.current?.getBoundingClientRect().bottom ?? 0)
+      + (resultsToolbarRef.current?.getBoundingClientRect().height ?? 0);
+    const firstVisible = Array.from(root?.querySelectorAll<HTMLElement>("[data-compendium-result]") ?? [])
+      .find((item) => item.getBoundingClientRect().bottom > offset && item.getBoundingClientRect().top < window.innerHeight);
+    viewAnchor.current = firstVisible ? {id:firstVisible.dataset.compendiumItemId ?? "",top:firstVisible.getBoundingClientRect().top} : null;
+    if (section === "cards") navigate({density}, {});
+    else navigateCore({density}, {});
+  };
+  useEffect(() => {
+    const anchor = viewAnchor.current;
+    if (!anchor) return;
+    viewAnchor.current = null;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const item = Array.from(resultsAnchor.current?.querySelectorAll<HTMLElement>("[data-compendium-result]") ?? [])
+        .find((element) => element.dataset.compendiumItemId === anchor.id);
+      if (item) window.scrollBy({top:item.getBoundingClientRect().top - anchor.top,behavior:"instant"});
+    }));
+  }, [state.density, coreState.density, section]);
+
+  useEffect(() => {
+    if ((section === "cards" && cards.length > 0) || (section === "cores" && cores.length > 0)) return;
+    const empty = resultsAnchor.current?.querySelector<HTMLElement>('[role="status"]');
+    if (!empty) return;
+    requestAnimationFrame(() => {
+      const bounds = empty.getBoundingClientRect();
+      const bottom = toolbarRef.current?.getBoundingClientRect().bottom ?? 0;
+      if (bounds.bottom < bottom || bounds.top > window.innerHeight) empty.scrollIntoView({block:"start",behavior:"instant"});
+    });
+  }, [section,cards.length,cores.length]);
 
   useEffect(() => {
     if (!pageNavigationPending.current || (section !== "cards" && section !== "cores")) return;
@@ -411,11 +465,12 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     const closeOverlays = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (filterSheetOpen) setFilterSheetOpen(false);
+      else if (tabletRailOpen) setTabletRailOpen(false);
       else if (selectedCore) navigateCore({ core: "" });
     };
     addEventListener("keydown", closeOverlays);
     return () => removeEventListener("keydown", closeOverlays);
-  }, [closeInspector, filterSheetOpen, navigateCore, selected, selectedCore]);
+  }, [filterSheetOpen, tabletRailOpen, navigateCore, selectedCore]);
 
   const stagedCardResultCount = useMemo(() => {
     if (!pendingCardFilters) return cards.length;
@@ -457,9 +512,36 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     keyword: [],
   }, { resetPage: true });
   const clearCoreFilters = () => navigateCore({ set: "All", type: "All", bonusType: "All" }, {resetPage:true});
-  const openFilterSheet = () => {setPendingCardFilters({...state});setPendingCoreFilters({...coreState});setFilterSheetOpen(true);};
-  const applyMobileCardFilters = () => {if (pendingCardFilters) navigate({set:pendingCardFilters.set,type:pendingCardFilters.type,coreType:pendingCardFilters.coreType,faction:pendingCardFilters.faction,cost:pendingCardFilters.cost,rarity:pendingCardFilters.rarity,keyword:pendingCardFilters.keyword}, {resetPage:true});setFilterSheetOpen(false);};
-  const applyMobileCoreFilters = () => {if (pendingCoreFilters) navigateCore({set:pendingCoreFilters.set,type:pendingCoreFilters.type,bonusType:pendingCoreFilters.bonusType}, {resetPage:true});setFilterSheetOpen(false);};
+  const openFilterSheet = (trigger?: HTMLButtonElement | null) => {
+    filterTrigger.current = trigger ?? null;
+    setPendingCardFilters({...state});
+    setPendingCoreFilters({...coreState});
+    setFilterSheetOpen(true);
+  };
+  useEffect(() => {
+    if (!filterSheetOpen) return;
+    const panel = document.querySelector<HTMLElement>('[data-motion-surface="filter-sheet"]');
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    panel?.querySelector<HTMLButtonElement>("button")?.focus();
+    const onTab = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || !panel) return;
+      const items = Array.from(panel.querySelectorAll<HTMLElement>('button:not(:disabled),select,input,[tabindex="0"]'))
+        .filter((item) => item.getClientRects().length > 0);
+      if (!items.length) return;
+      const first = items[0], last = items[items.length-1];
+      if (event.shiftKey && document.activeElement === first) {event.preventDefault();last.focus();}
+      else if (!event.shiftKey && document.activeElement === last) {event.preventDefault();first.focus();}
+    };
+    document.addEventListener("keydown",onTab);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown",onTab);
+      filterTrigger.current?.focus();
+    };
+  }, [filterSheetOpen]);
+  const applyMobileCardFilters = () => {if (pendingCardFilters) navigate({set:pendingCardFilters.set,type:pendingCardFilters.type,coreType:pendingCardFilters.coreType,faction:pendingCardFilters.faction,cost:pendingCardFilters.cost,rarity:pendingCardFilters.rarity,keyword:pendingCardFilters.keyword,sort:pendingCardFilters.sort}, {resetPage:true});setFilterSheetOpen(false);};
+  const applyMobileCoreFilters = () => {if (pendingCoreFilters) navigateCore({set:pendingCoreFilters.set,type:pendingCoreFilters.type,bonusType:pendingCoreFilters.bonusType,sort:pendingCoreFilters.sort}, {resetPage:true});setFilterSheetOpen(false);};
   const selectCard = (card: typeof CARDS[number], trigger?: HTMLElement | null, preserveTab = false) => {
     inspectorTrigger.current = trigger ?? inspectorTrigger.current;
     navigate({ card: card.slug ?? card.catalogId, tab: preserveTab ? state.tab : "overview" }, { push: true });
@@ -478,20 +560,22 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const switchSection = (next: CompendiumSection) => {
     if (next === section) return;
     if (searchTimerRef.current !== null) window.clearTimeout(searchTimerRef.current);
+    // Capture even an uncommitted query before switching away.
+    if (localSearchEditRef.current) commitSearch(searchQuery);
     localSearchEditRef.current = false;
-    sectionQueries.current[section] = searchQuery;
     sectionUrls.current[section] = window.location.pathname + window.location.search + window.location.hash;
     sectionScrolls.current[section] = window.scrollY;
-    window.history.pushState(null, "", sectionUrls.current[next] ?? compendiumSectionHref(next, sectionQueries.current[next] ?? ""));
-    setSearchQuery(sectionQueries.current[next] ?? "");
+    const destination = sectionUrls.current[next] ?? compendiumSectionHref(next);
+    window.history.pushState(null, "", destination);
+    setSearchQuery(new URL(destination,window.location.origin).searchParams.get("q") ?? "");
   };
   const copyLink = async (path: string, label: string) => {
     await copyText(`${location.origin}${path}`);
     notify(`${label} link copied.`);
   };
   return (
-    <div className={styles.route}>
-      <section className={styles.toolbar} aria-label="Compendium navigation and search">
+    <div ref={routeRef} className={styles.route}>
+      <section ref={toolbarRef} className={styles.toolbar} aria-label="Compendium navigation and search">
         <nav className={styles.sectionNav} aria-label="Compendium sections">
           {NAV_ITEMS.map((entry) => <button type="button" key={entry.section}
             aria-current={section === entry.section ? "page" : undefined}
@@ -517,25 +601,26 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
       {referenceReturn && ["rules","glossary","rulings"].includes(section) && <div className={styles.referenceReturn}><button type="button" onClick={returnToReferenceSource}>← Back to {referenceReturn.label}</button><button type="button" aria-label="Dismiss return link" onClick={() => {sessionStorage.removeItem("compendium:reference-return");setReferenceReturn(null);}}>×</button></div>}
       {section === "cards" && (
         <>
-          <section className={styles.resultsToolbar}>
+          <section ref={resultsToolbarRef} className={styles.resultsToolbar}>
             <div>
               <strong>{cards.length.toLocaleString()} cards</strong>
               <span>Showing {cards.length ? (page - 1) * COMPENDIUM_PAGE_SIZE + 1 : 0}–{Math.min(page * COMPENDIUM_PAGE_SIZE, cards.length)} of {cards.length}</span>
             </div>
-            <ActionButton className={styles.mobileFilterButton} tone="secondary" onClick={openFilterSheet}>
+            <ActionButton className={styles.mobileFilterButton} tone="secondary" onClick={(event) => openFilterSheet(event.currentTarget)}>
               Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}
             </ActionButton>
             <Tabs className={styles.densityTabs} label="Gallery density">
-              <button className={state.density === "gallery" ? "active" : ""} onClick={() => navigate({ density: "gallery" })}>Detailed</button>
-              <button className={state.density === "compact" ? "active" : ""} onClick={() => navigate({ density: "compact" })}>Compact</button>
+              <button className={state.density === "gallery" ? "active" : ""} onClick={() => changeDensity("gallery")}>Detailed</button>
+              <button className={state.density === "compact" ? "active" : ""} onClick={() => changeDensity("compact")}>Compact</button>
             </Tabs>
             <label className={styles.sortControl}>Sort <select value={state.sort} onChange={(event) => navigate({ sort: event.target.value as CompendiumState["sort"] }, { resetPage: true })}>{Object.entries(SORT_LABELS).map(([value,label]) => <option value={value} key={value}>{label}</option>)}</select></label>
             <button type="button" className={styles.sortDirection} aria-label={state.direction === "asc" ? "Sort descending" : "Sort ascending"} title={state.direction === "asc" ? "Ascending" : "Descending"} onClick={() => navigate({direction:state.direction === "asc" ? "desc" : "asc"}, {resetPage:true})}>{state.direction === "asc" ? "↑" : "↓"}</button>
+            <button type="button" className={styles.desktopRailToggle} aria-expanded={!desktopRailCollapsed} aria-controls="compendium-card-filter-rail" onClick={() => setDesktopRailCollapsed((value) => !value)}>{desktopRailCollapsed ? "Show filters" : "Hide filters"}</button>
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("Filtered results")}>Share results</button>
           </section>
           <div className={`${styles.workspace} ${desktopRailCollapsed ? styles.workspaceCollapsed : ""}`}>
             <button className={styles.tabletFilterButton} type="button" aria-expanded={tabletRailOpen} onClick={() => setTabletRailOpen((current) => !current)}>Filters</button>
-            <Surface as="aside" className={`${styles.filterRail} ${tabletRailOpen ? styles.tabletRailOpen : ""}`} aria-label="Card filters">
+            <Surface as="aside" id="compendium-card-filter-rail" className={`${styles.filterRail} ${tabletRailOpen ? styles.tabletRailOpen : ""}`} aria-label="Card filters">
               <FilterControls
                 state={state}
                 filterOptions={filterOptions}
@@ -562,7 +647,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                       className={`${styles.cardTile} ${selected?.catalogId === card.catalogId ? styles.cardTileSelected : ""}`}
                       type="button"
                       aria-pressed={selected?.catalogId === card.catalogId}
-                      key={card.catalogId} data-compendium-result
+                      key={card.catalogId} data-compendium-result data-compendium-item-id={card.catalogId}
                       onClick={(event) => selectCard(card, event.currentTarget)}
                     >
                       <span className={styles.cardArt}>
@@ -631,25 +716,26 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
 
       {section === "cores" && (
         <>
-          <section className={styles.resultsToolbar}>
+          <section ref={resultsToolbarRef} className={styles.resultsToolbar}>
             <div>
               <strong>{cores.length.toLocaleString()} BakuCores</strong>
               <span>Showing {cores.length ? (corePage - 1) * CORE_COMPENDIUM_PAGE_SIZE + 1 : 0}–{Math.min(corePage * CORE_COMPENDIUM_PAGE_SIZE, cores.length)} of {cores.length}</span>
             </div>
-            <ActionButton className={styles.mobileFilterButton} tone="secondary" onClick={openFilterSheet}>
+            <ActionButton className={styles.mobileFilterButton} tone="secondary" onClick={(event) => openFilterSheet(event.currentTarget)}>
               Filters{activeCoreFilterCount ? ` (${activeCoreFilterCount})` : ""}
             </ActionButton>
             <Tabs className={styles.densityTabs} label="BakuCore gallery density">
-              <button className={coreState.density === "gallery" ? "active" : ""} onClick={() => navigateCore({ density: "gallery" })}>Detailed</button>
-              <button className={coreState.density === "compact" ? "active" : ""} onClick={() => navigateCore({ density: "compact" })}>Compact</button>
+              <button className={coreState.density === "gallery" ? "active" : ""} onClick={() => changeDensity("gallery")}>Detailed</button>
+              <button className={coreState.density === "compact" ? "active" : ""} onClick={() => changeDensity("compact")}>Compact</button>
             </Tabs>
             <label className={styles.sortControl}>Sort <select value={coreState.sort} onChange={(event) => navigateCore({ sort: event.target.value as CoreCompendiumState["sort"] }, { resetPage: true })}>{CORE_SORT_OPTIONS.map(({value,label}) => <option value={value} key={value}>{label}</option>)}</select></label>
             <button type="button" className={styles.sortDirection} aria-label={coreState.direction === "asc" ? "Sort descending" : "Sort ascending"} title={coreState.direction === "asc" ? "Ascending" : "Descending"} onClick={() => navigateCore({direction:coreState.direction === "asc" ? "desc" : "asc"}, {resetPage:true})}>{coreState.direction === "asc" ? "↑" : "↓"}</button>
+            <button type="button" className={styles.desktopRailToggle} aria-expanded={!desktopRailCollapsed} aria-controls="compendium-core-filter-rail" onClick={() => setDesktopRailCollapsed((value) => !value)}>{desktopRailCollapsed ? "Show filters" : "Hide filters"}</button>
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("BakuCore results")}>Share results</button>
           </section>
           <div className={`${styles.coreWorkspace} ${desktopRailCollapsed ? styles.workspaceCollapsed : ""}`}>
             <button className={styles.tabletFilterButton} type="button" aria-expanded={tabletRailOpen} onClick={() => setTabletRailOpen((current) => !current)}>Filters</button>
-            <Surface as="aside" className={`${styles.filterRail} ${styles.coreFilterRail} ${tabletRailOpen ? styles.tabletRailOpen : ""}`} aria-label="BakuCore filters">
+            <Surface as="aside" id="compendium-core-filter-rail" className={`${styles.filterRail} ${styles.coreFilterRail} ${tabletRailOpen ? styles.tabletRailOpen : ""}`} aria-label="BakuCore filters">
               <CoreFilterControls
                 state={coreState}
                 onChange={(patch) => navigateCore(patch, { resetPage: true })}
@@ -675,7 +761,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                         className={`${styles.cardTile} ${styles.coreTile} ${selectedCore?.id === core.id ? styles.cardTileSelected : ""}`}
                         type="button"
                         aria-pressed={selectedCore?.id === core.id}
-                        key={core.id} data-compendium-result
+                        key={core.id} data-compendium-result data-compendium-item-id={core.id}
                         onClick={(event) => selectCore(core, event.currentTarget)}
                       >
                         <span className={styles.coreArt}><BakuCoreArt core={displayedCore} alt="" /></span>
