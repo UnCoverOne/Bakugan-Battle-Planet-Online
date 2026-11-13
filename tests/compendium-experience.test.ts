@@ -72,6 +72,7 @@ test("Compendium URL state round-trips filters, density, selection, and inspecto
     rarity: ["Rare"],
     keyword: ["Victor"],
     sort: "name-desc",
+    direction: "asc",
     density: "compact",
     page: 3,
     card: "bb-1",
@@ -261,6 +262,7 @@ test("BakuCore compendium state filters, sorts, and selects both sets", () => {
     type: "Fist",
     bonusType: "All",
     sort: "bonus",
+    direction: "asc",
     density: "compact",
     page: 2,
     core: "aa-core-70",
@@ -275,6 +277,23 @@ test("BakuCore compendium state filters, sorts, and selects both sets", () => {
   ];
   assert.deepEqual(filterAndSortCompendiumCores(candidates, state).map((candidate) => candidate.id), ["aa-core-70", "aa-core-71"]);
   assert.equal(selectedCompendiumCore(candidates, "aa-core-70")?.number, 70);
+});
+
+test("BakuCore bonus type and sort direction serialize and filter independently", () => {
+  const filtered = parseCoreCompendiumState("coreBonusType=Fusion&coreDirection=desc");
+  assert.equal(filtered.bonusType,"Fusion");
+  assert.equal(filtered.direction,"desc");
+  assert.equal(coreCompendiumSearchParams(filtered).get("coreBonusType"),"Fusion");
+  assert.equal(coreCompendiumSearchParams(filtered).get("coreDirection"),"desc");
+  const cores = [
+    core({id:"core-1",number:1,name:"One",fusionBonus:0}),
+    core({id:"core-2",number:2,name:"Two",fusionBonus:2}),
+    core({id:"core-3",number:3,name:"Three",fusionDamageBonus:1}),
+  ];
+  assert.deepEqual(filterAndSortCompendiumCores(cores,filtered).map((item)=>item.id),["core-3","core-2"]);
+  const descending = parseCompendiumState("direction=desc");
+  assert.equal(descending.direction,"desc");
+  assert.equal(compendiumSearchParams(descending).get("direction"),"desc");
 });
 
 test("BakuCore collector ordering groups sets and sorts each set numerically", () => {
