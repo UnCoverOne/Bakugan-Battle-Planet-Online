@@ -65,7 +65,7 @@ function SectionIcon({name}:{name:typeof NAV_ITEMS[number]["icon"]}) {
     cards: <><rect x="6" y="3" width="12" height="17" rx="1"/><path d="M3 7v14h12M9 8h6M9 12h6"/></>,
     cores: <path d="M12 2 21 7v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10"/>,
     glossary: <><path d="M4 5c3-1 6-1 8 1 2-2 5-2 8-1v14c-3-1-6-1-8 1-2-2-5-2-8-1zM12 6v14"/><path d="M6 9h3m-3 3h3"/></>,
-    rules: <><path d="M4 4h7l2 3h7v13H4zM7 11h10M7 15h8"/></>,
+    rules: <><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5Z"/><path d="M8 7h8M8 11h7M8 15h5"/></>,
     rulings: <><path d="M12 3v17M5 7h14M6 7l-3 7h6zM18 7l-3 7h6zM8 21h8"/></>,
   };
   return <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
@@ -212,6 +212,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const sectionScrolls = useRef<Partial<Record<CompendiumSection, number>>>({});
   const routeRef = useRef<HTMLDivElement | null>(null);
   const toolbarRef = useRef<HTMLElement | null>(null);
+  const sectionNavRef = useRef<HTMLElement | null>(null);
   const resultsToolbarRef = useRef<HTMLElement | null>(null);
   const resultsAnchor = useRef<HTMLElement | null>(null);
   const viewAnchor = useRef<{id:string;top:number}|null>(null);
@@ -557,6 +558,21 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     await copyText(`${location.origin}${path}`);
     notify(`${label} link copied.`);
   };
+  // Keep the active tile visible in the horizontally scrollable phone navigation.
+  // Adjust only the nav's horizontal scroll, never the document's reading position.
+  useEffect(() => {
+    const nav = sectionNavRef.current;
+    if (!nav || !window.matchMedia("(max-width: 699px)").matches) return;
+    const current = nav.querySelector<HTMLButtonElement>('[aria-current="page"]');
+    if (!current) return;
+    const left = current.offsetLeft;
+    const right = left + current.offsetWidth;
+    const viewportLeft = nav.scrollLeft;
+    const viewportRight = viewportLeft + nav.clientWidth;
+    if (left < viewportLeft) nav.scrollLeft = left;
+    else if (right > viewportRight) nav.scrollLeft = right - nav.clientWidth;
+  }, [section]);
+
   const switchSection = (next: CompendiumSection) => {
     if (next === section) return;
     if (searchTimerRef.current !== null) window.clearTimeout(searchTimerRef.current);
@@ -576,7 +592,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   return (
     <div ref={routeRef} className={styles.route}>
       <section ref={toolbarRef} className={styles.toolbar} aria-label="Compendium navigation and search">
-        <nav className={styles.sectionNav} aria-label="Compendium sections">
+        <nav ref={sectionNavRef} className={styles.sectionNav} aria-label="Compendium sections">
           {NAV_ITEMS.map((entry) => <button type="button" key={entry.section}
             aria-current={section === entry.section ? "page" : undefined}
             className={section === entry.section ? styles.sectionActive : ""}
