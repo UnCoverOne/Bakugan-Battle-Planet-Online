@@ -328,7 +328,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     if (!referenceReturn) return;
     const restoration = sessionStorage.getItem("compendium:reference-return");
     if (restoration) sessionStorage.setItem("compendium:restore-inspector",restoration);
-    window.history.pushState(null, "", referenceReturn.url);
+    window.history.back();
     requestAnimationFrame(() => window.scrollTo({top:referenceReturn.scrollY}));
     sessionStorage.removeItem("compendium:reference-return");
     setReferenceReturn(null);
