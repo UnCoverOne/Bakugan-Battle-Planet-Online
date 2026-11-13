@@ -115,7 +115,7 @@ function FilterControls({
   return (
     <>
       <div className={styles.filterHeading}>
-        <div><h2>Filters &amp; sort</h2></div>
+        <div><h2>Filters</h2></div>
         <button type="button" onClick={onClear}>Clear</button>
       </div>
       <CardFilterPanel
@@ -147,25 +147,25 @@ function CoreFilterControls({
   return (
     <>
       <div className={styles.filterHeading}>
-        <div><h2>Filters &amp; sort</h2></div>
+        <div><h2>Filters</h2></div>
         <button type="button" onClick={onClear}>Clear</button>
       </div>
       <FilterPicker
         label="Core type"
-        values={state.type === "All" ? [] : [state.type]}
+        values={state.type}
         options={CORE_TYPE_OPTIONS}
-        onChange={(values) => onChange({ type: values[0] ?? "All" })}
-        mode="single"
+        onChange={(values) => onChange({ type: values })}
+        mode="multi"
       />
-      <FilterPicker label="Bonus type" values={state.bonusType === "All" ? [] : [state.bonusType]}
-        options={CORE_BONUS_OPTIONS} onChange={(values) => onChange({bonusType: values[0] ?? "All"})} mode="single" />
+      <FilterPicker label="Bonus type" values={state.bonusType}
+        options={CORE_BONUS_OPTIONS} onChange={(values) => onChange({bonusType: values})} mode="multi" />
       <div className={styles.filterDivider} role="separator" />
       <FilterPicker
         label="Set"
-        values={state.set === "All" ? [] : [state.set]}
+        values={state.set}
         options={CORE_SET_OPTIONS}
-        onChange={(values) => onChange({ set: values[0] ?? "All" })}
-        mode="single"
+        onChange={(values) => onChange({ set: values })}
+        mode="multi"
       />
     </>
   );
@@ -456,7 +456,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   );
   const activeFilterCount = activeCardFilterCount(state);
   const activeCoreFilterCount = (["set", "type", "bonusType"] as const)
-    .filter((key) => coreState[key] !== "All").length;
+    .reduce((count, key) => count + coreState[key].length, 0);
 
   const setFilter = (key: FilterKey, values: string[]) => {
     if (key !== "type") return navigate({ [key]: values } as StatePatch, { resetPage: true });
@@ -481,7 +481,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     rarity: [],
     keyword: [],
   }, { resetPage: true });
-  const clearCoreFilters = () => navigateCore({ set: "All", type: "All", bonusType: "All" }, {resetPage:true});
+  const clearCoreFilters = () => navigateCore({ set: [], type: [], bonusType: [] }, {resetPage:true});
   const openFilterSheet = (trigger?: HTMLButtonElement | null) => {
     filterTrigger.current = trigger ?? null;
     setPendingCardFilters({...state});
@@ -713,15 +713,16 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             <main className={styles.gallery} ref={resultsAnchor}>
 {cores.length > 0 && (<nav className={styles.pagination} aria-label="BakuCore result pages"><button type="button" disabled={corePage === 1} onClick={() => navigateCore({page:corePage-1},{push:true,scroll:true})} aria-label="Previous page">‹</button>{Array.from({length:corePages},(_,i)=>i+1).filter(v=>v===1||v===corePages||Math.abs(v-corePage)<=2).map((v,i,arr)=><span className={styles.pageSlot} key={v}>{i>0&&v>arr[i-1]+1&&<span>…</span>}<button type="button" aria-current={v===corePage?"page":undefined} onClick={()=>navigateCore({page:v},{push:true,scroll:true})}>{v}</button></span>)}<button type="button" disabled={corePage===corePages} onClick={()=>navigateCore({page:corePage+1},{push:true,scroll:true})} aria-label="Next page">›</button></nav>)}
               {activeCoreFilterCount > 0 && <div className={styles.activeFilters} aria-label="Active BakuCore filters">
-                {(["type","set","bonusType"] as const).filter((key) => coreState[key] !== "All").map((key) =>
-                  <button type="button" key={key} onClick={() => navigateCore({[key]:"All"}, {resetPage:true})}
-                    aria-label={`Remove ${coreState[key]} filter`}>{coreState[key]}<span aria-hidden="true">×</span></button>)}
+                {(["type","set","bonusType"] as const).flatMap((key) => coreState[key].map((value) =>
+                  <button type="button" key={key + ":" + value}
+                    onClick={() => navigateCore({[key]:coreState[key].filter((choice) => choice !== value)}, {resetPage:true})}
+                    aria-label={`Remove ${value} filter`}>{value}<span aria-hidden="true">×</span></button>))}
                 <button type="button" className={styles.clearChips} onClick={clearCoreFilters}>Clear all</button>
               </div>}
               {visibleCores.length ? (
                 <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "6.75rem" : "10rem"}>
                   {visibleCores.map((core) => {
-                    const displayedCore = coreForSet(core, coreState.set);
+                    const displayedCore = coreForSet(core, coreState.set.length === 1 ? coreState.set[0] : "All");
                     const printedSet = displayedCore.set ?? "Battle Brawlers";
                     return (
                       <button
@@ -774,7 +775,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 <CoreFilterControls
                   state={pendingCoreFilters ?? coreState}
                   onChange={(patch) => setPendingCoreFilters((previous) => previous ? {...previous,...patch} : previous)}
-                  onClear={() => setPendingCoreFilters((previous) => previous ? {...previous,set:"All",type:"All",bonusType:"All"} : previous)}
+                  onClear={() => setPendingCoreFilters((previous) => previous ? {...previous,set:[],type:[],bonusType:[]} : previous)}
                 />
                 <ActionButton onClick={applyMobileCoreFilters}>Show {stagedCoreResultCount} results</ActionButton>
               </Surface>
