@@ -1009,3 +1009,7 @@
 /* Cross-section return context stays discoverable when a deep-link scrolls to its target. */
 .referenceReturn{position:sticky;top:calc(var(--site-header-height,76px) + 9rem);z-index:72}
 @media(max-width:700px){.referenceReturn{top:calc(var(--site-header-height,64px) + 9.3rem)}}
+
+/* Explicit pagination aligns the first artwork below the persistent Compendium controls. */
+.gallery [data-compendium-result]{scroll-margin-top:15rem}
+@media(max-width:700px){.gallery [data-compendium-result]{scroll-margin-top:18rem}}
