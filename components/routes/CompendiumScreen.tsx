@@ -11,7 +11,6 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { compendiumLocation, compendiumSectionHref, type CompendiumSection } from "../../lib/compendium-navigation";
 import { CardInspector } from "../cards/CardInspector";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
-import { BakuganRollingOverlay } from "../cards/BakuganRollingStats";
 import {
   COMPENDIUM_PAGE_SIZE,
   CORE_COMPENDIUM_PAGE_SIZE,
@@ -29,7 +28,7 @@ import {
 } from "../../lib/compendium";
 import { CARDS, CORE_COMPENDIUM, RULE_ENTRIES } from "../../lib/data";
 import { updateCollection, type CollectionField } from "../../lib/collection";
-import { CARD_SET_INFO, cardSetCode } from "../../lib/content/catalogue";
+import { cardSetCode } from "../../lib/content/catalogue";
 import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT } from "../../lib/reference";
 import { useAppFields } from "../application/AppProvider";
 import { copyText } from "../application/ui";
@@ -52,6 +51,7 @@ const SEARCH_URL_DEBOUNCE_MS = 250;
 const NAV_ITEMS: { section: CompendiumSection; label: string; icon: string }[] = [{section:"cards",label:"Cards",icon:"▤"},{section:"cores",label:"BakuCores",icon:"⬡"},{section:"glossary",label:"Glossary",icon:"▣"},{section:"rules",label:"Rules",icon:"▥"},{section:"rulings",label:"Rulings",icon:"⚖"}];
 
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+const CORE_BONUS_OPTIONS: FilterOption[] = ["B-Power", "Damage", "FrostStrike", "ShadowStrike", "Baku-Gear reduction", "Fusion"].map((value) => ({value,label:value}));
 const CORE_SORT_OPTIONS: FilterOption[] = Object.entries(CORE_SORT_LABELS)
   .map(([value, label]) => ({ value, label }));
 
@@ -156,6 +156,8 @@ function CoreFilterControls({
         onChange={(values) => onChange({ type: values[0] ?? "All" })}
         mode="single"
       />
+      <FilterPicker label="Bonus type" values={state.bonusType === "All" ? [] : [state.bonusType]}
+        options={CORE_BONUS_OPTIONS} onChange={(values) => onChange({bonusType: values[0] ?? "All"})} mode="single" />
       <div className={styles.filterDivider} role="separator" />
       <FilterPicker
         label="Sort"
@@ -196,6 +198,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const [searchQuery, setSearchQuery] = useState(state.q);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [pendingCardFilters, setPendingCardFilters] = useState<CompendiumState | null>(null);
+  const [pendingCoreFilters, setPendingCoreFilters] = useState<CoreCompendiumState | null>(null);
   const [tabletRailOpen, setTabletRailOpen] = useState(false);
   const sectionQueries = useRef<Partial<Record<CompendiumSection, string>>>({});
   const resultsAnchor = useRef<HTMLElement | null>(null);
@@ -331,7 +335,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   }, [closeInspector, filterSheetOpen, navigateCore, selected, selectedCore]);
 
   const activeFilterCount = activeCardFilterCount(state);
-  const activeCoreFilterCount = (["set", "type"] as const)
+  const activeCoreFilterCount = (["set", "type", "bonusType"] as const)
     .filter((key) => coreState[key] !== "All").length;
 
   const setFilter = (key: FilterKey, values: string[]) => {
@@ -360,11 +364,15 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const clearCoreFilters = () => navigateCore({
     set: "All",
     type: "All",
+    bonusType: "All",
     sort: "collector",
     density: "gallery",
     page: 1,
     core: "",
   });
+  const openFilterSheet = () => {setPendingCardFilters({...state});setPendingCoreFilters({...coreState});setFilterSheetOpen(true);};
+  const applyMobileCardFilters = () => {if (pendingCardFilters) navigate({set:pendingCardFilters.set,type:pendingCardFilters.type,coreType:pendingCardFilters.coreType,faction:pendingCardFilters.faction,cost:pendingCardFilters.cost,rarity:pendingCardFilters.rarity,keyword:pendingCardFilters.keyword}, {resetPage:true});setFilterSheetOpen(false);};
+  const applyMobileCoreFilters = () => {if (pendingCoreFilters) navigateCore({set:pendingCoreFilters.set,type:pendingCoreFilters.type,bonusType:pendingCoreFilters.bonusType}, {resetPage:true});setFilterSheetOpen(false);};
   const selectCard = (card: typeof CARDS[number], trigger?: HTMLElement | null) => {
     inspectorTrigger.current = trigger ?? inspectorTrigger.current;
     navigate({ card: card.slug ?? card.catalogId, tab: "overview" }, { push: true });
@@ -420,7 +428,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               <strong>{cards.length.toLocaleString()} cards</strong>
               <span>Showing {cards.length ? (page - 1) * COMPENDIUM_PAGE_SIZE + 1 : 0}–{Math.min(page * COMPENDIUM_PAGE_SIZE, cards.length)} of {cards.length}</span>
             </div>
-            <ActionButton className={styles.mobileFilterButton} tone="secondary" onClick={() => setFilterSheetOpen(true)}>
+            <ActionButton className={styles.mobileFilterButton} tone="secondary" onClick={openFilterSheet}>
               Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}
             </ActionButton>
             <Tabs className={styles.densityTabs} label="Gallery density">
@@ -499,12 +507,13 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
           {filterSheetOpen && (
             <div data-ui="filter-backdrop" className={styles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}>
               <Surface as="aside" data-motion-surface="filter-sheet" className={styles.filterSheet} role="dialog" aria-modal="true" aria-label="Card filters">
+                <button type="button" className={styles.sheetClose} onClick={() => setFilterSheetOpen(false)} aria-label="Dismiss filters">× Close</button>
                 <FilterControls
-                  state={state}
+                  state={pendingCardFilters ?? state}
                   filterOptions={filterOptions}
-                  onChange={setFilter}
-                  onSortChange={(sort) => navigate({ sort }, { resetPage: true })}
-                  onClear={clearFilters}
+                  onChange={(key, values) => setPendingCardFilters((previous) => previous ? {...previous,[key]:values} : previous)}
+                  onSortChange={(sort) => setPendingCardFilters((previous) => previous ? {...previous,sort} : previous)}
+                  onClear={() => setPendingCardFilters((previous) => previous ? {...previous,set:[],type:[],coreType:[],faction:[],cost:[],rarity:[],keyword:[]} : previous)}
                 />
                 <div className={styles.sheetDensity}>
                   <strong>Display</strong>
@@ -513,7 +522,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                     <button type="button" className={state.density === "compact" ? "active" : ""} onClick={() => navigate({ density: "compact" })}>Compact</button>
                   </Tabs>
                 </div>
-                <ActionButton onClick={() => setFilterSheetOpen(false)}>Show {cards.length} cards</ActionButton>
+                <ActionButton onClick={applyMobileCardFilters}>Show Results</ActionButton>
               </Surface>
             </div>
           )}
@@ -527,7 +536,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               <strong>{cores.length.toLocaleString()} BakuCores</strong>
               <span>Showing {cores.length ? (corePage - 1) * CORE_COMPENDIUM_PAGE_SIZE + 1 : 0}–{Math.min(corePage * CORE_COMPENDIUM_PAGE_SIZE, cores.length)} of {cores.length}</span>
             </div>
-            <ActionButton className={styles.mobileFilterButton} tone="secondary" onClick={() => setFilterSheetOpen(true)}>
+            <ActionButton className={styles.mobileFilterButton} tone="secondary" onClick={openFilterSheet}>
               Filters{activeCoreFilterCount ? ` (${activeCoreFilterCount})` : ""}
             </ActionButton>
             <Tabs className={styles.densityTabs} label="BakuCore gallery density">
@@ -596,11 +605,12 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
           {filterSheetOpen && (
             <div data-ui="filter-backdrop" className={styles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}>
               <Surface as="aside" data-motion-surface="filter-sheet" className={`${styles.filterSheet} ${styles.coreFilterSheet}`} role="dialog" aria-modal="true" aria-label="BakuCore filters">
+                <button type="button" className={styles.sheetClose} onClick={() => setFilterSheetOpen(false)} aria-label="Dismiss filters">× Close</button>
                 <CoreFilterControls
-                  state={coreState}
-                  onChange={(patch) => navigateCore(patch, { resetPage: true })}
-                  onSortChange={(sort) => navigateCore({ sort }, { resetPage: true })}
-                  onClear={clearCoreFilters}
+                  state={pendingCoreFilters ?? coreState}
+                  onChange={(patch) => setPendingCoreFilters((previous) => previous ? {...previous,...patch} : previous)}
+                  onSortChange={(sort) => setPendingCoreFilters((previous) => previous ? {...previous,sort} : previous)}
+                  onClear={() => setPendingCoreFilters((previous) => previous ? {...previous,set:"All",type:"All",bonusType:"All"} : previous)}
                 />
                 <div className={styles.sheetDensity}>
                   <strong>Display</strong>
@@ -609,7 +619,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                     <button type="button" className={coreState.density === "compact" ? "active" : ""} onClick={() => navigateCore({ density: "compact" })}>Compact</button>
                   </Tabs>
                 </div>
-                <ActionButton onClick={() => setFilterSheetOpen(false)}>Show {cores.length} BakuCores</ActionButton>
+                <ActionButton onClick={applyMobileCoreFilters}>Show Results</ActionButton>
               </Surface>
             </div>
           )}
