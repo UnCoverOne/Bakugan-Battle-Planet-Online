@@ -370,6 +370,7 @@ export function CardInspector(props: InspectorProps) {
     : core;
   const panelId = `${isCore ? "core" : "card"}-inspector-${itemKey}-${effectiveTab}`;
   const inspectorLayoutRef = useRef<HTMLDivElement>(null);
+  const snapshotFrameRef = useRef<number | null>(null);
   const snapshotKey = () => "compendium:inspector:" + window.location.pathname + window.location.search + window.location.hash;
   const saveInspectorSnapshot = () => {
     if (typeof window === "undefined") return;
@@ -385,6 +386,9 @@ export function CardInspector(props: InspectorProps) {
     const frame = requestAnimationFrame(saveInspectorSnapshot);
     return () => cancelAnimationFrame(frame);
   }, [itemKey, fusionFace, activePrintingId, activeCardPrintingId, tab]);
+  useEffect(() => () => {
+    if (snapshotFrameRef.current !== null) cancelAnimationFrame(snapshotFrameRef.current);
+  }, []);
   useEffect(() => {
     const restoreOnBack = () => {
       try {
@@ -472,7 +476,13 @@ export function CardInspector(props: InspectorProps) {
           {onClose && <button type="button" data-inspector-close onClick={onClose} aria-label={`Close ${isCore ? "BakuCore" : "card"} inspector`}>Close</button>}
         </div>
       </header>
-      <div className={styles.inspectorLayout} ref={inspectorLayoutRef} onScroll={saveInspectorSnapshot}>
+      <div className={styles.inspectorLayout} ref={inspectorLayoutRef} onScroll={() => {
+          if (snapshotFrameRef.current !== null) return;
+          snapshotFrameRef.current = requestAnimationFrame(() => {
+            snapshotFrameRef.current = null;
+            saveInspectorSnapshot();
+          });
+        }}>
         <div className={styles.anchorArtwork} aria-label={isCore ? "BakuCore artwork" : "Card artwork"}
           onTouchStart={(event) => {touchStart.current={x:event.touches[0].clientX,y:event.touches[0].clientY};}}
           onTouchEnd={(event) => {
