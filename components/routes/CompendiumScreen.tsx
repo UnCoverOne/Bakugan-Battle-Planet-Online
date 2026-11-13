@@ -231,6 +231,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const inspectorTrigger = useRef<HTMLElement | null>(null);
   const localSearchEditRef = useRef(false);
   const searchTimerRef = useRef<number | null>(null);
+  const pageNavigationPending = useRef(false);
 
   const handleSearchChange = useCallback((value: string) => {
     localSearchEditRef.current = true;
@@ -285,6 +286,17 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     return query ? `${path}?${query}` : path;
   }, []);
 
+  const commitSearch = useCallback((value: string) => {
+    if (searchTimerRef.current !== null) window.clearTimeout(searchTimerRef.current);
+    const params = new URLSearchParams(window.location.search);
+    if (value) params.set("q", value); else params.delete("q");
+    const next = section === "cards" ? urlFor({...state,q:value,page:1})
+      : section === "cores" ? coreUrlFor({...coreState,q:value,page:1})
+      : `${window.location.pathname}${params.size ? `?${params}` : ""}${window.location.hash}`;
+    window.history.replaceState(null, "", next);
+    localSearchEditRef.current = false;
+  }, [section, state, coreState, urlFor, coreUrlFor]);
+
   const navigate = useCallback((patch: StatePatch, options: { push?: boolean; resetPage?: boolean; scroll?: boolean } = {}) => {
     const next = {
       ...state,
@@ -294,7 +306,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     };
     const method = options.push ? "push" : "replace";
     window.history[method === "push" ? "pushState" : "replaceState"](null, "", urlFor(next));
-    if (options.scroll) requestAnimationFrame(() => resultsAnchor.current?.scrollIntoView({ block: "start" }));
+    if (options.scroll) pageNavigationPending.current = true;
   }, [searchQuery, state, urlFor]);
 
   const navigateCore = useCallback((patch: Partial<CoreCompendiumState>, options: { push?: boolean; resetPage?: boolean; scroll?: boolean } = {}) => {
@@ -306,8 +318,18 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     };
     const method = options.push ? "push" : "replace";
     window.history[method === "push" ? "pushState" : "replaceState"](null, "", coreUrlFor(next));
-    if (options.scroll) requestAnimationFrame(() => resultsAnchor.current?.scrollIntoView({ block: "start" }));
+    if (options.scroll) pageNavigationPending.current = true;
   }, [coreState, coreUrlFor, searchQuery]);
+
+  useEffect(() => {
+    if (!pageNavigationPending.current || (section !== "cards" && section !== "cores")) return;
+    pageNavigationPending.current = false;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      resultsAnchor.current?.querySelector<HTMLElement>('[data-compendium-result]')?.scrollIntoView({
+        block: "start", behavior: "instant",
+      });
+    }));
+  }, [section, page, corePage]);
 
   const closeInspector = useCallback(() => {
     navigate({ card: "", tab: "overview" });
@@ -482,6 +504,10 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
           <label className={styles.visuallyHidden} htmlFor="compendium-search">Search the current Compendium section</label>
           <span aria-hidden="true">⌕</span>
           <input id="compendium-search" type="search" value={searchQuery} onChange={(event) => handleSearchChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") { event.preventDefault(); commitSearch(searchQuery); }
+              else if (event.key === "Escape" && searchQuery) { event.preventDefault(); event.stopPropagation(); handleSearchChange(""); commitSearch(""); }
+            }}
             placeholder={section === "cards" ? "Search cards…" : section === "cores" ? "Search BakuCores…" : section === "glossary" ? "Search glossary terms…" : section === "rules" ? "Search rules…" : "Search rulings…"} />
           {searchQuery && <button type="button" aria-label="Clear search" onClick={() => handleSearchChange("")}>×</button>}
         </div>
@@ -536,7 +562,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                       className={`${styles.cardTile} ${selected?.catalogId === card.catalogId ? styles.cardTileSelected : ""}`}
                       type="button"
                       aria-pressed={selected?.catalogId === card.catalogId}
-                      key={card.catalogId}
+                      key={card.catalogId} data-compendium-result
                       onClick={(event) => selectCard(card, event.currentTarget)}
                     >
                       <span className={styles.cardArt}>
@@ -649,7 +675,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                         className={`${styles.cardTile} ${styles.coreTile} ${selectedCore?.id === core.id ? styles.cardTileSelected : ""}`}
                         type="button"
                         aria-pressed={selectedCore?.id === core.id}
-                        key={core.id}
+                        key={core.id} data-compendium-result
                         onClick={(event) => selectCore(core, event.currentTarget)}
                       >
                         <span className={styles.coreArt}><BakuCoreArt core={displayedCore} alt="" /></span>
