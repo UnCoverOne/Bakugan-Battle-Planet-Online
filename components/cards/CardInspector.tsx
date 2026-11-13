@@ -352,12 +352,11 @@ export function CardInspector(props: InspectorProps) {
     ? { ...core, set: activePrinting.set, number: activePrinting.number, art: activePrinting.art, hasProvidedScan: true }
     : core;
   const panelId = `${isCore ? "core" : "card"}-inspector-${itemKey}-${effectiveTab}`;
-  const [inspectorScrollY, setInspectorScrollY] = useState(0);
   const inspectorLayoutRef = useRef<HTMLDivElement>(null);
   const rememberOrigin = (destination: string) => {
     if (typeof window === "undefined") return;
     const current = window.location.pathname + window.location.search + window.location.hash;
-    window.sessionStorage.setItem("compendium:reference-return", JSON.stringify({url:current,label,section:destination.split("/")[2],scrollY:window.scrollY,inspectorScrollY:inspectorLayoutRef.current?.scrollTop ?? 0,printing:activePrintingId,cardPrinting:activeCardPrintingId,fusionFace}));
+    window.sessionStorage.setItem("compendium:reference-return", JSON.stringify({url:current,label,section:new URL(destination,window.location.origin).pathname.split("/")[2],scrollY:window.scrollY,inspectorScrollY:inspectorLayoutRef.current?.scrollTop ?? 0,printing:activePrintingId,cardPrinting:activeCardPrintingId,fusionFace}));
   };
   const titleId = `${isCore ? "core" : "card"}-inspector-title-${itemKey}`;
 
@@ -378,7 +377,7 @@ export function CardInspector(props: InspectorProps) {
           {onClose && <button type="button" data-inspector-close onClick={onClose} aria-label={`Close ${isCore ? "BakuCore" : "card"} inspector`}>Close</button>}
         </div>
       </header>
-      <div className={styles.inspectorLayout} ref={inspectorLayoutRef} onScroll={(event) => setInspectorScrollY(event.currentTarget.scrollTop)}>
+      <div className={styles.inspectorLayout} ref={inspectorLayoutRef}>
         <div className={styles.anchorArtwork} aria-label={isCore ? "BakuCore artwork" : "Card artwork"}>
           {displayedCard && <div className={styles.artFrame}>
             <ResponsiveCardImage card={displayedCard} presentation="inspector" />
@@ -513,7 +512,7 @@ function ReferenceList({
           <h3>{entry.title}</h3>
           {section && <a className={styles.referenceLink} href={section === "rulings"
             ? `/compendium/rulings#ruling-${entry.slug}`
-            : `/compendium/rules#section-${entry.sourceSection.match(/\\d+(?:\\.\\d+)+/)?.[0] ?? "1.1"}`}
+            : `/compendium/rules#section-${entry.sourceSection.match(/\d+(?:\.\d+)+/)?.[0] ?? "1.1"}`}
             onClick={(event) => onNavigate?.(event.currentTarget.href)}>
             Open {section === "rulings" ? "ruling" : "rule"} ↗</a>}
           <p>{entry.body}</p>
