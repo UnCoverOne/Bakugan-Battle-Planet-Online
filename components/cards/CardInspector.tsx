@@ -338,9 +338,17 @@ export function CardInspector(props: InspectorProps) {
     : core ? coreCollectionIds(core) : [];
 
   useEffect(() => {
-    setFusionFace("a");
-    setActivePrintingId("primary");
-    setActiveCardPrintingId(baseCard?.catalogId ?? "");
+    // A new history entry starts on its primary printing; a visited entry can be restored.
+    const key = "compendium:inspector:" + window.location.pathname + window.location.search + window.location.hash;
+    let stored: {itemKey:string;fusionFace?:"a"|"b";corePrinting?:string;cardPrinting?:string;scrollTop?:number}|null = null;
+    try { stored = JSON.parse(sessionStorage.getItem(key) || "null"); } catch { /* Ignore stale session data. */ }
+    const remembered = stored?.itemKey === itemKey ? stored : null;
+    setFusionFace(remembered?.fusionFace ?? "a");
+    setActivePrintingId(remembered?.corePrinting ?? "primary");
+    setActiveCardPrintingId(remembered?.cardPrinting ?? baseCard?.catalogId ?? "");
+    requestAnimationFrame(() => {
+      if (inspectorLayoutRef.current) inspectorLayoutRef.current.scrollTop = remembered?.scrollTop ?? 0;
+    });
   }, [itemKey]);
 
   const relevantRules = useMemo(
@@ -362,10 +370,38 @@ export function CardInspector(props: InspectorProps) {
     : core;
   const panelId = `${isCore ? "core" : "card"}-inspector-${itemKey}-${effectiveTab}`;
   const inspectorLayoutRef = useRef<HTMLDivElement>(null);
+  const snapshotKey = () => "compendium:inspector:" + window.location.pathname + window.location.search + window.location.hash;
+  const saveInspectorSnapshot = () => {
+    if (typeof window === "undefined") return;
+    try {
+      sessionStorage.setItem(snapshotKey(), JSON.stringify({
+        itemKey, fusionFace, corePrinting:activePrintingId, cardPrinting:activeCardPrintingId,
+        scrollTop:inspectorLayoutRef.current?.scrollTop ?? 0,
+      }));
+    } catch { /* Storage may be disabled; navigation remains usable. */ }
+  };
   useEffect(() => {
-    // Moving to another catalogue identity keeps the selected tab but starts at its top.
-    // Cross-section history restoration below is deliberately applied after this reset.
-    inspectorLayoutRef.current?.scrollTo({top:0,behavior:"instant"});
+    // Persist printing/face changes for browser history (not as extra URL parameters).
+    const frame = requestAnimationFrame(saveInspectorSnapshot);
+    return () => cancelAnimationFrame(frame);
+  }, [itemKey, fusionFace, activePrintingId, activeCardPrintingId, tab]);
+  useEffect(() => {
+    const restoreOnBack = () => {
+      try {
+        const snapshot = JSON.parse(sessionStorage.getItem(snapshotKey()) || "null") as {
+          itemKey:string;fusionFace:"a"|"b";corePrinting:string;cardPrinting:string;scrollTop:number
+        } | null;
+        if (!snapshot || snapshot.itemKey !== itemKey) return;
+        setFusionFace(snapshot.fusionFace);
+        setActivePrintingId(snapshot.corePrinting);
+        setActiveCardPrintingId(snapshot.cardPrinting);
+        requestAnimationFrame(() => {
+          if (inspectorLayoutRef.current) inspectorLayoutRef.current.scrollTop = snapshot.scrollTop;
+        });
+      } catch { /* Ignore invalid history state. */ }
+    };
+    window.addEventListener("popstate", restoreOnBack);
+    return () => window.removeEventListener("popstate", restoreOnBack);
   }, [itemKey]);
   const touchStart = useRef<{x:number;y:number}|null>(null);
   const shiftPrinting = (delta: number) => {
@@ -436,7 +472,7 @@ export function CardInspector(props: InspectorProps) {
           {onClose && <button type="button" data-inspector-close onClick={onClose} aria-label={`Close ${isCore ? "BakuCore" : "card"} inspector`}>Close</button>}
         </div>
       </header>
-      <div className={styles.inspectorLayout} ref={inspectorLayoutRef}>
+      <div className={styles.inspectorLayout} ref={inspectorLayoutRef} onScroll={saveInspectorSnapshot}>
         <div className={styles.anchorArtwork} aria-label={isCore ? "BakuCore artwork" : "Card artwork"}
           onTouchStart={(event) => {touchStart.current={x:event.touches[0].clientX,y:event.touches[0].clientY};}}
           onTouchEnd={(event) => {
