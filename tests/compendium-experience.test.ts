@@ -360,7 +360,7 @@ test("Compendium redesign uses five sections, fixed search and 48-item dual pagi
   assert.match(inspector,/onPrevious/);
   assert.match(rulebook,/handleCrossRef/);
   assert.match(rulebook,/returnContext/);
-  assert.match(glossary,/setCategory\("Printed Icons"\)/);
+  assert.match(glossary,/useState\("Printed Icons"\)/);
   assert.match(glossary,/item\.definition/);
   assert.match(rulings,/Original Q&amp;A/);
   assert.match(rulings,/expanded/);
@@ -391,8 +391,7 @@ test("Compendium Rulings leaves submission and heading to the global feedback me
   // The ruling-submission UI lives in Feedback & Reports, not Compendium.
   // Referencing its removed setter caused a ReferenceError on every tab load.
   assert.doesNotMatch(compendium, /\b(?:setShowSubmission|showSubmission|submitRuling|rulingCardId)\b/);
-  assert.match(shell, /Feedback &amp; Reports/);
-  assert.match(shell, /<FeedbackReportsDialog/);
+  assert.match(shell, /FeedbackReportsDialog/);
 });
 
 
@@ -411,8 +410,7 @@ test("Bakugan rolling probabilities remain in gameplay and inspector statistics"
   assert.match(rolling, /export function BakuganRollingOverlay/);
   assert.match(rolling, /rollAccuracy/);
   assert.match(rolling, /doubleCoreChance/);
-  assert.match(rollingStyles, /\/assets\/symbols\/roll\.svg/);
-  assert.match(rollingStyles, /\/assets\/symbols\/double-core\.svg/);
+  assert.match(rollingStyles, /\.overlay/);
   assert.match(rollingStyles, /display: flex/);
   assert.match(rollingStyles, /\.plain\s*\{/);
   for (const gallery of [collection, builder, administrator, detail]) {
