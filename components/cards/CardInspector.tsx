@@ -7,7 +7,6 @@ import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cardCollectorLabel, cardSetCode, CARD_SET_INFO } from "../../lib/content/catalogue";
 import {
-  CARD_INSPECTOR_TABS,
   relatedCompendiumCards,
   type CardInspectorTab,
 } from "../../lib/compendium";
@@ -28,6 +27,10 @@ type SharedInspectorProps = {
   mode?: "modal" | "embedded";
   onTabChange?: (tab: CardInspectorTab) => void;
   onClose?: () => void;
+  onPrevious?: () => void;
+  onNext?: () => void;
+  position?: number;
+  resultCount?: number;
   onShare?: () => void;
   returnFocusRef?: { current: HTMLElement | null };
   className?: string;
@@ -57,6 +60,7 @@ export type InspectorProps = SharedInspectorProps & (
 
 const tabLabels: Record<CardInspectorTab, string> = {
   overview: "Overview",
+  references: "References",
   rules: "Rules",
   rulings: "Rulings",
   related: "Related",
@@ -173,38 +177,11 @@ const coreRules = (core: Core) => [
     : "",
 ].filter((value): value is string => Boolean(value));
 
-function CardOverview({
-  card,
-  hasFusion,
-  fusionFace,
-  onToggleFusion,
-}: {
-  card: GameCard;
-  hasFusion: boolean;
-  fusionFace: "a" | "b";
-  onToggleFusion: () => void;
-}) {
+function CardOverview({ card }: { card: GameCard }) {
   const set = CARD_SET_INFO[cardSetCode(card)];
   const rolling = bakuganRollingValues(card);
   return (
     <div className={styles.overview}>
-      <div className={styles.artWell}>
-        <div className={styles.artFrame}>
-          <ResponsiveCardImage card={card} presentation="inspector" />
-          <BakuganRollingOverlay card={card} />
-          {hasFusion && (
-            <button
-              type="button"
-              className={styles.fusionToggle}
-              aria-label={fusionFace === "a" ? "Show fused side" : "Show unfused side"}
-              aria-pressed={fusionFace === "b"}
-              onClick={onToggleFusion}
-            >
-              <FusionSymbol alt="" width={32} height={32} />
-            </button>
-          )}
-        </div>
-      </div>
       <div className={styles.identity}>
         <div className={styles.chips}>
           {card.factions.map((faction) => <StatusChip tone="info" key={faction}>{faction}</StatusChip>)}
@@ -244,9 +221,6 @@ function CoreOverview({ core, displayedCore }: { core: Core; displayedCore: Core
   const rules = coreRules(core);
   return (
     <div className={styles.overview}>
-      <div className={styles.artWell}>
-        <BakuCoreArt core={displayedCore} alt={`${core.name} front`} />
-      </div>
       <div className={styles.identity}>
         <div className={styles.chips}>
           <StatusChip tone="info">{core.type}</StatusChip>
@@ -310,7 +284,7 @@ function CoreRelated({
 }
 
 export function CardInspector(props: InspectorProps) {
-  const { rules, rulings, tab = "overview", mode = "modal", onTabChange, onClose, onShare, returnFocusRef, className, collectionEnabled = false, collection = {}, onCollectionChange } = props;
+  const { rules, rulings, tab = "overview", mode = "modal", onTabChange, onClose, onPrevious, onNext, position, resultCount, onShare, returnFocusRef, className, collectionEnabled = false, collection = {}, onCollectionChange } = props;
   const card = "card" in props ? props.card : undefined;
   const core = "core" in props ? props.core : undefined;
   const allCards = "card" in props ? props.allCards : null;
@@ -325,15 +299,25 @@ export function CardInspector(props: InspectorProps) {
   }, [allCards, baseCard]);
   const [fusionFace, setFusionFace] = useState<"a" | "b">("a");
   const [activePrintingId, setActivePrintingId] = useState("primary");
+  const [activeCardPrintingId, setActiveCardPrintingId] = useState(card?.catalogId ?? "");
+  const cardPrintings = useMemo(() => {
+    if (!baseCard || !allCards) return baseCard ? [baseCard] : [];
+    return allCards.filter((candidate) => candidate.fusionFace !== "b" && candidate.displayName === baseCard.displayName
+      && candidate.type === baseCard.type && candidate.faction === baseCard.faction
+      && candidate.effect === baseCard.effect && candidate.cost === baseCard.cost
+      && candidate.bPower === baseCard.bPower && candidate.damage === baseCard.damage
+      && candidate.coreTypes.join("|") === baseCard.coreTypes.join("|"));
+  }, [allCards, baseCard]);
   const itemKey = baseCard?.fusionPairId
     ? "fusion-" + baseCard.fusionPairId
     : baseCard?.catalogId ?? core?.catalogId ?? core?.id ?? "item";
-  const displayedCard = fusionFace === "b" && fusedCard ? fusedCard : baseCard;
+  const selectedPrintingCard = cardPrintings.find((candidate) => candidate.catalogId === activeCardPrintingId) ?? baseCard;
+  const displayedCard = fusionFace === "b" && fusedCard ? fusedCard : selectedPrintingCard;
   const hasFusion = Boolean(baseCard?.fusionPairId && fusedCard);
   const label = displayedCard?.displayName ?? core?.name ?? "Inspector";
   const isCore = Boolean(core);
-  const visibleTabs: CardInspectorTab[] = collectionEnabled ? [...CARD_INSPECTOR_TABS] : CARD_INSPECTOR_TABS.filter((candidate) => candidate !== "collection");
-  const effectiveTab = visibleTabs.includes(tab) ? tab : "overview";
+  const visibleTabs: CardInspectorTab[] = ["overview", "collection", "references"];
+  const effectiveTab: CardInspectorTab = visibleTabs.includes(tab) ? tab : ["rules", "rulings", "related"].includes(tab) ? "references" : "overview";
   const activeTabRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const button = activeTabRef.current;
@@ -351,6 +335,7 @@ export function CardInspector(props: InspectorProps) {
   useEffect(() => {
     setFusionFace("a");
     setActivePrintingId("primary");
+    setActiveCardPrintingId(baseCard?.catalogId ?? "");
   }, [itemKey]);
 
   const relevantRules = useMemo(
@@ -377,11 +362,53 @@ export function CardInspector(props: InspectorProps) {
           <h2 id={titleId}>{label}</h2>
         </div>
         <div className={styles.headerActions}>
+          {(onPrevious || onNext) && <div className={styles.resultNavigation} aria-label="Navigate catalogue results">
+            <button type="button" disabled={!onPrevious} onClick={onPrevious} aria-label="Previous catalogue item">‹</button>
+            {position && resultCount && <span>{position} / {resultCount}</span>}
+            <button type="button" disabled={!onNext} onClick={onNext} aria-label="Next catalogue item">›</button>
+          </div>}
           {onShare && <button type="button" onClick={onShare} aria-label={`Copy link to ${label}`}>Share</button>}
           {onClose && <button type="button" data-inspector-close onClick={onClose} aria-label={`Close ${isCore ? "BakuCore" : "card"} inspector`}>Close</button>}
         </div>
       </header>
-      <Tabs className={`${styles.tabs} ${visibleTabs.length === 5 ? styles.tabsWithCollection : ""}`} label={`${label} information`}>
+      <div className={styles.inspectorLayout}>
+        <div className={styles.anchorArtwork} aria-label={isCore ? "BakuCore artwork" : "Card artwork"}>
+          {displayedCard && <div className={styles.artFrame}>
+            <ResponsiveCardImage card={displayedCard} presentation="inspector" />
+            {hasFusion && <button type="button" className={styles.fusionToggle}
+              aria-label={fusionFace === "a" ? "Show fused side" : "Show unfused side"}
+              onClick={() => setFusionFace((face) => face === "a" ? "b" : "a")}>
+              <FusionSymbol alt="" width={32} height={32} />
+            </button>}
+          </div>}
+          {core && displayedCore && <div className={styles.coreArtwork}><BakuCoreArt core={displayedCore} alt={label} /></div>}
+          {cardPrintings.length > 1 && <div className={styles.printingNav}>
+            <button type="button" onClick={() => setActiveCardPrintingId((id) => {
+              const index = Math.max(0, cardPrintings.findIndex((item) => item.catalogId === id));
+              return cardPrintings[(index - 1 + cardPrintings.length) % cardPrintings.length].catalogId;
+            })} aria-label="Previous printing">‹</button>
+            <span>{Math.max(1, cardPrintings.findIndex((item) => item.catalogId === activeCardPrintingId) + 1)} / {cardPrintings.length}</span>
+            <button type="button" onClick={() => setActiveCardPrintingId((id) => {
+              const index = Math.max(0, cardPrintings.findIndex((item) => item.catalogId === id));
+              return cardPrintings[(index + 1) % cardPrintings.length].catalogId;
+            })} aria-label="Next printing">›</button>
+          </div>}
+          {core?.printings?.length ? <div className={styles.printingNav}>
+            <button type="button" aria-label="Previous BakuCore printing" onClick={() => {
+              const ids = ["primary", ...core.printings!.map((printing) => printing.id)];
+              const index = ids.indexOf(activePrintingId);
+              setActivePrintingId(ids[(index - 1 + ids.length) % ids.length]);
+            }}>‹</button>
+            <span>{Math.max(1, ["primary", ...core.printings.map((printing) => printing.id)].indexOf(activePrintingId) + 1)} / {core.printings.length + 1}</span>
+            <button type="button" aria-label="Next BakuCore printing" onClick={() => {
+              const ids = ["primary", ...core.printings!.map((printing) => printing.id)];
+              const index = ids.indexOf(activePrintingId);
+              setActivePrintingId(ids[(index + 1) % ids.length]);
+            }}>›</button>
+          </div> : null}
+        </div>
+        <div className={styles.inspectorDetails}>
+      <Tabs className={styles.tabs} label={`${label} information`}>
         {visibleTabs.map((candidate) => (
           <button
             type="button"
@@ -401,44 +428,27 @@ export function CardInspector(props: InspectorProps) {
       </Tabs>
       <div className={styles.body} id={panelId} role="tabpanel" aria-live="polite">
         <div key={effectiveTab} data-ui="inspector-tab-content">
-        {effectiveTab === "overview" && displayedCard && <CardOverview card={displayedCard} hasFusion={hasFusion} fusionFace={fusionFace} onToggleFusion={() => setFusionFace((face) => face === "a" ? "b" : "a")} />}
+        {effectiveTab === "overview" && displayedCard && <CardOverview card={displayedCard} />}
         {effectiveTab === "overview" && core && displayedCore && <CoreOverview core={core} displayedCore={displayedCore} />}
-        {effectiveTab === "rules" && (
-          <ReferenceList
-            entries={relevantRules}
-            empty={isCore
-              ? "No specific rulebook entry was automatically matched. The BakuCore rules shown in Overview still apply normally."
-              : "No specific rulebook entry was automatically matched. The printed card text still applies normally."}
-            label="Relevant rule"
-          />
-        )}
-        {effectiveTab === "rulings" && (
-          <ReferenceList
-            entries={relevantRulings}
-            empty={isCore ? "No published ruling is currently linked to this BakuCore." : "No published ruling is currently linked to this card."}
-            label="Published ruling"
-            ruling
-          />
-        )}
-        {effectiveTab === "related" && displayedCard && (
-          relatedCards.length ? (
-            <div className={styles.relatedGrid}>
-              {relatedCards.map((candidate) => (
-                <button type="button" onClick={() => onSelectCard?.(candidate)} key={candidate.catalogId}>
-                  <ResponsiveCardImage card={candidate} presentation="thumbnail" alt="" />
-                  <span><strong>{candidate.displayName}</strong><small>{cardSetCode(candidate)} · {candidate.type}</small></span>
-                </button>
-              ))}
-            </div>
-          ) : <InspectorEmpty message="No evolution, alternate printing, or directly connected card was found." />
-        )}
-        {effectiveTab === "related" && core && (
-          <CoreRelated core={core} activePrintingId={activePrintingId} onSelectPrinting={setActivePrintingId} />
-        )}
-        {effectiveTab === "collection" && collectionEnabled && (
-          <CollectionPanel ids={collectionIds} collection={collection} onChange={onCollectionChange} />
-        )}
+        {effectiveTab === "references" && <div className={styles.referenceSections}>
+          <h3>Rules</h3>
+          <ReferenceList entries={relevantRules} label="Relevant rule" empty="No automatically matched rulebook references." />
+          <h3>Rulings</h3>
+          <ReferenceList entries={relevantRulings} label="Published ruling" ruling empty="No published ruling is linked to this item." />
+          <h3>{isCore ? "Alternate printings" : "Related cards"}</h3>
+          {core ? <CoreRelated core={core} activePrintingId={activePrintingId} onSelectPrinting={setActivePrintingId} />
+            : relatedCards.length ? <div className={styles.relatedGrid}>{relatedCards.map((candidate) =>
+              <button type="button" onClick={() => onSelectCard?.(candidate)} key={candidate.catalogId}>
+                <ResponsiveCardImage card={candidate} presentation="thumbnail" alt="" />
+                <span><strong>{candidate.displayName}</strong><small>{cardSetCode(candidate)} · {candidate.type}</small></span>
+              </button>)}</div> : <InspectorEmpty message="No related cards found." />}
+        </div>}
+        {effectiveTab === "collection" && (collectionEnabled
+          ? <CollectionPanel ids={collectionIds} collection={collection} onChange={onCollectionChange} />
+          : <InspectorEmpty message="Sign in to manage your collection." />)}
         </div>
+      </div>
+      </div>
       </div>
     </>
   );
