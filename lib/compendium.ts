@@ -103,6 +103,12 @@ export function compendiumSearchParams(state: CompendiumState) {
   return params;
 }
 
+// Search terms are combined with AND; punctuation/case do not change results.
+const searchTokens = (query: string) => query.toLocaleLowerCase().normalize("NFKD")
+  .replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
+const normalizeSearchText = (text: string) => text.toLocaleLowerCase().normalize("NFKD")
+  .replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ");
+
 const cardSearchTextCache = new WeakMap<GameCard, string>();
 
 const searchableText = (card: GameCard) => {
@@ -121,9 +127,10 @@ const searchableText = (card: GameCard) => {
     card.coreTypes.join(" "),
     card.evolvesFrom ?? "",
     setCodeFor(card),
-  ].join(" ").toLowerCase();
-  cardSearchTextCache.set(card, value);
-  return value;
+  ].join(" ");
+  const normalized = normalizeSearchText(value);
+  cardSearchTextCache.set(card, normalized);
+  return normalized;
 };
 
 const costRank = (cost: GameCard["cost"]) => cost === "X" ? Number.POSITIVE_INFINITY : cost;
@@ -154,13 +161,13 @@ export function filterAndSortCompendiumCards(
   state: CompendiumState,
   options: { includeFusionBack?: boolean; rollingByCardId?: ReadonlyMap<string, BakuganRollingValues> } = {},
 ) {
-  const query = state.q.trim().toLowerCase();
+  const terms = searchTokens(state.q);
   return cards.filter((card) => (
     // The unfused face is the single Compendium representative. The reverse
     // face remains available to the shared inspector and gameplay systems.
     (options.includeFusionBack || card.fusionFace !== "b")
     && cardMatchesFilters(card, state)
-    && (!query || searchableText(card).includes(query))
+    && terms.every((term) => searchableText(card).includes(term))
   )).toSorted((left, right) => (state.direction === "desc" ? -1 : 1) * compareCompendiumCards(left, right, state.sort, options.rollingByCardId));
 }
 
@@ -276,9 +283,10 @@ const coreSearchableText = (core: Core) => {
       "alternate printing",
       "reprint",
     ]),
-  ].join(" ").toLowerCase();
-  coreSearchTextCache.set(core, value);
-  return value;
+  ].join(" ");
+  const normalized = normalizeSearchText(value);
+  coreSearchTextCache.set(core, normalized);
+  return normalized;
 };
 
 const coreMatchesBonusType = (core: Core, type: string) => {
@@ -316,12 +324,12 @@ export function compareCompendiumCores(left: Core, right: Core, sort: CoreCompen
 }
 
 export function filterAndSortCompendiumCores(cores: readonly Core[], state: CoreCompendiumState) {
-  const query = state.q.trim().toLowerCase();
+  const terms = searchTokens(state.q);
   return cores.filter((core) => (
     coreMatchesSet(core, state.set)
     && (state.type === "All" || core.type === state.type)
     && coreMatchesBonusType(core, state.bonusType)
-    && (!query || coreSearchableText(core).includes(query))
+    && terms.every((term) => coreSearchableText(core).includes(term))
   )).toSorted((left, right) => (state.direction === "desc" ? -1 : 1) * compareCompendiumCores(left, right, state.sort, state.set));
 }
 
