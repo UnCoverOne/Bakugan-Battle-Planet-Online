@@ -324,7 +324,7 @@ test("Compendium redesign uses five sections, fixed search and 48-item dual pagi
     read("components/routes/RulingsReference.tsx"),
   ]);
   assert.equal((route.match(/const NAV_ITEMS:/g) || []).length, 1);
-  for (const section of ["Cards","BakuCores","Glossary","Rules","Rulings"]) assert.match(route, new RegExp("label:\\""+section+"\\""));
+  for (const section of ["Cards","BakuCores","Glossary","Rules","Rulings"]) assert.ok(route.includes('label:"' + section + '"'));
   assert.doesNotMatch(route, /<RouteHero/);
   assert.match(route, /placeholder=\{section === "cards"/);
   assert.match(route, /sectionUrls\.current/);
