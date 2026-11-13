@@ -50,12 +50,16 @@ export function FilterPicker({
   const updateAnchor = () => {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const width = Math.min(Math.max(rect.width, 280), Math.max(280, window.innerWidth - 16));
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+    const viewportPadding = 8;
+    const width = Math.min(300, window.innerWidth - viewportPadding * 2);
+    const fitsRight = rect.right + width + viewportPadding < window.innerWidth;
+    const fitsLeft = rect.left - width - viewportPadding > 0;
+    const left = fitsRight ? rect.right + viewportPadding
+      : fitsLeft ? rect.left - width - viewportPadding
+      : Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - width - viewportPadding));
     const estimatedHeight = Math.min(420, window.innerHeight * 0.72);
-    const top = rect.bottom + 8 + estimatedHeight > window.innerHeight && rect.top > estimatedHeight
-      ? Math.max(8, rect.top - estimatedHeight - 8)
-      : rect.bottom + 8;
+    const top = Math.max(viewportPadding,
+      Math.min(rect.top, window.innerHeight - estimatedHeight - viewportPadding));
     setAnchorStyle({ top, left, width });
   };
 
@@ -63,6 +67,8 @@ export function FilterPicker({
     if (!open) return;
     updateAnchor();
     const close = () => setOpen(false);
+    const closeOther = (event: Event) => { if ((event as CustomEvent).detail !== triggerRef.current) close(); };
+    window.addEventListener("compendium:filter-open", closeOther);
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") close();
     };
@@ -70,6 +76,7 @@ export function FilterPicker({
     window.addEventListener("resize", close);
     window.addEventListener("scroll", close, { passive: true });
     return () => {
+      window.removeEventListener("compendium:filter-open", closeOther);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", close);
       window.removeEventListener("scroll", close);
@@ -175,6 +182,7 @@ export function FilterPicker({
         onClick={() => {
           setQuery("");
           updateAnchor();
+          if (!open) window.dispatchEvent(new CustomEvent("compendium:filter-open", { detail: triggerRef.current }));
           setOpen((current) => !current);
         }}
       >
