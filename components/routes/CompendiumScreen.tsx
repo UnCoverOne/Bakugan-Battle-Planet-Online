@@ -612,15 +612,15 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 onClear={clearFilters}
               />
             </Surface>
-            <main className={styles.gallery} ref={resultsAnchor}>
-{cards.length > 0 && (<nav className={styles.pagination} aria-label="Card result pages"><button type="button" disabled={page === 1} onClick={() => navigate({page:page-1},{push:true,scroll:true})} aria-label="Previous page">‹</button>{Array.from({length:pages},(_,i)=>i+1).filter(v=>v===1||v===pages||Math.abs(v-page)<=2).map((v,i,arr)=><span className={styles.pageSlot} key={v}>{i>0&&v>arr[i-1]+1&&<span>…</span>}<button type="button" aria-current={v===page?"page":undefined} onClick={()=>navigate({page:v},{push:true,scroll:true})}>{v}</button></span>)}<button type="button" disabled={page===pages} onClick={()=>navigate({page:page+1},{push:true,scroll:true})} aria-label="Next page">›</button></nav>)}
-              {activeFilterCount > 0 && <div className={styles.activeFilters} aria-label="Active card filters">
+            <main className={styles.gallery} ref={resultsAnchor}>              {activeFilterCount > 0 && <div className={styles.activeFilters} aria-label="Active card filters">
                 {CARD_FILTER_FACETS.flatMap((facet) => state[facet].map((value) =>
                   <button type="button" key={facet+":"+value} onClick={() => setFilter(facet,state[facet].filter((entry) => entry !== value))}
                     aria-label={`Remove ${value} ${CARD_FILTER_LABELS[facet]} filter`}>{value}<span aria-hidden="true">×</span></button>))}
                 <button type="button" className={styles.clearChips} onClick={clearFilters}>Clear all</button>
               </div>}
-              {visible.length ? (
+              
+{cards.length > 0 && (<nav className={styles.pagination} aria-label="Card result pages"><button type="button" disabled={page === 1} onClick={() => navigate({page:page-1},{push:true,scroll:true})} aria-label="Previous page">‹</button>{Array.from({length:pages},(_,i)=>i+1).filter(v=>v===1||v===pages||Math.abs(v-page)<=2).map((v,i,arr)=><span className={styles.pageSlot} key={v}>{i>0&&v>arr[i-1]+1&&<span>…</span>}<button type="button" aria-current={v===page?"page":undefined} onClick={()=>navigate({page:v},{push:true,scroll:true})}>{v}</button></span>)}<button type="button" disabled={page===pages} onClick={()=>navigate({page:page+1},{push:true,scroll:true})} aria-label="Next page">›</button></nav>)}
+{visible.length ? (
                 <CardGrid
                   className={`${styles.cardGrid} ${state.density === "compact" ? styles.cardGridCompact : ""}`}
                   minCardWidth={state.density === "compact" ? "6.75rem" : "10rem"}
@@ -724,16 +724,16 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 onClear={clearCoreFilters}
               />
             </Surface>
-            <main className={styles.gallery} ref={resultsAnchor}>
-{cores.length > 0 && (<nav className={styles.pagination} aria-label="BakuCore result pages"><button type="button" disabled={corePage === 1} onClick={() => navigateCore({page:corePage-1},{push:true,scroll:true})} aria-label="Previous page">‹</button>{Array.from({length:corePages},(_,i)=>i+1).filter(v=>v===1||v===corePages||Math.abs(v-corePage)<=2).map((v,i,arr)=><span className={styles.pageSlot} key={v}>{i>0&&v>arr[i-1]+1&&<span>…</span>}<button type="button" aria-current={v===corePage?"page":undefined} onClick={()=>navigateCore({page:v},{push:true,scroll:true})}>{v}</button></span>)}<button type="button" disabled={corePage===corePages} onClick={()=>navigateCore({page:corePage+1},{push:true,scroll:true})} aria-label="Next page">›</button></nav>)}
-              {activeCoreFilterCount > 0 && <div className={styles.activeFilters} aria-label="Active BakuCore filters">
+            <main className={styles.gallery} ref={resultsAnchor}>              {activeCoreFilterCount > 0 && <div className={styles.activeFilters} aria-label="Active BakuCore filters">
                 {(["type","set","bonusType"] as const).flatMap((key) => coreState[key].map((value) =>
                   <button type="button" key={key + ":" + value}
                     onClick={() => navigateCore({[key]:coreState[key].filter((choice) => choice !== value)}, {resetPage:true})}
                     aria-label={`Remove ${value} filter`}>{value}<span aria-hidden="true">×</span></button>))}
                 <button type="button" className={styles.clearChips} onClick={clearCoreFilters}>Clear all</button>
               </div>}
-              {visibleCores.length ? (
+              
+{cores.length > 0 && (<nav className={styles.pagination} aria-label="BakuCore result pages"><button type="button" disabled={corePage === 1} onClick={() => navigateCore({page:corePage-1},{push:true,scroll:true})} aria-label="Previous page">‹</button>{Array.from({length:corePages},(_,i)=>i+1).filter(v=>v===1||v===corePages||Math.abs(v-corePage)<=2).map((v,i,arr)=><span className={styles.pageSlot} key={v}>{i>0&&v>arr[i-1]+1&&<span>…</span>}<button type="button" aria-current={v===corePage?"page":undefined} onClick={()=>navigateCore({page:v},{push:true,scroll:true})}>{v}</button></span>)}<button type="button" disabled={corePage===corePages} onClick={()=>navigateCore({page:corePage+1},{push:true,scroll:true})} aria-label="Next page">›</button></nav>)}
+{visibleCores.length ? (
                 <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "6.75rem" : "10rem"}>
                   {visibleCores.map((core) => {
                     const displayedCore = coreForSet(core, coreState.set.length === 1 ? coreState.set[0] : "All");
