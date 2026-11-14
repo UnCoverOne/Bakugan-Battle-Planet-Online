@@ -2,10 +2,9 @@
 .hero{position:relative;isolation:isolate;width:100%;height:clamp(330px,calc(330px + (100vw - 320px)*.14),440px);overflow:hidden;background-color:#000;background-image:linear-gradient(90deg,rgba(2,8,14,.18),transparent 75%),url("/assets/home/Background%20Art%201.webp");background-position:center center,center center;background-size:100% 100%,auto 100%;background-repeat:no-repeat}
 .shade{position:absolute;z-index:3;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(1,6,11,.67) 0%,rgba(1,6,11,.50) 35%,rgba(1,6,11,.10) 68%,transparent 100%)}
 .heroInner{position:relative;width:var(--home-content-width);height:100%;margin-inline:auto}
-.artwork{--hero-art-height:clamp(350px,calc(350px + (100vw - 320px)*.21),520px);--hero-art-bottom:clamp(-40px,calc(-25px - (100vw - 320px)*.018),-25px);position:absolute;inset:0;z-index:2;pointer-events:none}
+.artwork{position:absolute;inset:0;z-index:2;pointer-events:none}
 /* Centre the broad glow on the image itself (960:920 aspect ratio), not a viewport percentage. */
-.artwork::before{content:"";position:absolute;right:calc(-100px + var(--hero-art-height)*.521739);bottom:calc(var(--hero-art-bottom) + var(--hero-art-height)*.5);width:calc(var(--hero-art-height)*1.18);aspect-ratio:1;border-radius:50%;transform:translate(50%,50%);pointer-events:none;background:radial-gradient(circle at center,rgba(230,0,18,.72) 0%,rgba(160,0,14,.42) 36%,rgba(120,0,10,.12) 66%,transparent 100%)}
-.artwork img{position:absolute;display:block;right:-100px;bottom:var(--hero-art-bottom);width:auto;max-width:none;height:var(--hero-art-height);object-fit:contain;object-position:center bottom;pointer-events:none}
+.artwork img{position:absolute;display:block;right:-100px;bottom:clamp(-40px,calc(-25px - (100vw - 320px)*.018),-25px);width:auto;max-width:none;height:clamp(350px,calc(350px + (100vw - 320px)*.21),520px);object-fit:contain;object-position:center bottom;pointer-events:none}
 .content{position:relative;z-index:4;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;width:100%;height:100%;padding:clamp(14px,2.5vw,30px) 0;pointer-events:none}
 .heroControls{width:min(clamp(161.28px,calc(161.28px + (100vw - 320px)*.3525714),260px),100%);max-width:100%;container-type:inline-size;pointer-events:auto}
 .title{display:flex;flex-direction:column;gap:0;width:100%;margin:0 0 clamp(18px,2vw,24px);color:#fff;font-family:var(--bb-font-display,"RBNo3.1","Titillium Web",sans-serif);font-size:22cqw;font-weight:800;letter-spacing:.012em;line-height:.94;text-transform:uppercase;text-wrap:nowrap}
