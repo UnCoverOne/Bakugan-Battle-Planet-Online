@@ -50,6 +50,33 @@
   --bb-border: #34404d;
   --bb-border-hover: #536173;
   --bb-focus: #7cc9ff;
+  --bb-panel-inset: #253442;
+  --bb-border-row: #293946;
+  --bb-border-divider: #344351;
+  --bb-progress-track: #344554;
+  --bb-border-panel: #354958;
+  --bb-border-inset: #415565;
+  --bb-white: #ffffff;
+  --bb-black: #000000;
+  --bb-panel-deep: #141f29;
+  --bb-text-soft: #edf3f8;
+  --bb-link: #7bd7f4;
+  --bb-text-tertiary: #acbdc9;
+  --bb-progress-accent: #40b9da;
+  --bb-success: #48c78e;
+  --bb-text-stat: #c8d8e1;
+  --bb-text-placeholder: #aabcca;
+  --bb-pyrus-border: #ff6673;
+  --bb-pyrus-border-hover: #ff929a;
+  --bb-focus-warm: #f28a8d;
+  --bb-nav-indicator: #168ee0;
+  --bb-aquos: #00aeef;
+  --bb-darkus: #9e64d7;
+  --bb-haos: #f3e7b8;
+  --bb-ventus: #58c76c;
+  --bb-aurelus: #d6a83f;
+  --bb-selection: #087ac7;
+  --bb-active-border: #664c56;
   --bb-radius: 0px;
   --bb-transition: 150ms ease-out;
   --bb-font-display: "RBNo3.1", "Titillium Web", Impact, sans-serif;
@@ -75,7 +102,7 @@ body { line-height: 1.5; }
   outline-offset: 2px;
 }
 :where(button, input, select, textarea):disabled, :where([aria-disabled="true"]) { cursor: not-allowed; opacity: .55; }
-::selection { background: #087ac7; color: #fff; }
+::selection { background: var(--bb-selection); color: var(--bb-white); }
 
 /* Shared semantic component primitives; new screens should opt in to these
    classes rather than relying on brittle selectors over every game control. */
@@ -91,8 +118,8 @@ body { line-height: 1.5; }
   .bb-button:not(:disabled):not([aria-disabled="true"]):hover { background: var(--bb-panel-hover); border-color: var(--bb-border-hover); }
 }
 .bb-button:not(:disabled):active { background: var(--bb-pressed); }
-.bb-button[aria-pressed="true"], .bb-button[aria-selected="true"], .bb-button[aria-current] { background: var(--bb-active); border-color: #664c56; }
-.bb-button--primary { background: var(--bb-pyrus); border-color: var(--bb-pyrus); color: #fff; }
+.bb-button[aria-pressed="true"], .bb-button[aria-selected="true"], .bb-button[aria-current] { background: var(--bb-active); border-color: var(--bb-active-border); }
+.bb-button--primary { background: var(--bb-pyrus); border-color: var(--bb-pyrus); color: var(--bb-white); }
 @media (hover: hover) and (pointer: fine) {
   .bb-button--primary:not(:disabled):hover { background: var(--bb-pyrus-hover); border-color: var(--bb-pyrus-hover); }
 }

@@ -9,7 +9,7 @@
 .featuredCard img{display:block;width:100%!important;height:100%!important;object-fit:contain!important}
 .emptyCard{display:grid;place-items:center;text-align:center;font-size:10px;background:#233340;width:100%}
 .info{min-width:0;display:flex;flex-direction:column;gap:7px;overflow:hidden}
-.name{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);font-size:clamp(15px,3.2cqw,23px);font-weight:800;line-height:1.15;color:#fff;text-decoration:none}
+.name{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);font-size:clamp(15px,3.2cqw,23px);font-weight:800;line-height:1.15;color:var(--bb-white);text-decoration:none}
 .name:hover{color:#7fd1ff}
 .creator{min-width:0;overflow:hidden;white-space:nowrap;font-size:clamp(11px,2.4cqw,14px)}
 .creator > span{max-width:100%;white-space:nowrap}

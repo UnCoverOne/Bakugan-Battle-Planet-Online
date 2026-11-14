@@ -35,19 +35,19 @@
   --profile-faction: #ef2e32;
 }
 .faction_aquos {
-  --profile-faction: #00aeef;
+  --profile-faction: var(--bb-aquos);
 }
 .faction_darkus {
-  --profile-faction: #9e64d7;
+  --profile-faction: var(--bb-darkus);
 }
 .faction_haos {
-  --profile-faction: #f3e7b8;
+  --profile-faction: var(--bb-haos);
 }
 .faction_ventus {
-  --profile-faction: #58c76c;
+  --profile-faction: var(--bb-ventus);
 }
 .faction_aurelus {
-  --profile-faction: #d6a83f;
+  --profile-faction: var(--bb-aurelus);
 }
 
 .textAction,
