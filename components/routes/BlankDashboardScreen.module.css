@@ -10,7 +10,7 @@
 .content{position:relative;z-index:4;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;width:100%;height:100%;padding:clamp(14px,2.5vw,30px) 0;pointer-events:none}
 .heroControls{width:min(clamp(161.28px,calc(161.28px + (100vw - 320px)*.3525714),260px),100%);max-width:100%;container-type:inline-size;pointer-events:auto}
 .title{display:flex;flex-direction:column;gap:0;width:100%;margin:0 0 clamp(18px,2vw,24px);color:var(--bb-white);font-family:var(--bb-font-display,"RBNo3.1","Titillium Web",sans-serif);font-size:22cqw;font-weight:800;letter-spacing:.012em;line-height:.94;text-transform:uppercase;text-wrap:nowrap}
-.title span{display:block;background-image:linear-gradient(to bottom,var(--bb-white) 0%,var(--bb-white) 10%,#DADDE2 70%,#8C949F 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.title span{display:block;background-image:linear-gradient(to bottom,var(--bb-white) 0%,var(--bb-white) 10%,var(--bb-home-title-mid) 70%,var(--bb-home-title-shadow) 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .title span:first-child{letter-spacing:.05em}
 .actions{display:flex;flex-direction:column;gap:clamp(9px,1vw,10px);width:100%;max-width:100%}
 .action{box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:clamp(6px,1.5vw,14px);width:100%;height:clamp(64px,7vw,72px);min-height:0;padding:10px clamp(11px,1.6vw,17px);text-align:left;border-radius:0;text-decoration:none;cursor:pointer;font-family:var(--bb-font-interface,"Titillium Web",Arial,sans-serif);transition:background-color 150ms ease-out,border-color 150ms ease-out,color 150ms ease-out}
