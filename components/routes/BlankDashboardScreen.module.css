@@ -5,7 +5,7 @@
 .artwork{--art-height:clamp(350px,calc(350px + (100vw - 320px)*.21),520px);--art-bottom:clamp(-40px,calc(-25px - (100vw - 320px)*.018),-25px);position:absolute;inset:0;z-index:2;pointer-events:none}
 /* Both images occupy the same 960:920 artwork frame and share one responsive position and scale. */
 .artwork::before,.artwork img{position:absolute;right:-100px;bottom:var(--art-bottom);width:calc(var(--art-height)*960/920);height:var(--art-height);pointer-events:none}
-.artwork::before{content:"";display:block;background:url("/assets/home/Red%20Gradient.webp") center center/100% 100% no-repeat}
+.artwork::before{content:"";display:block;right:calc(-100px - var(--art-height)*.05);bottom:calc(var(--art-bottom) - var(--art-height)*.11);width:calc(var(--art-height)*960/920*1.22);height:calc(var(--art-height)*1.22);background:url("/assets/home/Red%20Gradient.webp") center center/100% 100% no-repeat}
 .artwork img{display:block;max-width:none;object-fit:contain;object-position:center bottom}
 .content{position:relative;z-index:4;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;width:100%;height:100%;padding:clamp(14px,2.5vw,30px) 0;pointer-events:none}
 .heroControls{width:min(clamp(161.28px,calc(161.28px + (100vw - 320px)*.3525714),260px),100%);max-width:100%;container-type:inline-size;pointer-events:auto}
