@@ -311,27 +311,27 @@
   appearance: none;
   -webkit-appearance: none;
   border: 0;
-  background: #344554;
+  background: var(--bb-progress-track);
 }
 
 .progressRow progress::-webkit-progress-bar {
-  background: #344554;
+  background: var(--bb-progress-track);
 }
 
 .progressRow progress::-webkit-progress-value {
-  background: #40b9da;
+  background: var(--bb-progress-accent);
 }
 
 .progressRow progress::-moz-progress-bar {
-  background: #40b9da;
+  background: var(--bb-progress-accent);
 }
 
 .completed .progressRow progress::-webkit-progress-value {
-  background: #48c78e;
+  background: var(--bb-success);
 }
 
 .completed .progressRow progress::-moz-progress-bar {
-  background: #48c78e;
+  background: var(--bb-success);
 }
 
 .empty {
