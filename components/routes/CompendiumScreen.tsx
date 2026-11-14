@@ -393,6 +393,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
         title="Compendium"
         aside={<div className={styles.sourceSummary}><strong>{Object.keys(CARD_SET_INFO).length} sets · {CARDS.length} cards · {CORE_COMPENDIUM.length} BakuCores</strong></div>}
       />
+      <CompendiumNavigation active={section} onSelect={switchSection} />
       <section className={styles.toolbar}>
         <Field className={styles.search} label="Search the archive">
           <input type="search" value={searchQuery} onChange={(event) => handleSearchChange(event.target.value)} placeholder="Cards, effects, IDs, mechanics…" />
