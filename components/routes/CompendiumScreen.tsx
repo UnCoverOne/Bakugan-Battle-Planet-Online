@@ -47,6 +47,7 @@ import {
 import { SORT_LABELS, CHARACTER_SORTS, NON_CHARACTER_SORTS, CORE_SORT_LABELS } from "../../lib/catalogue-sorting";
 import { coreForSet, corePreviewStats } from "../../lib/core-preview";
 import styles from "./CompendiumScreen.module.css";
+import { CompendiumNavigation } from "./CompendiumNavigation";
 
 const SEARCH_URL_DEBOUNCE_MS = 450;
 
@@ -401,13 +402,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             Filters{section === "cards" ? (activeFilterCount ? ` (${activeFilterCount})` : "") : (activeCoreFilterCount ? ` (${activeCoreFilterCount})` : "")}
           </ActionButton>
         )}
-        <Tabs label="Compendium sections">
-          <button type="button" className={section === "cards" ? "active" : ""} onClick={() => switchSection("cards")}>CARDS</button>
-          <button type="button" className={section === "cores" ? "active" : ""} onClick={() => switchSection("cores")}>BAKUCORES</button>
-          <button type="button" className={section === "rules" ? "active" : ""} onClick={() => switchSection("rules")}>RULES</button>
-          <button type="button" className={section === "glossary" ? "active" : ""} onClick={() => switchSection("glossary")}>GLOSSARY</button>
-          <button type="button" className={section === "rulings" ? "active" : ""} onClick={() => switchSection("rulings")}>RULINGS</button>
-        </Tabs>
+
       </section>
 
       <div key={section} data-ui="compendium-section-content">

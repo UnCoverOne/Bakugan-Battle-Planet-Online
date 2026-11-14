@@ -1,0 +1,58 @@
+/* Single-row Compendium navigation. All colour values come from the global palette. */
+.navigation {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 2px;
+  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
+  margin: var(--space-4) auto 0;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--bb-page);
+}
+.button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  height: 56px;
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 3px solid var(--bb-border);
+  border-radius: 0;
+  background: var(--bb-nav);
+  color: var(--bb-muted);
+  font: 600 13px/1 var(--bb-font-interface);
+  cursor: pointer;
+  transition: background-color var(--bb-transition), color var(--bb-transition), border-color var(--bb-transition);
+}
+.icon { display: block; width: 20px; height: 20px; flex: 0 0 20px; }
+.label { display: block; max-width: 100%; white-space: nowrap; overflow: visible; text-align: center; }
+.button[aria-current="page"] {
+  background: var(--bb-panel);
+  color: var(--bb-text);
+  border-bottom-color: var(--bb-aquos);
+}
+.button[aria-current="page"] .icon { color: var(--bb-focus); }
+@media (hover: hover) and (pointer: fine) {
+  .button:not([aria-current="page"]):hover {
+    background: var(--bb-panel-hover);
+    color: var(--bb-text);
+    border-bottom-color: var(--bb-border-hover);
+  }
+}
+.button:focus-visible { outline: 2px solid var(--bb-focus); outline-offset: -3px; z-index: 1; }
+@media (max-width: 700px) {
+  .navigation { width: min(calc(100% - (2 * var(--space-4))), var(--content-wide)); }
+  .button { font-size: 12px; }
+}
+@media (max-width: 360px) {
+  .navigation { width: calc(100% - 12px); }
+  .button { font-size: 11px; }
+  .icon { width: 18px; height: 18px; flex-basis: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .button { transition: none; }
+}

@@ -751,36 +751,6 @@
 }
 
 
-.toolbar {
-  align-items: end;
-}
-.toolbar :global([data-ui="tabs"]) {
-  height: 3rem;
-  min-height: 3rem;
-  align-self: end;
-  display: flex;
-  align-items: stretch;
-  gap: 1px;
-
-
-
-
-}
-.toolbar :global([data-ui="tabs"] > button) {
-  height: 3rem;
-  min-height: 3rem;
-
-
-
-
-
-}
-.toolbar :global([data-ui="tabs"] > button.active) {
-
-
-}
-
-
 @media (max-width: 700px) {
   .coreGrid,
   .coreGrid.cardGridCompact {
@@ -806,11 +776,6 @@
 
 
   }
-  .toolbar :global([data-ui="tabs"]),
-  .toolbar :global([data-ui="tabs"] > button) {
-    height: 2.5rem;
-    min-height: 2.5rem;
-  }
 }
 
 
@@ -834,10 +799,6 @@
     min-height: 3rem;
     align-self: end;
     white-space: nowrap;
-  }
-  .toolbar :global([data-ui="tabs"]) {
-    grid-column: 1 / -1;
-    min-width: 0;
   }
   .resultsToolbar .mobileFilterButton,
   .resultsToolbar .densityTabs { display: none; }
