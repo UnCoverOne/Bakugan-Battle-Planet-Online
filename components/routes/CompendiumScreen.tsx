@@ -407,7 +407,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
         aside={<div className={styles.sourceSummary}><strong>{Object.keys(CARD_SET_INFO).length} sets · {CARDS.length} cards · {CORE_COMPENDIUM.length} BakuCores</strong></div>}
       />
       <CompendiumToolbar section={section} onSectionChange={switchSection} query={searchQuery} onSearch={handleSearchChange}
-        sidebarTrigger={sidebarTrigger} activeCount={activeCount} density={density}
+        sidebarTrigger={sidebarTrigger} activeCount={activeCount} density={density} sidebarOpen={sidebarOpen} desktopSidebarVisible={desktopSidebarVisible}
         onSidebar={() => {
           if (window.matchMedia("(max-width: 900px)").matches) setSidebarOpen(true);
           else setDesktopSidebarVisible((visible) => !visible);
