@@ -49,7 +49,6 @@ import { coreForSet, corePreviewStats } from "../../lib/core-preview";
 import styles from "./CompendiumScreen.module.css";
 import { CompendiumToolbar } from "./CompendiumToolbar";
 import { CompendiumSidebar } from "./CompendiumSidebar";
-import { CompendiumNavigation } from "./CompendiumNavigation";
 
 const SEARCH_URL_DEBOUNCE_MS = 450;
 
@@ -395,7 +394,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     const timeout = window.setTimeout(() => setViewMessage(""), 1500);
     return () => window.clearTimeout(timeout);
   }, [viewMessage]);
-  const closeSidebar = () => { setSidebarOpen(false); sidebarTrigger.current?.focus(); };
+  const closeSidebar = useCallback(() => { setSidebarOpen(false); sidebarTrigger.current?.focus(); }, []);
   const copyLink = async (path: string, label: string) => {
     await copyText(`${location.origin}${path}`);
     notify(`${label} link copied.`);
