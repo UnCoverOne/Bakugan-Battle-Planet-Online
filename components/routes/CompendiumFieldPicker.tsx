@@ -20,6 +20,9 @@ export function CompendiumFieldPicker({
 }) {
   const id = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const summaryRef = useRef<HTMLSpanElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const measureMoreRef = useRef<HTMLSpanElement>(null);
   const infoRef = useRef<HTMLButtonElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
@@ -29,10 +32,43 @@ export function CompendiumFieldPicker({
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState<string[]>([]);
+  const [visibleChipCount, setVisibleChipCount] = useState(1);
   const selected = useMemo(() => values.map(value => options.find(option => option.value === value))
     .filter((option): option is CardFilterOption => Boolean(option)), [values, options]);
   const filtered = useMemo(() => options.filter(option =>
     option.label.toLowerCase().includes(query.trim().toLowerCase())), [options, query]);
+  // Fit complete chips into the entire second row. Reserve room for the
+  // actual "+N more" label; recompute whenever selections or width change.
+  useLayoutEffect(() => {
+    const summary = summaryRef.current;
+    const measure = measureRef.current;
+    const more = measureMoreRef.current;
+    if (!summary || !measure || !more) return;
+    const calculate = () => {
+      const width = summary.clientWidth;
+      const chipWidths = Array.from(measure.children).slice(0, selected.length)
+        .map((element) => (element as HTMLElement).getBoundingClientRect().width);
+      const gap = 4;
+      let fit = selected.length;
+      for (let count = selected.length; count >= 1; count--) {
+        const used = chipWidths.slice(0, count).reduce((sum, value) => sum + value, 0);
+        const hidden = selected.length - count;
+        more.textContent = hidden ? `+${hidden} more` : "";
+        const moreWidth = hidden ? more.getBoundingClientRect().width : 0;
+        if (used + gap * (count - 1 + (hidden ? 1 : 0)) + moreWidth <= width) {
+          fit = count;
+          break;
+        }
+        // At least one chip remains visible and truncates if necessary.
+        fit = 1;
+      }
+      setVisibleChipCount((current) => current === fit ? current : fit);
+    };
+    calculate();
+    const observer = new ResizeObserver(calculate);
+    observer.observe(summary);
+    return () => observer.disconnect();
+  }, [selected]);
   const openPicker = () => { setDraft([...values]); setQuery(""); setTipOpen(false); setOpen(true); };
   const closePicker = () => { setOpen(false); triggerRef.current?.focus(); };
   const apply = () => { onChange(draft); closePicker(); };
@@ -122,17 +158,26 @@ export function CompendiumFieldPicker({
   return <div className={styles.field}>
     <button type="button" ref={triggerRef} className={styles.trigger}
       onClick={openPicker} aria-haspopup="dialog" aria-expanded={open} aria-label={`${label}: ${selected.length ? selected.map(option => option.label).join(", ") : clearable ? "Any" : "Default"}`}>
-      <span className={styles.name}>{label}</span>
-      <span className={styles.summary}>
+      <span className={`${styles.headerLine} ${info ? styles.hasInfo : ""}`}>
+        <span className={styles.name}>{label}</span>
+        <svg className={styles.chevron} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+      </span>
+      <span className={styles.summary} ref={summaryRef}>
         {selected.length ? <>
-          {selected.slice(0, 1).map(option => <span key={option.value} className={styles.chip}>
+          {selected.slice(0, visibleChipCount).map(option => <span key={option.value} className={styles.chip}>
             {option.icon && <OriginalImage src={option.icon} alt="" width={16} height={16} />}
             <span>{option.label}</span>
           </span>)}
-          {selected.length > 1 && <span className={styles.more}>+{selected.length - 1} more</span>}
+          {selected.length > visibleChipCount && <span className={styles.more}>+{selected.length - visibleChipCount} more</span>}
         </> : <span className={styles.empty}>Any</span>}
       </span>
-      <svg className={styles.chevron} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+      <span className={styles.measure} ref={measureRef} aria-hidden="true">
+        {selected.map(option => <span key={option.value} className={styles.chip}>
+          {option.icon && <OriginalImage src={option.icon} alt="" width={16} height={16} />}
+          <span>{option.label}</span>
+        </span>)}
+        <span className={styles.more} ref={measureMoreRef} />
+      </span>
     </button>
     {info && <>
       <button type="button" ref={infoRef} className={styles.info} aria-label={`About ${label}`}
