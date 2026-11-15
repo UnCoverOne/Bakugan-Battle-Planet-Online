@@ -41,7 +41,7 @@ export function CompendiumFieldPicker({
     document.body.style.overflow = "hidden";
     closeRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { event.preventDefault(); closePicker(); return; }
+      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); closePicker(); return; }
       if (event.key !== "Tab") return;
       const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
         'button:not([disabled]), input:not([disabled])') ?? []).filter(el => el.getClientRects().length > 0);
@@ -102,12 +102,12 @@ export function CompendiumFieldPicker({
     </button>
     {info && <>
       <button type="button" className={styles.info} aria-label={`About ${label}`}
-        aria-expanded={tipOpen} aria-describedby={tipOpen ? `${id}-help` : undefined}
+        aria-expanded={tipOpen} aria-describedby={`${id}-help`}
         onClick={() => setTipOpen(current => !current)}
         onBlur={(event) => { if (!event.currentTarget.parentElement?.contains(event.relatedTarget)) setTipOpen(false); }}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 11v6M12 7h.01"/></svg>
       </button>
-      {tipOpen && <div id={`${id}-help`} className={styles.tooltip} role="tooltip">{info}</div>}
+      <div id={`${id}-help`} className={styles.tooltip} role="tooltip">{info}</div>
     </>}
     {dialog}
   </div>;
