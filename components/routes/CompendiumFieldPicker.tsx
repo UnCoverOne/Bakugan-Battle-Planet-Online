@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { OriginalImage } from "../media/OriginalImage";
 import type { CardFilterOption } from "../../lib/card-filters";
 import styles from "./CompendiumFieldPicker.module.css";
@@ -20,10 +20,13 @@ export function CompendiumFieldPicker({
 }) {
   const id = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const infoRef = useRef<HTMLButtonElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [tipOpen, setTipOpen] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState<string[]>([]);
   const selected = useMemo(() => values.map(value => options.find(option => option.value === value))
@@ -53,6 +56,37 @@ export function CompendiumFieldPicker({
     document.addEventListener("keydown", onKeyDown);
     return () => { document.body.style.overflow = previous; document.removeEventListener("keydown", onKeyDown); };
   }, [open]);
+  // Render help outside the scrolling sidebar so it cannot be clipped by overflow.
+  useLayoutEffect(() => {
+    if (!tipOpen || !info) return;
+    const anchor = infoRef.current?.getBoundingClientRect();
+    const tooltip = tooltipRef.current;
+    if (!anchor || !tooltip) return;
+    const width = Math.min(260, window.innerWidth - 24);
+    const left = Math.max(12, Math.min(anchor.right - width, window.innerWidth - width - 12));
+    const top = anchor.bottom + 8 + tooltip.offsetHeight <= window.innerHeight - 12
+      ? anchor.bottom + 8
+      : Math.max(12, anchor.top - tooltip.offsetHeight - 8);
+    setTooltipPosition({ top, left, width });
+  }, [tipOpen, info]);
+  useEffect(() => {
+    if (!tipOpen) return;
+    const dismiss = (event: PointerEvent) => {
+      if (infoRef.current?.contains(event.target as Node) ||
+          tooltipRef.current?.contains(event.target as Node)) return;
+      setTipOpen(false);
+    };
+    const onScroll = () => setTipOpen(false);
+    const onResize = () => setTipOpen(false);
+    document.addEventListener("pointerdown", dismiss);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onResize);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [tipOpen]);
   const dialog = open && typeof document !== "undefined" ? createPortal(
     <div className={styles.overlay} onMouseDown={(event) => { if (event.target === event.currentTarget) closePicker(); }}>
       <section ref={dialogRef} className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby={id}>
@@ -91,23 +125,28 @@ export function CompendiumFieldPicker({
       <span className={styles.name}>{label}</span>
       <span className={styles.summary}>
         {selected.length ? <>
-          {selected.slice(0, 2).map(option => <span key={option.value} className={styles.chip}>
+          {selected.slice(0, 1).map(option => <span key={option.value} className={styles.chip}>
             {option.icon && <OriginalImage src={option.icon} alt="" width={16} height={16} />}
             <span>{option.label}</span>
           </span>)}
-          {selected.length > 2 && <span className={styles.more}>+{selected.length - 2} more</span>}
+          {selected.length > 1 && <span className={styles.more}>+{selected.length - 1} more</span>}
         </> : <span className={styles.empty}>Any</span>}
       </span>
       <svg className={styles.chevron} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
     </button>
     {info && <>
-      <button type="button" className={styles.info} aria-label={`About ${label}`}
-        aria-expanded={tipOpen} aria-describedby={`${id}-help`}
+      <button type="button" ref={infoRef} className={styles.info} aria-label={`About ${label}`}
+        aria-expanded={tipOpen} aria-describedby={tipOpen ? `${id}-help` : undefined}
         onClick={() => setTipOpen(current => !current)}
-        onBlur={(event) => { if (!event.currentTarget.parentElement?.contains(event.relatedTarget)) setTipOpen(false); }}>
+        onPointerEnter={(event) => { if (event.pointerType === "mouse") setTipOpen(true); }}
+        onPointerLeave={(event) => { if (event.pointerType === "mouse") setTipOpen(false); }}
+        onFocus={() => setTipOpen(true)}
+        onBlur={() => setTipOpen(false)}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 11v6M12 7h.01"/></svg>
       </button>
-      <div id={`${id}-help`} className={styles.tooltip} role="tooltip">{info}</div>
+      {tipOpen && typeof document !== "undefined" && createPortal(
+        <div ref={tooltipRef} id={`${id}-help`} className={styles.tooltip} role="tooltip"
+          style={tooltipPosition ?? { visibility: "hidden" }}>{info}</div>, document.body)}
     </>}
     {dialog}
   </div>;
