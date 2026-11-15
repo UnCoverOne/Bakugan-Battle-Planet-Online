@@ -347,7 +347,12 @@ test("Compendium uses unified sticky toolbar, sidebar and responsive field picke
   assert.match(picker, /className=\{styles\.chip\}/);
   assert.match(picker, /aria-checked=\{checked\}/);
   assert.match(picker, /role="tooltip"/);
-  assert.match(picker, /onClick=\{apply\}/);
+  assert.match(picker, /ref=\\{tooltipRef\\}/);
+  assert.match(picker, /window\\.innerWidth - 24/);
+  assert.match(picker, /selected\\.slice\\(0, 1\\)/);
+  assert.match(pickerCss, /flex-wrap:nowrap;overflow:hidden;white-space:nowrap/);
+  assert.match(pickerCss, /\\.tooltip\\{position:fixed;z-index:1900/);
+  assert.match(picker, /onClick=\\{apply\\}/);
   assert.match(pickerCss, /width:min\(460px,100%\)/);
   assert.match(pickerCss, /height:100dvh/);
   assert.match(pickerCss, /min-height:56px/);
