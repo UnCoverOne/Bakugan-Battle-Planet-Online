@@ -75,13 +75,11 @@ function FilterControls({
   filterOptions,
   onChange,
   onSortChange,
-  onClear,
 }: {
   state: CompendiumState;
   filterOptions: CardFilterOptionCatalogue;
   onChange: (key: FilterKey, values: string[]) => void;
   onSortChange: (sort: CompendiumState["sort"]) => void;
-  onClear: () => void;
 }) {
   const isCharacterOnly = state.type.length === 1 && state.type[0] === "Character";
   const includesCharacter = state.type.includes("Character");
@@ -100,10 +98,6 @@ function FilterControls({
 
   return (
     <>
-      <div className={styles.filterHeading}>
-        <div><h2>Filters &amp; sort</h2></div>
-        <button type="button" onClick={onClear}>Clear</button>
-      </div>
       <CardFilterPanel
         filters={state}
         facets={["type"]}
@@ -137,19 +131,13 @@ function CoreFilterControls({
   state,
   onChange,
   onSortChange,
-  onClear,
 }: {
   state: CoreCompendiumState;
   onChange: (patch: Partial<CoreCompendiumState>) => void;
   onSortChange: (sort: CoreCompendiumState["sort"]) => void;
-  onClear: () => void;
 }) {
   return (
     <>
-      <div className={styles.filterHeading}>
-        <div><h2>Filters &amp; sort</h2></div>
-        <button type="button" onClick={onClear}>Clear</button>
-      </div>
       <FilterPicker
         label="Core type"
         values={state.type === "All" ? [] : [state.type]}
@@ -394,7 +382,11 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     const timeout = window.setTimeout(() => setViewMessage(""), 1500);
     return () => window.clearTimeout(timeout);
   }, [viewMessage]);
-  const closeSidebar = useCallback(() => { setSidebarOpen(false); sidebarTrigger.current?.focus(); }, []);
+  const closeSidebar = useCallback(() => {
+    if (window.matchMedia("(max-width: 900px)").matches) setSidebarOpen(false);
+    else setDesktopSidebarVisible(false);
+    sidebarTrigger.current?.focus();
+  }, []);
   const copyLink = async (path: string, label: string) => {
     await copyText(`${location.origin}${path}`);
     notify(`${label} link copied.`);
@@ -429,13 +421,12 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("Filtered results")}>Share results</button>
           </section>
           <div className={`${styles.workspace} ${desktopSidebarVisible ? "" : styles.withoutSidebar}`}>
-            <CompendiumSidebar label="Card filters & sort" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={closeSidebar} footer={<button type="button" onClick={closeSidebar}>Show {cards.length.toLocaleString()} cards</button>}>
+            <CompendiumSidebar label="Filters & Sort" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={closeSidebar} onClear={clearFilters} activeCount={activeFilterCount} footer={<button type="button" onClick={closeSidebar}>Show {cards.length.toLocaleString()} cards</button>}>
               <FilterControls
                 state={state}
                 filterOptions={filterOptions}
                 onChange={setFilter}
                 onSortChange={(sort) => navigate({ sort }, { resetPage: true })}
-                onClear={clearFilters}
               />
             </CompendiumSidebar>
             <main className={styles.gallery}>
@@ -517,12 +508,11 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("BakuCore results")}>Share results</button>
           </section>
           <div className={`${styles.coreWorkspace} ${desktopSidebarVisible ? "" : styles.withoutSidebar}`}>
-            <CompendiumSidebar label="BakuCore filters & sort" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={closeSidebar} footer={<button type="button" onClick={closeSidebar}>Show {cores.length.toLocaleString()} BakuCores</button>}>
+            <CompendiumSidebar label="Filters & Sort" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={closeSidebar} onClear={clearCoreFilters} activeCount={activeCoreFilterCount} footer={<button type="button" onClick={closeSidebar}>Show {cores.length.toLocaleString()} BakuCores</button>}>
               <CoreFilterControls
                 state={coreState}
                 onChange={(patch) => navigateCore(patch, { resetPage: true })}
                 onSortChange={(sort) => navigateCore({ sort }, { resetPage: true })}
-                onClear={clearCoreFilters}
               />
             </CompendiumSidebar>
             <main className={styles.gallery}>
