@@ -6,7 +6,7 @@ import { GLOSSARY_ENTRIES, SYMBOL_ENTRIES } from "../../lib/reference";
 import { EXTENDED_TAG_WORDS } from "../../lib/extended-glossary";
 import { OriginalImage } from "../media/OriginalImage";
 import styles from "./GlossaryScreen.module.css";
-import { ReferenceContentsDrawer } from "./ReferenceContentsDrawer";
+import { CompendiumSidebar } from "./CompendiumSidebar";
 
 type Term = {
   title: string;
@@ -300,7 +300,7 @@ const getRule = (id: string): OfficialRuleNode | undefined => {
 };
 const sections = [...glossaryCategories.map(({ name }) => name),
   ...(fullTerms.some((term) => term.category === "Other Terms") ? ["Other Terms"] : [])];
-export function GlossaryScreen({ query = "" }: { query?: string }) {
+export function GlossaryScreen({ query = "", sidebarOpen, desktopSidebarVisible, onSidebarClose }: { query?: string; sidebarOpen: boolean; desktopSidebarVisible: boolean; onSidebarClose: () => void }) {
   const [category, setCategory] = useState("All");
   const [selected, setSelected] = useState<Term | null>(null);
   const normalized = query.trim().toLowerCase();
@@ -318,14 +318,14 @@ export function GlossaryScreen({ query = "" }: { query?: string }) {
     return () => removeEventListener("keydown",dismiss);
   }, [selected]);
   const byCategory = sections.map((name) => ({name,items:filtered.filter((item)=>item.category===name)})).filter((group)=>group.items.length);
-  return <div className={styles.layout}>
-    <ReferenceContentsDrawer className={styles.rail} label="Glossary navigation">
+  return <div className={styles.layout} data-compendium-reference-layout>
+    <CompendiumSidebar as="nav" className={styles.rail} label="Glossary navigation" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={onSidebarClose}>
       <h2>Contents</h2>
       {filteredIcons.length > 0 && <a href="#glossary-icons">Printed icons</a>}
       <h3>Categories</h3>
       <button type="button" aria-pressed={category==="All"} onClick={()=>setCategory("All")}>All terms</button>
       {sections.map((section)=><button key={section} type="button" aria-pressed={category===section} onClick={()=>setCategory(section)}>{section}</button>)}
-    </ReferenceContentsDrawer>
+    </CompendiumSidebar>
     <main className={styles.main}>
       {filteredIcons.length > 0 && <section className={styles.printedIcons} id="glossary-icons" aria-labelledby="glossary-icons-heading">
         <div className={styles.iconHeading}><h2 id="glossary-icons-heading">Printed Icons</h2><span className={styles.iconCount}>{filteredIcons.length}</span></div>
