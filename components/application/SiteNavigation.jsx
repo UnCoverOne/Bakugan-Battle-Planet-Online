@@ -9,10 +9,10 @@ import { SocialMenuButton, useSocial } from "../social/SocialProvider";
 import styles from "./SiteNavigation.module.css";
 
 export const PRIMARY_DESTINATIONS = [
-  { href: "/", label: "HOME", icon: "home" },
+  { href: "/", label: "HOME", icon: "layout-dashboard" },
   { href: "/play", label: "PLAY", icon: "play" },
-  { href: "/decks", label: "DECKS", icon: "decks" },
-  { href: "/compendium", label: "COMPENDIUM", icon: "compendium" },
+  { href: "/decks", label: "DECKS", icon: "layers" },
+  { href: "/compendium", label: "COMPENDIUM", icon: "library-big" },
 ];
 
 export function navigationDestination(path) {
@@ -24,13 +24,27 @@ export function navigationDestination(path) {
 }
 
 function NavIcon({ name }) {
+  // Lucide outline icon geometry. Only the four mobile destinations are included.
   const paths = {
-    home: <><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></>,
-    play: <path d="M8 5.5 19 12 8 18.5V5.5Z"/>,
-    decks: <><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></>,
-    compendium: <><path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1zM12 6v14"/></>,
+    "layout-dashboard": <>
+      <rect width="7" height="9" x="3" y="3" rx="1" />
+      <rect width="7" height="5" x="14" y="3" rx="1" />
+      <rect width="7" height="9" x="14" y="12" rx="1" />
+      <rect width="7" height="5" x="3" y="16" rx="1" />
+    </>,
+    play: <polygon points="6 3 20 12 6 21 6 3" />,
+    layers: <>
+      <path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" />
+      <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" />
+      <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" />
+    </>,
+    "library-big": <>
+      <rect width="8" height="18" x="3" y="3" rx="1" />
+      <path d="M7 3v18" />
+      <path d="M20.4 18.9c.2.5-.1 1.1-.6 1.3l-1.9.7c-.5.2-1.1-.1-1.3-.6L11.1 5.1c-.2-.5.1-1.1.6-1.3l1.9-.7c.5-.2 1.1.1 1.3.6Z" />
+    </>,
   };
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
 
 function Destinations({ mobile, onNavigate }) {
