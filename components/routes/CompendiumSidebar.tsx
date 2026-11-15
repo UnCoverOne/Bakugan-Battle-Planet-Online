@@ -2,9 +2,10 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import styles from "./CompendiumSidebar.module.css";
 
-export function CompendiumSidebar({ label, open, desktopVisible, onClose, children, footer, as = "aside", className = "" }: {
+export function CompendiumSidebar({ label, open, desktopVisible, onClose, children, footer, as = "aside", className = "", onClear, activeCount = 0 }: {
   label: string; open: boolean; desktopVisible: boolean; onClose: () => void;
   children: ReactNode; footer?: ReactNode; as?: "aside" | "nav"; className?: string;
+  onClear?: () => void; activeCount?: number;
 }) {
   const id = useId();
   const [mobile, setMobile] = useState(false);
@@ -43,7 +44,8 @@ export function CompendiumSidebar({ label, open, desktopVisible, onClose, childr
       if (mobile && event.target instanceof Element &&
         event.target.closest('a[href],button[data-sidebar-select]')) onClose();
     }}>
-    <div className={styles.header}><strong>{label}</strong><button type="button" ref={closeRef} aria-label="Close panel" onClick={onClose}>×</button></div>
+    <div className={styles.header}><strong>{label}</strong><button type="button" ref={closeRef} aria-label={`Close ${label}`} onClick={onClose}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg></button></div>
+    {onClear && <div className={styles.clearRow}><span>{activeCount} active {activeCount === 1 ? "filter" : "filters"}</span><button type="button" onClick={onClear} disabled={activeCount === 0}>Clear all</button></div>}
     <div className={styles.body}>{children}</div>
     {footer && <div className={styles.footer}>{footer}</div>}
   </Element>;
