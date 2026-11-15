@@ -137,10 +137,13 @@ export function CompendiumFieldPicker({
     {info && <>
       <button type="button" ref={infoRef} className={styles.info} aria-label={`About ${label}`}
         aria-expanded={tipOpen} aria-describedby={tipOpen ? `${id}-help` : undefined}
-        onClick={() => setTipOpen(current => !current)}
+        onClick={(event) => {
+          if (event.detail > 0 && window.matchMedia("(hover: hover) and (pointer: fine)").matches) setTipOpen(true);
+          else setTipOpen(current => !current);
+        }}
         onPointerEnter={(event) => { if (event.pointerType === "mouse") setTipOpen(true); }}
         onPointerLeave={(event) => { if (event.pointerType === "mouse") setTipOpen(false); }}
-        onFocus={() => setTipOpen(true)}
+        onFocus={(event) => { if (event.currentTarget.matches(":focus-visible")) setTipOpen(true); }}
         onBlur={() => setTipOpen(false)}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 11v6M12 7h.01"/></svg>
       </button>
