@@ -67,6 +67,8 @@ test("Compendium URL state round-trips filters, density, selection, and inspecto
     set: ["BB"],
     type: ["Character"],
     coreType: ["Magic Shield"],
+    bPower: [],
+    damage: [],
     faction: ["Pyrus"],
     cost: ["2"],
     rarity: ["Rare"],
@@ -313,117 +315,63 @@ test("Collection reuses the complete filter controls in desktop and mobile surfa
   assert.match(route, /nextIsCharacterOnly \? \{ cost: null, rarity: null \}/);
 });
 
-test("Compendium renders the complete gallery and reusable inspector contracts", async () => {
-  const [route, css, inspector, inspectorCss, modalCss, image] = await Promise.all([
-    Promise.all([read("components/routes/CompendiumScreen.tsx"), read("lib/catalogue-sorting.ts")]).then(parts => parts.join("\n")),
-    read("components/routes/CompendiumScreen.module.css"),
+test("Compendium uses unified sticky toolbar, sidebar and responsive field pickers", async () => {
+  const [route, toolbar, toolbarCss, sidebar, sidebarCss, picker, pickerCss, inspector] = await Promise.all([
+    read("components/routes/CompendiumScreen.tsx"),
+    read("components/routes/CompendiumToolbar.tsx"),
+    read("components/routes/CompendiumToolbar.module.css"),
+    read("components/routes/CompendiumSidebar.tsx"),
+    read("components/routes/CompendiumSidebar.module.css"),
+    read("components/routes/CompendiumFieldPicker.tsx"),
+    read("components/routes/CompendiumFieldPicker.module.css"),
     read("components/cards/CardInspector.tsx"),
-    read("components/cards/CardInspector.module.css"),
-    read("components/cards/InspectorModal.module.css"),
-    read("components/cards/ResponsiveCardImage.tsx"),
   ]);
-  for (const contract of [
-    "parseCompendiumState",
-    "filterAndSortCompendiumCards",
-    "coreType",
-    "bpower-desc",
-    "damage-desc",
-    "COMPENDIUM_PAGE_SIZE",
-    "FilterControls",
-    "CardFilterPanel",
-    "FilterPicker",
-    "createCardFilterOptionCatalogue",
-    "activeCardFilterCount",
-    "CoreFilterControls",
-    "filterRail",
-    "Card filters",
-    "BakuCore filters",
-    "Filters &amp; sort",
-    "filterDivider",
-    "Share results",
-    "Gallery",
-    "Compact",
-    "CardInspector",
-    "useDeferredValue",
-    "startTransition",
-    "setSearchQuery",
-    "handleSearchChange",
-    "localSearchEditRef",
-    "SEARCH_URL_DEBOUNCE_MS",
-    "window.setTimeout",
-    "window.history.pushState",
-    "BAKUCORES",
-    "CORE_COMPENDIUM_PAGE_SIZE",
-    "CORE_COMPENDIUM",
-    "corePreviewStats",
-    "coreForSet",
-    "coreStatList",
-    "coreSetLabel",
-    "filterAndSortCompendiumCores",
-    "returnFocusRef",
-  ]) assert.match(route, new RegExp(contract));
-  assert.match(route, /onSortChange/);
-  assert.match(route, /className=\{styles\.filterRail\}/);
-  assert.match(route, /core=\{selectedCore\}/);
-  assert.match(route, /tab=\{coreState\.tab\}/);
-  const coreTiles = route.slice(route.indexOf("visibleCores.map((core) => {"), route.indexOf("</CardGrid>", route.indexOf("visibleCores.map((core) => {")));
-  assert.match(coreTiles, /<strong>\{core\.type\}<\/strong>/);
-  assert.match(coreTiles, /stats\.map\(\(stat\) => <span key=\{stat\}>\{stat\}<\/span>\)/);
-  assert.match(coreTiles, /coreSetLabel/);
-  assert.doesNotMatch(coreTiles, /core\.name|coreAlternate|coreCollector|coreStats|cardBadges|Alternate/);
-  assert.doesNotMatch(inspector, /<StatusChip[^>]*>Alternate printing<\/StatusChip>/);
-  assert.doesNotMatch(route, /function CoreInspector/);
-  assert.doesNotMatch(route, /Refine archive/);
-  assert.doesNotMatch(route, /Refine BakuCores/);
-  assert.doesNotMatch(route, /reprintOf/);
-  assert.doesNotMatch(css, /\.coreEffects span/);
-  assert.match(route, /value=\{searchQuery\}/);
-  assert.match(route, /onChange=\{\(event\) => handleSearchChange\(event\.target\.value\)\}/);
-  assert.match(route, /localSearchEditRef\.current/);
-  assert.doesNotMatch(route, /onChange=\{\(event\) => navigate\(\{ q: event\.target\.value \}/);
-  for (const tab of ["Overview", "Rules", "Rulings", "Related"]) assert.match(inspector, new RegExp(tab));
+  assert.match(toolbar, /CompendiumNavigation/);
+  assert.match(toolbarCss, /position:sticky/);
+  assert.match(toolbar, /Filters/);
+  assert.match(toolbar, /Contents/);
+  assert.match(sidebar, /className=\{styles\.header\}/);
+  assert.match(sidebar, /className=\{styles\.clearRow\}/);
+  assert.match(sidebarCss, /width: 44px/);
+  assert.match(sidebarCss, /height: 100dvh !important/);
+  assert.match(route, /setDesktopSidebarVisible\(false\)/);
+  assert.match(route, /withoutSidebar/);
+  for (const facet of ["coreType", "bPower", "damage", "faction", "set", "rarity", "cost", "keyword"]) {
+    assert.match(route, new RegExp(facet));
+  }
+  assert.match(route, /characterOnly/);
+  assert.match(route, /hasStats/);
+  assert.match(route, /CompendiumFieldPicker/);
+  assert.doesNotMatch(route, /filterSheetOpen|mobileFilterButton|CardFilterPanel|styles\.filterDivider/);
+  assert.match(picker, /createPortal/);
+  assert.match(picker, /className=\{styles\.chip\}/);
+  assert.match(picker, /aria-checked=\{checked\}/);
+  assert.match(picker, /role="tooltip"/);
+  assert.match(picker, /onClick=\{apply\}/);
+  assert.match(pickerCss, /width:min\(460px,100%\)/);
+  assert.match(pickerCss, /height:100dvh/);
+  assert.match(pickerCss, /min-height:56px/);
   assert.match(inspector, /data-ui="card-inspector"/);
-  assert.match(inspector, /CoreOverview/);
-  assert.match(inspector, /CoreRelated/);
-  assert.match(inspector, /const isCore/);
-  assert.match(inspectorCss, /relatedCoreArt/);
-  assert.match(image, /<CardArt/);
-  assert.match(image, /presentation="readable"/);
-  assert.doesNotMatch(image, /srcSet=\{/);
-  assert.match(image, /cardArtSource\(card, "thumbnail"\)/);
-  assert.match(image, /cardArtSource\(card, "full"\)/);
-  assert.match(css, /\.toolbar\s*\{[^}]*position:\s*sticky/s);
-  assert.match(css, /\.filterRail\s*\{[^}]*position:\s*sticky/s);
-  assert.match(css, /\.filterSheet/);
-  assert.match(inspectorCss, /\.modal\s*\{[^}]*width:\s*min\(66rem/s);
-  assert.doesNotMatch(inspectorCss, /\.adaptive\s*\{/);
-  assert.match(inspector, /InspectorModal/);
-  assert.match(modalCss, /\.backdrop\s*\{[^}]*position:\s*fixed/s);
-  assert.match(modalCss, /@media \(max-width:\s*900px\)[\s\S]*\.panel\s*\{[\s\S]*width:\s*100vw/s);
-  assert.match(inspector, /data-ui="card-inspector"/);
-  assert.match(inspectorCss, /@media \(max-width:\s*900px\)[\s\S]*\.modal \.overview\s*\{[\s\S]*grid-template-columns:\s*1fr/s);
-  assert.match(inspectorCss, /@media \(max-width:\s*900px\)[\s\S]*\.modal \.artWell\s*\{[\s\S]*position:\s*static/s);
-  assert.doesNotMatch(css, /\.coreInspector\s*\{[^}]*position:\s*(?:sticky|relative)/s);
-  assert.match(inspectorCss, /height:\s*100dvh/);
+  assert.match(route, /CardInspector/);
 });
 
-test("Reference contents drawers share a mobile-only, touch-sized close control", async () => {
-  const [drawer, styles, rules, glossary, rulings] = await Promise.all([
-    read("components/routes/ReferenceContentsDrawer.tsx"),
-    read("components/routes/ReferenceContentsDrawer.module.css"),
-    read("components/routes/OfficialRulebook.tsx"),
-    read("components/routes/GlossaryScreen.tsx"),
-    read("components/routes/RulingsReference.tsx"),
-  ]);
-  for (const view of [rules, glossary, rulings]) {
-    assert.match(view, /<ReferenceContentsDrawer className=/);
-  }
-  assert.match(drawer, /<div className=\{styles\.closeControl\}>\s*<button[^>]+className=\{styles\.close\}/);
-  assert.match(styles, /\.tab,\.scrim,\.closeControl\{display:none\}/);
-  assert.match(styles, /@media\(max-width:900px\)\{[\s\S]*nav\.panel > \.closeControl\{[^}]*display:flex;/);
-  assert.match(styles, /nav\.panel > \.closeControl > button\.close\{[^}]*width:30px;[^}]*height:30px;/);
-  assert.match(styles, /nav\.panel > \.closeControl\{[^}]*top:calc\(var\(--space-4\) \+ env\(safe-area-inset-top\) - 6px\)/);
-  assert.doesNotMatch(styles, /nav\.panel > button\.close/);
+test("stat filters round-trip and filter only matching B Power and Damage values", () => {
+  const sample = [
+    card({catalogId: "char-a", displayName: "Alpha", type: "Character", bPower: 700, damage: 3}),
+    card({catalogId: "char-b", displayName: "Beta", type: "Character", bPower: 900, damage: 3}),
+    card({catalogId: "evo-c", displayName: "Gamma Evo", type: "Evo", bPower: 700, damage: 5}),
+    card({catalogId: "action-d", displayName: "Action", type: "Action"}),
+  ];
+  const state = parseCompendiumState("type=Character&type=Evo&bPower=700&damage=3");
+  assert.deepEqual(state.bPower, ["700"]);
+  assert.deepEqual(state.damage, ["3"]);
+  assert.deepEqual(parseCompendiumState(compendiumSearchParams(state)), state);
+  assert.deepEqual(filterAndSortCompendiumCards(sample, state).map(c => c.catalogId), ["char-a"]);
+  const options = createCardFilterOptionCatalogue(sample);
+  assert.deepEqual(options.bPower.map(o => o.value), ["700", "900"]);
+  assert.deepEqual(options.damage.map(o => o.value), ["3", "5"]);
+  const noStat = {...state, bPower: [], damage: []};
+  assert.equal(filterAndSortCompendiumCards(sample, noStat).length, 3);
 });
 
 test("Compendium Rulings leaves submission and heading to the global feedback menu", async () => {
@@ -432,7 +380,7 @@ test("Compendium Rulings leaves submission and heading to the global feedback me
     read("components/routes/RulingsReference.tsx"),
     read("components/application/AppShell.jsx"),
   ]);
-  assert.match(rulings, /<ReferenceContentsDrawer/);
+  assert.match(rulings, /<CompendiumSidebar/);
   assert.doesNotMatch(rulings, /<h2>Rulings<\/h2>|Submit a question|onSubmit/);
   // The ruling-submission UI lives in Feedback & Reports, not Compendium.
   // Referencing its removed setter caused a ReferenceError on every tab load.
