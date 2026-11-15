@@ -60,10 +60,7 @@
 }
 
 
-.filterDivider {
-  height: 1px;
 
-}
 
 .gallery {
   min-width: 0;
@@ -389,9 +386,7 @@
   .coreInspector {
   }
 
-  .densityTabs {
-    grid-column: 1 / -1;
-  }
+
 
   .cardGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

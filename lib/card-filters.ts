@@ -8,6 +8,8 @@ export const CARD_FILTER_FACETS = [
   "cost",
   "rarity",
   "coreType",
+  "bPower",
+  "damage",
   "keyword",
 ] as const;
 
@@ -20,6 +22,8 @@ export type CardFilterState = {
   cost: string[];
   rarity: string[];
   coreType: string[];
+  bPower: string[];
+  damage: string[];
   keyword: string[];
 };
 
@@ -37,7 +41,9 @@ export const CARD_FILTER_LABELS: Record<CardFilterFacet, string> = {
   faction: "Faction",
   cost: "Energy cost",
   rarity: "Rarity",
-  coreType: "Core type",
+  coreType: "BakuCores",
+  bPower: "B Power",
+  damage: "Damage",
   keyword: "Keyword",
 };
 
@@ -106,6 +112,8 @@ export function createEmptyCardFilters(
     cost: [...(initial.cost ?? [])],
     rarity: [...(initial.rarity ?? [])],
     coreType: [...(initial.coreType ?? [])],
+    bPower: [...(initial.bPower ?? [])],
+    damage: [...(initial.damage ?? [])],
     keyword: [...(initial.keyword ?? [])],
   };
 }
@@ -121,6 +129,12 @@ export function createCardFilterOptionCatalogue(cards: readonly GameCard[]): Car
       .toSorted()
       .map((value) => ({ value, label: value })),
     coreType: CORE_TYPE_OPTIONS,
+    bPower: [...new Set(cards.filter((card) => card.type === "Character" || card.type === "Evo")
+      .map((card) => card.bPower).filter((value): value is number => value !== null))]
+      .sort((a, b) => a - b).map((value) => ({ value: String(value), label: String(value) })),
+    damage: [...new Set(cards.filter((card) => card.type === "Character" || card.type === "Evo")
+      .map((card) => card.damage).filter((value): value is number => value !== null))]
+      .sort((a, b) => a - b).map((value) => ({ value: String(value), label: String(value) })),
     keyword: [...new Set(cards.flatMap((card) => card.mechanics))]
       .filter((value) => value && !HIDDEN_KEYWORD_FILTERS.has(value))
       .toSorted()
@@ -140,6 +154,8 @@ export function restrictCardFilters(
     cost: visible.has("cost") ? [...filters.cost] : [],
     rarity: visible.has("rarity") ? [...filters.rarity] : [],
     coreType: visible.has("coreType") ? [...filters.coreType] : [],
+    bPower: visible.has("bPower") ? [...filters.bPower] : [],
+    damage: visible.has("damage") ? [...filters.damage] : [],
     keyword: visible.has("keyword") ? [...filters.keyword] : [],
   };
 }
@@ -156,6 +172,8 @@ export function clearCardFilterFacets(
     cost: cleared.has("cost") ? [] : [...filters.cost],
     rarity: cleared.has("rarity") ? [] : [...filters.rarity],
     coreType: cleared.has("coreType") ? [] : [...filters.coreType],
+    bPower: cleared.has("bPower") ? [] : [...filters.bPower],
+    damage: cleared.has("damage") ? [] : [...filters.damage],
     keyword: cleared.has("keyword") ? [] : [...filters.keyword],
   };
 }
@@ -181,6 +199,9 @@ export function cardMatchesFilters(card: GameCard, filters: CardFilterState) {
     || (isCharacter
       ? explicitlyIncludesCharacter
       : filters.cost.includes(String(card.cost)));
+  const statsCard = isCharacter || card.type === "Evo";
+  const bPowerMatches = filters.bPower.length === 0 || (!statsCard && mixesCharacterAndNonCharacter) || (card.bPower !== null && filters.bPower.includes(String(card.bPower)));
+  const damageMatches = filters.damage.length === 0 || (!statsCard && mixesCharacterAndNonCharacter) || (card.damage !== null && filters.damage.includes(String(card.damage)));
   const rarityMatches = filters.rarity.length === 0
     || (isCharacter
       ? explicitlyIncludesCharacter
@@ -190,6 +211,8 @@ export function cardMatchesFilters(card: GameCard, filters: CardFilterState) {
     (filters.set.length === 0 || filters.set.includes(cardSetCode(card)))
     && (filters.type.length === 0 || filters.type.includes(card.type))
     && coreTypeMatches
+    && bPowerMatches
+    && damageMatches
     && (filters.faction.length === 0 || card.factions.some((faction) => filters.faction.includes(faction)))
     && costMatches
     && rarityMatches

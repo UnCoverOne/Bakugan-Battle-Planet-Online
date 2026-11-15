@@ -34,8 +34,8 @@ import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT } from "../.
 import { useAppFields } from "../application/AppProvider";
 import { copyText } from "../application/ui";
 import { ActionButton, CardGrid, StatusChip, Surface } from "../design-system/primitives";
-import { CardFilterPanel } from "../filters/CardFilterPanel";
-import { FilterPicker, type FilterOption } from "../filters/FilterPicker";
+import { CompendiumFieldPicker } from "./CompendiumFieldPicker";
+import type { CardFilterOption as FilterOption } from "../../lib/card-filters";
 import {
   activeCardFilterCount,
   CORE_SET_OPTIONS,
@@ -71,102 +71,71 @@ const ruleReferences = [
 ];
 
 function FilterControls({
-  state,
-  filterOptions,
-  onChange,
-  onSortChange,
+  state, filterOptions, onChange, onSortChange,
 }: {
   state: CompendiumState;
   filterOptions: CardFilterOptionCatalogue;
   onChange: (key: FilterKey, values: string[]) => void;
   onSortChange: (sort: CompendiumState["sort"]) => void;
 }) {
-  const isCharacterOnly = state.type.length === 1 && state.type[0] === "Character";
-  const includesCharacter = state.type.includes("Character");
-  const sortOptions = Object.entries(SORT_LABELS).filter(([value]) => (
-    (isCharacterOnly ? CHARACTER_SORTS : NON_CHARACTER_SORTS).has(value as CompendiumState["sort"])
-  ));
-  const selectedSort = sortOptions.some(([value]) => value === state.sort) ? state.sort : "collector";
-  const secondaryFacets: CardFilterFacet[] = ["set", "faction"];
-  if (!isCharacterOnly) secondaryFacets.push("cost", "rarity");
-  if (includesCharacter) secondaryFacets.push("coreType");
-  secondaryFacets.push("keyword");
-
-  const updateFilters = (next: CompendiumState, facet: CardFilterFacet) => {
-    onChange(facet, next[facet]);
+  const characterOnly = state.type.length === 1 && state.type[0] === "Character";
+  const hasCharacter = state.type.includes("Character");
+  const hasStats = hasCharacter || state.type.includes("Evo");
+  const sorts = Object.entries(SORT_LABELS).filter(([value]) =>
+    (characterOnly ? CHARACTER_SORTS : NON_CHARACTER_SORTS).has(value as CompendiumState["sort"]));
+  const selectedSort = sorts.some(([value]) => value === state.sort) ? state.sort : "collector";
+  const fields: CardFilterFacet[] = [
+    ...(characterOnly ? ["coreType" as const] : []),
+    ...(hasStats ? ["bPower" as const, "damage" as const] : []),
+    "faction", "set",
+    ...(!characterOnly ? ["rarity" as const, "cost" as const] : []),
+    "keyword",
+  ];
+  const info: Partial<Record<CardFilterFacet, string>> = {
+    type: "Card Type determines the available sorting options and conditional filters.",
+    coreType: "Available only when Character is the sole selected card type.",
+    bPower: "Available when Character and/or Evo cards are selected.",
+    damage: "Available when Character and/or Evo cards are selected.",
+    rarity: "Not available when only Character cards are selected.",
+    cost: "Not available when only Character cards are selected.",
   };
-
-  return (
-    <>
-      <CardFilterPanel
-        filters={state}
-        facets={["type"]}
-        options={filterOptions}
-        onChange={updateFilters}
-      />
-      <div className={styles.filterDivider} role="separator" />
-      <FilterPicker
-        label="Sort"
-        values={[selectedSort]}
-        options={sortOptions.map(([value, label]) => ({ value, label }))}
-        onChange={(values) => {
-          const next = values[0] as CompendiumState["sort"] | undefined;
-          if (next) onSortChange(next);
-        }}
-        mode="single"
-        clearable={false}
-      />
-      <div className={styles.filterDivider} role="separator" />
-      <CardFilterPanel
-        filters={state}
-        facets={secondaryFacets}
-        options={filterOptions}
-        onChange={updateFilters}
-      />
-    </>
+  const label: Partial<Record<CardFilterFacet, string>> = {
+    type: "Card Type", coreType: "BakuCores", bPower: "B Power", cost: "Cost",
+  };
+  const picker = (facet: CardFilterFacet) => (
+    <CompendiumFieldPicker key={facet} label={label[facet] ?? {
+      faction: "Faction", set: "Set", rarity: "Rarity", damage: "Damage", keyword: "Keyword",
+    }[facet] ?? facet} values={state[facet]} options={filterOptions[facet]}
+      searchable={["set", "bPower", "damage", "keyword"].includes(facet)}
+      info={info[facet]} onChange={(values) => onChange(facet, values)} />
   );
+  return <>
+    {picker("type")}
+    <CompendiumFieldPicker label="Sort By" values={[selectedSort]} mode="single" clearable={false}
+      options={sorts.map(([value, label]) => ({ value, label }))}
+      onChange={(values) => { if (values[0]) onSortChange(values[0] as CompendiumState["sort"]); }} />
+    {fields.map(picker)}
+  </>;
 }
 
 function CoreFilterControls({
-  state,
-  onChange,
-  onSortChange,
+  state, onChange, onSortChange,
 }: {
   state: CoreCompendiumState;
   onChange: (patch: Partial<CoreCompendiumState>) => void;
   onSortChange: (sort: CoreCompendiumState["sort"]) => void;
 }) {
-  return (
-    <>
-      <FilterPicker
-        label="Core type"
-        values={state.type === "All" ? [] : [state.type]}
-        options={CORE_TYPE_OPTIONS}
-        onChange={(values) => onChange({ type: values[0] ?? "All" })}
-        mode="single"
-      />
-      <div className={styles.filterDivider} role="separator" />
-      <FilterPicker
-        label="Sort"
-        values={[state.sort]}
-        options={CORE_SORT_OPTIONS}
-        onChange={(values) => {
-          const next = values[0] as CoreCompendiumState["sort"] | undefined;
-          if (next) onSortChange(next);
-        }}
-        mode="single"
-        clearable={false}
-      />
-      <div className={styles.filterDivider} role="separator" />
-      <FilterPicker
-        label="Set"
-        values={state.set === "All" ? [] : [state.set]}
-        options={CORE_SET_OPTIONS}
-        onChange={(values) => onChange({ set: values[0] ?? "All" })}
-        mode="single"
-      />
-    </>
-  );
+  return <>
+    <CompendiumFieldPicker label="Core Type" values={state.type === "All" ? [] : [state.type]}
+      options={CORE_TYPE_OPTIONS} mode="single"
+      onChange={(values) => onChange({ type: values[0] ?? "All" })} />
+    <CompendiumFieldPicker label="Sort By" values={[state.sort]} options={CORE_SORT_OPTIONS}
+      mode="single" clearable={false}
+      onChange={(values) => { if (values[0]) onSortChange(values[0] as CoreCompendiumState["sort"]); }} />
+    <CompendiumFieldPicker label="Set" values={state.set === "All" ? [] : [state.set]}
+      options={CORE_SET_OPTIONS} mode="single"
+      onChange={(values) => onChange({ set: values[0] ?? "All" })} />
+  </>;
 }
 
 
@@ -332,7 +301,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     const nextSorts = nextIsCharacterOnly ? CHARACTER_SORTS : NON_CHARACTER_SORTS;
     const patch: StatePatch = {
       type: values,
-      ...(!includesCharacter ? { coreType: [] } : {}),
+      ...(!nextIsCharacterOnly ? { coreType: [] } : {}),
+      ...(!includesCharacter && !values.includes("Evo") ? { bPower: [], damage: [] } : {}),
       ...(nextIsCharacterOnly ? { cost: [], rarity: [] } : {}),
       ...(nextSorts.has(state.sort) ? {} : { sort: "collector" }),
     };
@@ -342,6 +312,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     set: [],
     type: [],
     coreType: [],
+    bPower: [],
+    damage: [],
     faction: [],
     cost: [],
     rarity: [],

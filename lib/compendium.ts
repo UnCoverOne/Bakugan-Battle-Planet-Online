@@ -60,6 +60,8 @@ export function parseCompendiumState(input: URLSearchParams | string): Compendiu
     set: choices(params, "set"),
     type: choices(params, "type"),
     coreType: choices(params, "coreType"),
+    bPower: choices(params, "bPower"),
+    damage: choices(params, "damage"),
     faction: choices(params, "faction"),
     cost: choices(params, "cost"),
     rarity: choices(params, "rarity"),
@@ -85,6 +87,8 @@ export function compendiumSearchParams(state: CompendiumState) {
   appendChoices("set", state.set);
   appendChoices("type", state.type);
   appendChoices("coreType", state.coreType);
+  appendChoices("bPower", state.bPower);
+  appendChoices("damage", state.damage);
   appendChoices("faction", state.faction);
   appendChoices("cost", state.cost);
   appendChoices("rarity", state.rarity);
