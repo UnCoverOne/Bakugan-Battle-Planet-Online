@@ -4,7 +4,7 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 2px;
   width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
-  margin: var(--space-4) auto 0;
+  margin: 0 auto;
   min-width: 0;
   overflow: hidden;
   background: var(--bb-page);
