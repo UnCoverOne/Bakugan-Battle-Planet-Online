@@ -651,3 +651,10 @@
   .resultsToolbar .shareResults { display: none; }
   .filterHeading h2 { display: none; } /* mobile panel already has a fixed title */
 }
+
+/* Anchor links must clear the fixed website header plus sticky Compendium controls. */
+.rulebookFrame :global([id^="chapter-"]),
+.rulebookFrame :global([id^="section-"]),
+.rulebookFrame :global([id^="rule-"]),
+.rulebookFrame :global([id^="glossary-"]),
+.rulebookFrame :global([id^="ruling-"]) { scroll-margin-top: 200px; }
