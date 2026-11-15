@@ -643,3 +643,11 @@
   .rulebookFrame :global([data-compendium-reference-layout] > nav[data-compendium-sidebar]) { position: fixed; top: 0; max-height: 100dvh; }
   .viewToast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 }
+
+/* Results information is content, not another sticky toolbar. */
+.resultsToolbar { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+@media (max-width: 900px) {
+  .resultsToolbar { grid-template-columns: minmax(0, 1fr); }
+  .resultsToolbar .shareResults { display: none; }
+  .filterHeading h2 { display: none; } /* mobile panel already has a fixed title */
+}
