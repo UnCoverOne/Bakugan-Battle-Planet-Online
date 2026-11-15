@@ -29,11 +29,11 @@ import {
 } from "../../lib/compendium";
 import { CARDS, CORE_COMPENDIUM, RULE_ENTRIES } from "../../lib/data";
 import { updateCollection, type CollectionField } from "../../lib/collection";
-import { CARD_SET_INFO, cardSetCode } from "../../lib/content/catalogue";
+import { cardSetCode } from "../../lib/content/catalogue";
 import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT } from "../../lib/reference";
 import { useAppFields } from "../application/AppProvider";
 import { copyText } from "../application/ui";
-import { ActionButton, CardGrid, RouteHero, StatusChip, Surface } from "../design-system/primitives";
+import { ActionButton, CardGrid, StatusChip, Surface } from "../design-system/primitives";
 import { CardFilterPanel } from "../filters/CardFilterPanel";
 import { FilterPicker, type FilterOption } from "../filters/FilterPicker";
 import {
@@ -401,11 +401,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   };
   return (
     <div className={styles.route}>
-      <RouteHero
-        eyebrow="AUTHORITATIVE REFERENCE"
-        title="Compendium"
-        aside={<div className={styles.sourceSummary}><strong>{Object.keys(CARD_SET_INFO).length} sets · {CARDS.length} cards · {CORE_COMPENDIUM.length} BakuCores</strong></div>}
-      />
+      <h1 className={styles.visuallyHidden}>Compendium</h1>
       <CompendiumToolbar section={section} onSectionChange={switchSection} query={searchQuery} onSearch={handleSearchChange}
         sidebarTrigger={sidebarTrigger} activeCount={activeCount} density={density} sidebarOpen={sidebarOpen} desktopSidebarVisible={desktopSidebarVisible}
         onSidebar={() => {
