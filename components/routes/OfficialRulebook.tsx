@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { OFFICIAL_RULEBOOK, type OfficialRuleNode } from "../../lib/official-rulebook";
 import styles from "./OfficialRulebook.module.css";
-import { ReferenceContentsDrawer } from "./ReferenceContentsDrawer";
+import { CompendiumSidebar } from "./CompendiumSidebar";
 
 type IndexedRule = { id: string; label: string; text: string; chapter: number; depth: number };
 const indexed: IndexedRule[] = [];
@@ -60,7 +60,7 @@ function RuleParagraph({ node, id, depth, onTerm, filter }: { node: OfficialRule
 function matches(node: OfficialRuleNode, query: string): boolean {
   return node.text.toLowerCase().includes(query) || node.children.some((child) => matches(child, query));
 }
-export function OfficialRulebook({ query = "" }: { query?: string }) {
+export function OfficialRulebook({ query = "", sidebarOpen, desktopSidebarVisible, onSidebarClose }: { query?: string; sidebarOpen: boolean; desktopSidebarVisible: boolean; onSidebarClose: () => void }) {
   const [term, setTerm] = useState<IndexedRule | null>(null);
   useEffect(() => {
     const reveal = () => {
@@ -93,12 +93,12 @@ export function OfficialRulebook({ query = "" }: { query?: string }) {
     });
     window.location.hash = id.split(".").length === 2 ? `section-${id}` : `rule-${id}`;
   };
-  return <div className={styles.reader} data-rulebook-reader>
-    <ReferenceContentsDrawer className={styles.contents} label="Rulebook contents">
+  return <div className={styles.reader} data-rulebook-reader data-compendium-reference-layout>
+    <CompendiumSidebar as="nav" className={styles.contents} label="Rulebook contents" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={onSidebarClose}>
       <h2>Contents</h2>
       {OFFICIAL_RULEBOOK.map((chapter, i) => <details key={i} open={i === 0 || Boolean(filter)}><summary><a href={`#chapter-${i + 1}`}>{i + 1}. {chapter.text}</a></summary><div className={styles.sectionLinks}>{chapter.children.map((section, j) => <a key={j} href={`#section-${i + 1}.${j + 1}`}>{i + 1}.{j + 1} {section.text}</a>)}</div></details>)}
       <a href="#rulebook-errata">Errata</a>
-    </ReferenceContentsDrawer>
+    </CompendiumSidebar>
     <main className={styles.main}>
       {OFFICIAL_RULEBOOK.map((chapter, i) => (!filter || matches(chapter, filter)) && <section className={styles.chapter} id={`chapter-${i + 1}`} key={i}>
         <h2>{i + 1}. {chapter.text}</h2>
