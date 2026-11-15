@@ -33,7 +33,7 @@ import { CARD_SET_INFO, cardSetCode } from "../../lib/content/catalogue";
 import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT } from "../../lib/reference";
 import { useAppFields } from "../application/AppProvider";
 import { copyText } from "../application/ui";
-import { ActionButton, CardGrid, Field, RouteHero, StatusChip, Surface, Tabs } from "../design-system/primitives";
+import { ActionButton, CardGrid, RouteHero, StatusChip, Surface } from "../design-system/primitives";
 import { CardFilterPanel } from "../filters/CardFilterPanel";
 import { FilterPicker, type FilterOption } from "../filters/FilterPicker";
 import {
@@ -47,6 +47,8 @@ import {
 import { SORT_LABELS, CHARACTER_SORTS, NON_CHARACTER_SORTS, CORE_SORT_LABELS } from "../../lib/catalogue-sorting";
 import { coreForSet, corePreviewStats } from "../../lib/core-preview";
 import styles from "./CompendiumScreen.module.css";
+import { CompendiumToolbar } from "./CompendiumToolbar";
+import { CompendiumSidebar } from "./CompendiumSidebar";
 import { CompendiumNavigation } from "./CompendiumNavigation";
 
 const SEARCH_URL_DEBOUNCE_MS = 450;
@@ -195,7 +197,10 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const coreState = useMemo(() => parseCoreCompendiumState(searchParams.toString()), [searchParams]);
   const [searchQuery, setSearchQuery] = useState(state.q);
   const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopSidebarVisible, setDesktopSidebarVisible] = useState(true);
+  const [viewMessage, setViewMessage] = useState("");
+  const sidebarTrigger = useRef<HTMLButtonElement>(null);
   const inspectorTrigger = useRef<HTMLElement | null>(null);
   const localSearchEditRef = useRef(false);
   const searchTimerRef = useRef<number | null>(null);
@@ -268,7 +273,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
 
   useEffect(() => {
     setCompendiumTab(section);
-    setFilterSheetOpen(false);
+    setSidebarOpen(false);
   }, [section, setCompendiumTab]);
   useEffect(() => {
     const onPopState = () => {
@@ -318,16 +323,19 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   useEffect(() => {
     const closeOverlays = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      if (filterSheetOpen) setFilterSheetOpen(false);
+      if (sidebarOpen) setSidebarOpen(false);
       else if (selectedCore) navigateCore({ core: "" });
     };
     addEventListener("keydown", closeOverlays);
     return () => removeEventListener("keydown", closeOverlays);
-  }, [closeInspector, filterSheetOpen, navigateCore, selected, selectedCore]);
+  }, [closeInspector, sidebarOpen, navigateCore, selected, selectedCore]);
 
   const activeFilterCount = activeCardFilterCount(state);
   const activeCoreFilterCount = (["set", "type"] as const)
     .filter((key) => coreState[key] !== "All").length;
+  const isCatalogue = section === "cards" || section === "cores";
+  const activeCount = section === "cards" ? activeFilterCount : section === "cores" ? activeCoreFilterCount : 0;
+  const density = section === "cores" ? coreState.density : state.density;
 
   const setFilter = (key: FilterKey, values: string[]) => {
     if (key !== "type") return navigate({ [key]: values } as StatePatch, { resetPage: true });
@@ -382,6 +390,12 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     localSearchEditRef.current = false;
     window.history.pushState(null, "", compendiumSectionHref(next, searchQuery));
   };
+  useEffect(() => {
+    if (!viewMessage) return;
+    const timeout = window.setTimeout(() => setViewMessage(""), 1500);
+    return () => window.clearTimeout(timeout);
+  }, [viewMessage]);
+  const closeSidebar = () => { setSidebarOpen(false); sidebarTrigger.current?.focus(); };
   const copyLink = async (path: string, label: string) => {
     await copyText(`${location.origin}${path}`);
     notify(`${label} link copied.`);
@@ -393,18 +407,19 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
         title="Compendium"
         aside={<div className={styles.sourceSummary}><strong>{Object.keys(CARD_SET_INFO).length} sets · {CARDS.length} cards · {CORE_COMPENDIUM.length} BakuCores</strong></div>}
       />
-      <CompendiumNavigation active={section} onSelect={switchSection} />
-      <section className={styles.toolbar}>
-        <Field className={styles.search} label="Search the archive">
-          <input type="search" value={searchQuery} onChange={(event) => handleSearchChange(event.target.value)} placeholder="Cards, effects, IDs, mechanics…" />
-        </Field>
-        {(section === "cards" || section === "cores") && (
-          <ActionButton className={styles.toolbarFilterButton} tone="secondary" onClick={() => setFilterSheetOpen(true)}>
-            Filters{section === "cards" ? (activeFilterCount ? ` (${activeFilterCount})` : "") : (activeCoreFilterCount ? ` (${activeCoreFilterCount})` : "")}
-          </ActionButton>
-        )}
-
-      </section>
+      <CompendiumToolbar section={section} onSectionChange={switchSection} query={searchQuery} onSearch={handleSearchChange}
+        sidebarTrigger={sidebarTrigger} activeCount={activeCount} density={density}
+        onSidebar={() => {
+          if (window.matchMedia("(max-width: 900px)").matches) setSidebarOpen(true);
+          else setDesktopSidebarVisible((visible) => !visible);
+        }}
+        onDensityChange={() => {
+          const next = density === "gallery" ? "compact" : "gallery";
+          if (section === "cards") navigate({ density: next });
+          else navigateCore({ density: next });
+          setViewMessage(next === "compact" ? "Compact view enabled" : "Gallery view enabled");
+        }} />
+      {viewMessage && <div className={styles.viewToast} role="status">{viewMessage}</div>}
 
       <div key={section} data-ui="compendium-section-content">
       {section === "cards" && (
@@ -414,17 +429,12 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               <strong>{cards.length.toLocaleString()} cards</strong>
               <span>Page {page} of {pages}</span>
             </div>
-            <ActionButton className={styles.mobileFilterButton} tone="secondary" onClick={() => setFilterSheetOpen(true)}>
-              Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}
-            </ActionButton>
-            <Tabs className={styles.densityTabs} label="Gallery density">
-              <button className={state.density === "gallery" ? "active" : ""} onClick={() => navigate({ density: "gallery" })}>Gallery</button>
-              <button className={state.density === "compact" ? "active" : ""} onClick={() => navigate({ density: "compact" })}>Compact</button>
-            </Tabs>
+            
+            
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("Filtered results")}>Share results</button>
           </section>
-          <div className={styles.workspace}>
-            <Surface as="aside" className={styles.filterRail} aria-label="Card filters">
+          <div className={`${styles.workspace} ${desktopSidebarVisible ? "" : styles.withoutSidebar}`}>
+            <CompendiumSidebar label="Card filters & sort" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={closeSidebar} footer={<button type="button" onClick={closeSidebar}>Show {cards.length.toLocaleString()} cards</button>}>
               <FilterControls
                 state={state}
                 filterOptions={filterOptions}
@@ -432,7 +442,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 onSortChange={(sort) => navigate({ sort }, { resetPage: true })}
                 onClear={clearFilters}
               />
-            </Surface>
+            </CompendiumSidebar>
             <main className={styles.gallery}>
               {visible.length ? (
                 <CardGrid
@@ -496,27 +506,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               />
             )}
           </div>
-          {filterSheetOpen && (
-            <div data-ui="filter-backdrop" className={styles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}>
-              <Surface as="aside" data-motion-surface="filter-sheet" className={styles.filterSheet} role="dialog" aria-modal="true" aria-label="Card filters">
-                <FilterControls
-                  state={state}
-                  filterOptions={filterOptions}
-                  onChange={setFilter}
-                  onSortChange={(sort) => navigate({ sort }, { resetPage: true })}
-                  onClear={clearFilters}
-                />
-                <div className={styles.sheetDensity}>
-                  <strong>Display</strong>
-                  <Tabs label="Card gallery density">
-                    <button type="button" className={state.density === "gallery" ? "active" : ""} onClick={() => navigate({ density: "gallery" })}>Gallery</button>
-                    <button type="button" className={state.density === "compact" ? "active" : ""} onClick={() => navigate({ density: "compact" })}>Compact</button>
-                  </Tabs>
-                </div>
-                <ActionButton onClick={() => setFilterSheetOpen(false)}>Show {cards.length} cards</ActionButton>
-              </Surface>
-            </div>
-          )}
+
         </>
       )}
 
@@ -527,24 +517,19 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               <strong>{cores.length.toLocaleString()} BakuCores</strong>
               <span>Page {corePage} of {corePages}</span>
             </div>
-            <ActionButton className={styles.mobileFilterButton} tone="secondary" onClick={() => setFilterSheetOpen(true)}>
-              Filters{activeCoreFilterCount ? ` (${activeCoreFilterCount})` : ""}
-            </ActionButton>
-            <Tabs className={styles.densityTabs} label="BakuCore gallery density">
-              <button className={coreState.density === "gallery" ? "active" : ""} onClick={() => navigateCore({ density: "gallery" })}>Gallery</button>
-              <button className={coreState.density === "compact" ? "active" : ""} onClick={() => navigateCore({ density: "compact" })}>Compact</button>
-            </Tabs>
+            
+            
             <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("BakuCore results")}>Share results</button>
           </section>
-          <div className={styles.coreWorkspace}>
-            <Surface as="aside" className={`${styles.filterRail} ${styles.coreFilterRail}`} aria-label="BakuCore filters">
+          <div className={`${styles.coreWorkspace} ${desktopSidebarVisible ? "" : styles.withoutSidebar}`}>
+            <CompendiumSidebar label="BakuCore filters & sort" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={closeSidebar} footer={<button type="button" onClick={closeSidebar}>Show {cores.length.toLocaleString()} BakuCores</button>}>
               <CoreFilterControls
                 state={coreState}
                 onChange={(patch) => navigateCore(patch, { resetPage: true })}
                 onSortChange={(sort) => navigateCore({ sort }, { resetPage: true })}
                 onClear={clearCoreFilters}
               />
-            </Surface>
+            </CompendiumSidebar>
             <main className={styles.gallery}>
               {visibleCores.length ? (
                 <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>
@@ -603,33 +588,14 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               />
             )}
           </div>
-          {filterSheetOpen && (
-            <div data-ui="filter-backdrop" className={styles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}>
-              <Surface as="aside" data-motion-surface="filter-sheet" className={`${styles.filterSheet} ${styles.coreFilterSheet}`} role="dialog" aria-modal="true" aria-label="BakuCore filters">
-                <CoreFilterControls
-                  state={coreState}
-                  onChange={(patch) => navigateCore(patch, { resetPage: true })}
-                  onSortChange={(sort) => navigateCore({ sort }, { resetPage: true })}
-                  onClear={clearCoreFilters}
-                />
-                <div className={styles.sheetDensity}>
-                  <strong>Display</strong>
-                  <Tabs label="BakuCore gallery density">
-                    <button type="button" className={coreState.density === "gallery" ? "active" : ""} onClick={() => navigateCore({ density: "gallery" })}>Gallery</button>
-                    <button type="button" className={coreState.density === "compact" ? "active" : ""} onClick={() => navigateCore({ density: "compact" })}>Compact</button>
-                  </Tabs>
-                </div>
-                <ActionButton onClick={() => setFilterSheetOpen(false)}>Show {cores.length} BakuCores</ActionButton>
-              </Surface>
-            </div>
-          )}
+
         </>
       )}
 
-      {section === "rules" && <div className={styles.rulebookFrame}><OfficialRulebook query={deferredSearchQuery} /></div>}
-      {section === "glossary" && <div className={styles.rulebookFrame}><GlossaryScreen query={deferredSearchQuery} /></div>}
+      {section === "rules" && <div className={styles.rulebookFrame} data-sidebar-hidden={!desktopSidebarVisible}><OfficialRulebook query={deferredSearchQuery} sidebarOpen={sidebarOpen} desktopSidebarVisible={desktopSidebarVisible} onSidebarClose={closeSidebar} /></div>}
+      {section === "glossary" && <div className={styles.rulebookFrame} data-sidebar-hidden={!desktopSidebarVisible}><GlossaryScreen query={deferredSearchQuery} sidebarOpen={sidebarOpen} desktopSidebarVisible={desktopSidebarVisible} onSidebarClose={closeSidebar} /></div>}
 
-      {section === "rulings" && <div className={styles.rulebookFrame}><RulingsReference query={deferredSearchQuery} onCopy={copyLink} /></div>}
+      {section === "rulings" && <div className={styles.rulebookFrame} data-sidebar-hidden={!desktopSidebarVisible}><RulingsReference query={deferredSearchQuery} onCopy={copyLink} sidebarOpen={sidebarOpen} desktopSidebarVisible={desktopSidebarVisible} onSidebarClose={closeSidebar} /></div>}
 
       </div>
 
