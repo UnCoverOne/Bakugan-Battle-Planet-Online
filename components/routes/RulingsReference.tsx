@@ -104,8 +104,8 @@ export function RulingsReference({ query = "", onCopy, sidebarOpen, desktopSideb
     <CompendiumSidebar as="nav" className={chrome.contents} label="Rulings contents" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={onSidebarClose}>
       <h2>Contents</h2>
       <h3>Categories</h3>
-      <button type="button" aria-pressed={category === "All"} onClick={() => setCategory("All")}>All rulings</button>
-      {categories.map((name) => <button type="button" key={name}
+      <button type="button" data-sidebar-select aria-pressed={category === "All"} onClick={() => setCategory("All")}>All rulings</button>
+      {categories.map((name) => <button type="button" key={name} data-sidebar-select
         aria-pressed={category === name} onClick={() => setCategory(name)}>{name}</button>)}
     </CompendiumSidebar>
     <main className={chrome.main}>
