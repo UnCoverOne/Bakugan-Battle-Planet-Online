@@ -26,8 +26,8 @@
   border-bottom: 1px solid var(--bb-border);
   font: 700 15px/1.25 var(--bb-font-interface);
 }
-.header strong { min-width: 0; overflow-wrap: anywhere; }
-.header button {
+.panel .header strong { min-width: 0; overflow-wrap: anywhere; }
+.panel .header button {
   flex: none;
   display: grid;
   place-items: center;
@@ -39,8 +39,8 @@
   color: var(--bb-text);
   cursor: pointer;
 }
-.header button svg { width: 20px; height: 20px; }
-.header button:hover { background: var(--bb-panel-hover); border-color: var(--bb-border-hover); }
+.panel .header button svg { width: 20px; height: 20px; }
+.panel .header button:hover { background: var(--bb-panel-hover); border-color: var(--bb-border-hover); }
 .clearRow {
   display: flex;
   flex: none;
@@ -53,7 +53,7 @@
   font: 400 12px/1.3 var(--bb-font-interface);
   border-bottom: 1px solid var(--bb-border);
 }
-.clearRow button {
+.panel .clearRow button {
   flex: none;
   min-width: 66px;
   min-height: 44px;
@@ -96,7 +96,7 @@
   .panel[data-open="true"], .panel[data-open="true"][data-desktop-visible="false"] { display: flex; }
   .header { padding: max(8px, env(safe-area-inset-top)) 16px 8px; font-size: 18px; }
   .clearRow { padding: 2px 16px; font-size: 14px; }
-  .clearRow button { font-size: 14px; }
+  .panel .clearRow button { font-size: 14px; }
   .body { padding: 16px; gap: 10px; }
   .footer {
     display: block;
@@ -115,3 +115,7 @@
     cursor: pointer;
   }
 }
+
+/* Reference-section link styles must not override shared header actions. */
+.panel .header button, .panel .clearRow button { width: auto; text-align: center; }
+.panel .header button { width: 44px; padding: 0; }
