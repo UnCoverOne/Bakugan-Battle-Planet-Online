@@ -38,6 +38,7 @@ import { CompendiumFieldPicker } from "./CompendiumFieldPicker";
 import type { CardFilterOption as FilterOption } from "../../lib/card-filters";
 import {
   activeCardFilterCount,
+  CARD_FILTER_LABELS,
   CORE_SET_OPTIONS,
   CORE_TYPE_OPTIONS,
   createCardFilterOptionCatalogue,
@@ -103,9 +104,7 @@ function FilterControls({
     type: "Card Type", coreType: "BakuCores", bPower: "B Power", cost: "Cost",
   };
   const picker = (facet: CardFilterFacet) => (
-    <CompendiumFieldPicker key={facet} label={label[facet] ?? {
-      faction: "Faction", set: "Set", rarity: "Rarity", damage: "Damage", keyword: "Keyword",
-    }[facet] ?? facet} values={state[facet]} options={filterOptions[facet]}
+    <CompendiumFieldPicker key={facet} label={label[facet] ?? CARD_FILTER_LABELS[facet]} values={state[facet]} options={filterOptions[facet]}
       searchable={["set", "bPower", "damage", "keyword"].includes(facet)}
       info={info[facet]} onChange={(values) => onChange(facet, values)} />
   );
@@ -320,14 +319,9 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     keyword: [],
   }, { resetPage: true });
   const clearCoreFilters = () => navigateCore({
-    q: "",
     set: "All",
     type: "All",
-    sort: "collector",
-    density: "gallery",
-    page: 1,
-    core: "",
-  });
+  }, { resetPage: true });
   const selectCard = (card: typeof CARDS[number], trigger?: HTMLElement | null) => {
     inspectorTrigger.current = trigger ?? inspectorTrigger.current;
     navigate({ card: card.slug ?? card.catalogId, tab: "overview" }, { push: true });
