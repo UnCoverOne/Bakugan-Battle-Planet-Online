@@ -324,7 +324,7 @@ export function GlossaryScreen({ query = "", sidebarOpen, desktopSidebarVisible,
       {filteredIcons.length > 0 && <a href="#glossary-icons">Printed icons</a>}
       <h3>Categories</h3>
       <button type="button" data-sidebar-select aria-pressed={category==="All"} onClick={()=>setCategory("All")}>All terms</button>
-      {sections.map((section)=><button key={section} type="button" aria-pressed={category===section} onClick={()=>setCategory(section)}>{section}</button>)}
+      {sections.map((section)=><button key={section} type="button" data-sidebar-select aria-pressed={category===section} onClick={()=>setCategory(section)}>{section}</button>)}
     </CompendiumSidebar>
     <main className={styles.main}>
       {filteredIcons.length > 0 && <section className={styles.printedIcons} id="glossary-icons" aria-labelledby="glossary-icons-heading">
