@@ -6,7 +6,7 @@ import { cardSetCode } from "../../lib/content/catalogue";
 import { DEVELOPER_RULINGS, RULING_CATEGORIES, type RulingRecord } from "../../lib/developer-rulings";
 import chrome from "./ReferenceChrome.module.css";
 import styles from "./RulingsReference.module.css";
-import { ReferenceContentsDrawer } from "./ReferenceContentsDrawer";
+import { CompendiumSidebar } from "./CompendiumSidebar";
 
 // Keep the player-facing order thematic rather than following source question numbers.
 const categories = [
@@ -36,9 +36,12 @@ function linkOriginalReferences(value: string): ReactNode[] {
   return tokens;
 }
 
-export function RulingsReference({ query = "", onCopy }: {
+export function RulingsReference({ query = "", onCopy, sidebarOpen, desktopSidebarVisible, onSidebarClose }: {
   query?: string;
   onCopy: (path: string, label: string) => Promise<void>;
+  sidebarOpen: boolean;
+  desktopSidebarVisible: boolean;
+  onSidebarClose: () => void;
 }) {
   const [category, setCategory] = useState("All");
   const [selected, setSelected] = useState<RulingRecord | null>(null);
@@ -97,14 +100,14 @@ export function RulingsReference({ query = "", onCopy }: {
     setSelected(ruling);
   };
 
-  return <div className={chrome.layout}>
-    <ReferenceContentsDrawer className={chrome.contents} label="Rulings contents">
+  return <div className={chrome.layout} data-compendium-reference-layout>
+    <CompendiumSidebar as="nav" className={chrome.contents} label="Rulings contents" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={onSidebarClose}>
       <h2>Contents</h2>
       <h3>Categories</h3>
       <button type="button" aria-pressed={category === "All"} onClick={() => setCategory("All")}>All rulings</button>
       {categories.map((name) => <button type="button" key={name}
         aria-pressed={category === name} onClick={() => setCategory(name)}>{name}</button>)}
-    </ReferenceContentsDrawer>
+    </CompendiumSidebar>
     <main className={chrome.main}>
       {groups.map(({ name, entries }) => <section className={styles.group} key={name}>
         <h2>{name}</h2>
