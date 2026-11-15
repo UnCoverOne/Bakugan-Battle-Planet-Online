@@ -1,14 +1,117 @@
-.panel{position:sticky;top:192px;align-self:start;min-width:0;width:100%;max-height:calc(100dvh - 204px);overflow:auto;padding:12px;background:var(--bb-panel);color:var(--bb-text);border:1px solid var(--bb-border)}
-.panel[data-desktop-visible="false"]{display:none}
-.body{display:grid;min-width:0;gap:10px}
-.header,.footer{display:none}
-@media(min-width:901px) and (max-height:650px){.panel{position:relative;top:auto;max-height:none}}
-@media(max-width:900px){
-.panel,.panel[data-desktop-visible="false"]{display:none;position:fixed!important;inset:0!important;z-index:1200;width:100%!important;height:100dvh!important;max-height:100dvh!important;margin:0!important;padding:0!important;border:0!important;clip-path:none!important;background:var(--bb-page)!important;box-shadow:none!important;overflow:hidden!important;flex-direction:column}
-.panel[data-open="true"],.panel[data-open="true"][data-desktop-visible="false"]{display:flex}
-.header{display:flex;flex:none;align-items:center;justify-content:space-between;min-height:60px;padding:max(8px,env(safe-area-inset-top)) 16px 8px;border-bottom:1px solid var(--bb-border);background:var(--bb-nav);font:700 18px/1.25 var(--bb-font-interface)}
-.header button{width:44px;height:44px;background:var(--bb-panel);border:1px solid var(--bb-border);color:var(--bb-text);font-size:24px;cursor:pointer}
-.body{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;padding:16px;align-content:start}
-.footer{display:block;flex:none;padding:10px 16px max(12px,env(safe-area-inset-bottom));background:var(--bb-nav);border-top:1px solid var(--bb-border)}
-.footer button{width:100%;min-height:44px;border:1px solid var(--bb-focus);background:var(--bb-selection);color:var(--bb-white);font:700 15px var(--bb-font-interface);cursor:pointer}
+/* Shared desktop rail and mobile full-screen panel; the same header and controls at both sizes. */
+.panel {
+  position: sticky;
+  top: 192px;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+  max-height: calc(100dvh - 204px);
+  overflow: hidden;
+  background: var(--bb-page);
+  color: var(--bb-text);
+  border: 1px solid var(--bb-border);
+}
+.panel[data-desktop-visible="false"] { display: none; }
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  gap: 8px;
+  min-height: 60px;
+  padding: 8px 10px;
+  background: var(--bb-nav);
+  border-bottom: 1px solid var(--bb-border);
+  font: 700 15px/1.25 var(--bb-font-interface);
+}
+.header strong { min-width: 0; overflow-wrap: anywhere; }
+.header button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background: var(--bb-panel);
+  border: 1px solid var(--bb-border);
+  color: var(--bb-text);
+  cursor: pointer;
+}
+.header button svg { width: 20px; height: 20px; }
+.header button:hover { background: var(--bb-panel-hover); border-color: var(--bb-border-hover); }
+.clearRow {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 48px;
+  padding: 2px 10px;
+  color: var(--bb-muted);
+  font: 400 12px/1.3 var(--bb-font-interface);
+  border-bottom: 1px solid var(--bb-border);
+}
+.clearRow button {
+  flex: none;
+  min-width: 66px;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--bb-focus);
+  cursor: pointer;
+  font: 600 12px/1.2 var(--bb-font-interface);
+}
+.body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 10px;
+  align-content: start;
+}
+.footer { display: none; }
+@media (max-width: 900px) {
+  .panel, .panel[data-desktop-visible="false"] {
+    display: none;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 1200;
+    width: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: var(--bb-page) !important;
+    box-shadow: none !important;
+    clip-path: none !important;
+    overflow: hidden !important;
+    flex-direction: column;
+  }
+  .panel[data-open="true"], .panel[data-open="true"][data-desktop-visible="false"] { display: flex; }
+  .header { padding: max(8px, env(safe-area-inset-top)) 16px 8px; font-size: 18px; }
+  .clearRow { padding: 2px 16px; font-size: 14px; }
+  .clearRow button { font-size: 14px; }
+  .body { padding: 16px; gap: 10px; }
+  .footer {
+    display: block;
+    flex: none;
+    padding: 10px 16px max(12px, env(safe-area-inset-bottom));
+    background: var(--bb-nav);
+    border-top: 1px solid var(--bb-border);
+  }
+  .footer button {
+    width: 100%;
+    min-height: 48px;
+    border: 1px solid var(--bb-focus);
+    background: var(--bb-selection);
+    color: var(--bb-white);
+    font: 700 15px var(--bb-font-interface);
+    cursor: pointer;
+  }
 }
