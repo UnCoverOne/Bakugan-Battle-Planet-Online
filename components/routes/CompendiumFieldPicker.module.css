@@ -46,3 +46,7 @@
   .trigger{min-height:56px}
   .info{width:44px;height:44px;top:0}
 }
+
+/* Information help is available on hover, keyboard focus and touch activation. */
+.tooltip{display:none}
+.info:hover ~ .tooltip,.info:focus-visible ~ .tooltip,.info[aria-expanded="true"] ~ .tooltip{display:block}
