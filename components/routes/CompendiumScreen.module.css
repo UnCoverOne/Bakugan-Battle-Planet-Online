@@ -617,3 +617,7 @@
 @media (min-width: 901px) {
   .rulebookFrame :global([data-rulebook-reader]) { grid-template-columns: 15rem minmax(0, 1fr); }
 }
+
+@media (min-width: 901px) {
+  .rulebookFrame :global([data-compendium-reference-layout]) { grid-template-columns: 15rem minmax(0, 1fr); }
+}
