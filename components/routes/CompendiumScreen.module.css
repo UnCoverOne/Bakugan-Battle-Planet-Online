@@ -54,7 +54,7 @@
   width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
   margin-inline: auto;
   display: grid;
-  grid-template-columns: 13.75rem minmax(0, 1fr);
+  grid-template-columns: 15rem minmax(0, 1fr);
   align-items: start;
   gap: var(--space-4);
 }
@@ -63,42 +63,6 @@
 .filterDivider {
   height: 1px;
 
-}
-
-.filterHeading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: .5rem;
-  align-items: center;
-  padding-bottom: .4rem;
-
-}
-
-.filterHeading span {
-
-
-
-
-}
-
-.filterHeading h2 {
-  margin: 0;
-
-  line-height: 1.2;
-}
-
-.filterHeading button {
-  min-height: 2.25rem;
-  padding-inline: var(--space-2);
-
-
-
-
-}
-
-.filterHeading button:hover,
-.filterHeading button:focus-visible {
 }
 
 .gallery {
@@ -625,7 +589,7 @@
   max-height: calc(100dvh - 204px);
 }
 @media (min-width: 901px) {
-  .workspace, .coreWorkspace { grid-template-columns: 13.75rem minmax(0, 1fr); }
+  .workspace, .coreWorkspace { grid-template-columns: 15rem minmax(0, 1fr); }
   .workspace.withoutSidebar, .coreWorkspace.withoutSidebar { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 900px) {
@@ -640,7 +604,6 @@
 @media (max-width: 900px) {
   .resultsToolbar { grid-template-columns: minmax(0, 1fr); }
   .resultsToolbar .shareResults { display: none; }
-  .filterHeading h2 { display: none; } /* mobile panel already has a fixed title */
 }
 
 /* Anchor links must clear the fixed website header plus sticky Compendium controls. */
@@ -649,3 +612,8 @@
 .rulebookFrame :global([id^="rule-"]),
 .rulebookFrame :global([id^="glossary-"]),
 .rulebookFrame :global([id^="ruling-"]) { scroll-margin-top: 200px; }
+
+/* The sidebar and main grid share a 240px desktop rail. */
+@media (min-width: 901px) {
+  .rulebookFrame :global([data-rulebook-reader]) { grid-template-columns: 15rem minmax(0, 1fr); }
+}
