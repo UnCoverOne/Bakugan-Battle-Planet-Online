@@ -318,7 +318,7 @@ export function GlossaryScreen({ query = "", sidebarOpen, desktopSidebarVisible,
   }, [selected]);
   const byCategory = sections.map((name) => ({name,items:filtered.filter((item)=>item.category===name)})).filter((group)=>group.items.length);
   return <div className={styles.layout} data-compendium-reference-layout>
-    <CompendiumSidebar as="nav" className={styles.rail} label="Contents" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={onSidebarClose}>
+    <CompendiumSidebar as="nav" label="Contents" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={onSidebarClose}>
       <ContentsNavigation items={[
         ...(filteredIcons.length ? [{ id: "glossary-icons", label: "Printed Icons" }] : []),
         ...byCategory.map(({ name }) => ({ id: `glossary-category-${makeKey(name)}`, label: name })),
