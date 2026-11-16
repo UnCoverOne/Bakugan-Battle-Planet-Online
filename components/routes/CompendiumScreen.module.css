@@ -589,7 +589,9 @@
 .rulebookFrame :global([id^="section-"]),
 .rulebookFrame :global([id^="rule-"]),
 .rulebookFrame :global([id^="glossary-"]),
-.rulebookFrame :global([id^="ruling-"]) { scroll-margin-top: 200px; }
+.rulebookFrame :global([id^="ruling-"]),
+.rulebookFrame :global([id^="rulings-category-"]),
+.rulebookFrame :global(#rulebook-errata) { scroll-margin-top: 200px; }
 
 /* The sidebar and main grid share a 240px desktop rail. */
 @media (min-width: 901px) {
