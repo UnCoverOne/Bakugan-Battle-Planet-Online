@@ -7,6 +7,7 @@ import { DEVELOPER_RULINGS, RULING_CATEGORIES, type RulingRecord } from "../../l
 import chrome from "./ReferenceChrome.module.css";
 import styles from "./RulingsReference.module.css";
 import { CompendiumSidebar } from "./CompendiumSidebar";
+import { ContentsNavigation } from "./ContentsNavigation";
 
 // Keep the player-facing order thematic rather than following source question numbers.
 const categories = [
@@ -14,6 +15,7 @@ const categories = [
   RULING_CATEGORIES[3], RULING_CATEGORIES[2], RULING_CATEGORIES[4],
   RULING_CATEGORIES[6],
 ];
+const sectionId = (value: string) => "rulings-category-" + value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const normalizeCardName = (value: string) =>
   value.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, " ").trim();
 const referencedRuleLink = (phrase: string): string => {
@@ -43,15 +45,13 @@ export function RulingsReference({ query = "", onCopy, sidebarOpen, desktopSideb
   desktopSidebarVisible: boolean;
   onSidebarClose: () => void;
 }) {
-  const [category, setCategory] = useState("All");
   const [selected, setSelected] = useState<RulingRecord | null>(null);
   const trigger = useRef<HTMLButtonElement | null>(null);
   const closeButton = useRef<HTMLButtonElement | null>(null);
   const normalized = query.trim().toLowerCase();
   const matches = useMemo(() => DEVELOPER_RULINGS.filter((ruling) =>
-    (category === "All" || ruling.category === category)
-    && (!normalized || [ruling.title, ruling.preview, ruling.category, ruling.transcript, ...ruling.mentionedCards]
-      .some((value) => value.toLowerCase().includes(normalized)))
+    !normalized || [ruling.title, ruling.preview, ruling.category, ruling.transcript, ...ruling.mentionedCards]
+      .some((value) => value.toLowerCase().includes(normalized))
   ), [category, normalized]);
   const groups = categories.map((name) => ({
     name, entries: matches.filter((ruling) => ruling.category === name),
@@ -102,14 +102,10 @@ export function RulingsReference({ query = "", onCopy, sidebarOpen, desktopSideb
 
   return <div className={chrome.layout} data-compendium-reference-layout>
     <CompendiumSidebar as="nav" className={chrome.contents} label="Rulings contents" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={onSidebarClose}>
-      <h2>Contents</h2>
-      <h3>Categories</h3>
-      <button type="button" data-sidebar-select aria-pressed={category === "All"} onClick={() => setCategory("All")}>All rulings</button>
-      {categories.map((name) => <button type="button" key={name} data-sidebar-select
-        aria-pressed={category === name} onClick={() => setCategory(name)}>{name}</button>)}
+      <ContentsNavigation items={groups.map(({ name }) => ({ id: sectionId(name), label: name }))} />
     </CompendiumSidebar>
     <main className={chrome.main}>
-      {groups.map(({ name, entries }) => <section className={styles.group} key={name}>
+      {groups.map(({ name, entries }) => <section className={styles.group} id={sectionId(name)} key={name}>
         <h2>{name}</h2>
         <div className={styles.list}>
           {entries.map((ruling) => <article id={"ruling-" + ruling.slug} className={styles.article} key={ruling.slug}>
@@ -124,8 +120,8 @@ export function RulingsReference({ query = "", onCopy, sidebarOpen, desktopSideb
       </section>)}
       {groups.length === 0 && <section className={styles.empty} role="status">
         <h2>No rulings found</h2>
-        <p>Try another search or select All rulings.</p>
-        <button type="button" onClick={() => setCategory("All")}>All rulings</button>
+        <p>Try another search.</p>
+        
       </section>}
     </main>
     {selected && <div role="presentation" className={styles.backdrop} onMouseDown={(event) => {
