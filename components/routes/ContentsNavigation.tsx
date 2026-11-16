@@ -43,7 +43,11 @@ export function ContentsNavigation({ items }: { items: readonly ContentsEntry[] 
     event.preventDefault();
     history.pushState(null, "", `#${id}`);
     setActive(id);
-    target.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    // A mobile selection also closes the scroll-locked sidebar; scroll after it unmounts.
+    requestAnimationFrame(() => target.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "start",
+    }));
   };
   const link = (item: ContentsEntry, nested = false) =>
     <a key={item.id} href={`#${item.id}`} className={`${styles.link} ${nested ? styles.nested : ""}`}
