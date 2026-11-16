@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { OFFICIAL_RULEBOOK, type OfficialRuleNode } from "../../lib/official-rulebook";
 import styles from "./OfficialRulebook.module.css";
 import { CompendiumSidebar } from "./CompendiumSidebar";
+import { ContentsNavigation } from "./ContentsNavigation";
 
 type IndexedRule = { id: string; label: string; text: string; chapter: number; depth: number };
 const indexed: IndexedRule[] = [];
@@ -95,9 +96,15 @@ export function OfficialRulebook({ query = "", sidebarOpen, desktopSidebarVisibl
   };
   return <div className={styles.reader} data-rulebook-reader data-compendium-reference-layout>
     <CompendiumSidebar as="nav" className={styles.contents} label="Rulebook contents" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={onSidebarClose}>
-      <h2>Contents</h2>
-      {OFFICIAL_RULEBOOK.map((chapter, i) => <details key={i} open={i === 0 || Boolean(filter)}><summary><a href={`#chapter-${i + 1}`}>{i + 1}. {chapter.text}</a></summary><div className={styles.sectionLinks}>{chapter.children.map((section, j) => <a key={j} href={`#section-${i + 1}.${j + 1}`}>{i + 1}.{j + 1} {section.text}</a>)}</div></details>)}
-      <a href="#rulebook-errata">Errata</a>
+      <ContentsNavigation items={[
+        ...OFFICIAL_RULEBOOK.map((chapter, i) => ({
+          id: `chapter-${i + 1}`, label: `${i + 1}. ${chapter.text}`,
+          children: chapter.children.flatMap((section, j) => !filter || matches(section, filter) ? [{
+            id: `section-${i + 1}.${j + 1}`, label: `${i + 1}.${j + 1} ${section.text}`,
+          }] : []),
+        })).filter((item, i) => !filter || matches(OFFICIAL_RULEBOOK[i], filter)),
+        { id: "rulebook-errata", label: "Errata" },
+      ]} />
     </CompendiumSidebar>
     <main className={styles.main}>
       {OFFICIAL_RULEBOOK.map((chapter, i) => (!filter || matches(chapter, filter)) && <section className={styles.chapter} id={`chapter-${i + 1}`} key={i}>
