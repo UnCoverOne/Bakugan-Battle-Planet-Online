@@ -441,10 +441,10 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                   <ActionButton tone="secondary" onClick={clearFilters}>Clear filters</ActionButton>
                 </Surface>
               )}
-              <div className={styles.galleryFooter}>
+              {pages > 1 && <div className={styles.galleryFooter}>
                 <CompendiumPagination placement="bottom" page={page} totalPages={pages} totalResults={cards.length}
                   pageSize={COMPENDIUM_PAGE_SIZE} noun="cards" onPageChange={next => changeResultsPage(next, "cards")} />
-              </div>
+              </div>}
             </main>
             {selected && (
               <CardInspector
@@ -518,10 +518,10 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                   <ActionButton tone="secondary" onClick={clearCoreFilters}>Clear filters</ActionButton>
                 </Surface>
               )}
-              <div className={styles.galleryFooter}>
+              {corePages > 1 && <div className={styles.galleryFooter}>
                 <CompendiumPagination placement="bottom" page={corePage} totalPages={corePages} totalResults={cores.length}
                   pageSize={CORE_COMPENDIUM_PAGE_SIZE} noun="BakuCores" onPageChange={next => changeResultsPage(next, "cores")} />
-              </div>
+              </div>}
             </main>
             {selectedCore && (
               <CardInspector
