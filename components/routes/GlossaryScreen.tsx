@@ -7,6 +7,7 @@ import { EXTENDED_TAG_WORDS } from "../../lib/extended-glossary";
 import { OriginalImage } from "../media/OriginalImage";
 import styles from "./GlossaryScreen.module.css";
 import { CompendiumSidebar } from "./CompendiumSidebar";
+import { ContentsNavigation } from "./ContentsNavigation";
 
 type Term = {
   title: string;
@@ -301,12 +302,10 @@ const getRule = (id: string): OfficialRuleNode | undefined => {
 const sections = [...glossaryCategories.map(({ name }) => name),
   ...(fullTerms.some((term) => term.category === "Other Terms") ? ["Other Terms"] : [])];
 export function GlossaryScreen({ query = "", sidebarOpen, desktopSidebarVisible, onSidebarClose }: { query?: string; sidebarOpen: boolean; desktopSidebarVisible: boolean; onSidebarClose: () => void }) {
-  const [category, setCategory] = useState("All");
   const [selected, setSelected] = useState<Term | null>(null);
   const normalized = query.trim().toLowerCase();
   const filtered = useMemo(() => fullTerms.filter((term) =>
-    (category === "All" || term.category === category)
-    && (!normalized || [term.title,term.definition,term.category,term.rule].some((part) => part.toLowerCase().includes(normalized)))
+    !normalized || [term.title,term.definition,term.category,term.rule].some((part) => part.toLowerCase().includes(normalized))
   ),[category,normalized]);
   const filteredIcons = useMemo(() => SYMBOL_ENTRIES.filter((symbol) =>
     !normalized || [symbol.name, symbol.token, symbol.description].some((part) => part.toLowerCase().includes(normalized))
@@ -320,11 +319,10 @@ export function GlossaryScreen({ query = "", sidebarOpen, desktopSidebarVisible,
   const byCategory = sections.map((name) => ({name,items:filtered.filter((item)=>item.category===name)})).filter((group)=>group.items.length);
   return <div className={styles.layout} data-compendium-reference-layout>
     <CompendiumSidebar as="nav" className={styles.rail} label="Glossary navigation" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={onSidebarClose}>
-      <h2>Contents</h2>
-      {filteredIcons.length > 0 && <a href="#glossary-icons">Printed icons</a>}
-      <h3>Categories</h3>
-      <button type="button" data-sidebar-select aria-pressed={category==="All"} onClick={()=>setCategory("All")}>All terms</button>
-      {sections.map((section)=><button key={section} type="button" data-sidebar-select aria-pressed={category===section} onClick={()=>setCategory(section)}>{section}</button>)}
+      <ContentsNavigation items={[
+        ...(filteredIcons.length ? [{ id: "glossary-icons", label: "Printed Icons" }] : []),
+        ...byCategory.map(({ name }) => ({ id: `glossary-category-${makeKey(name)}`, label: name })),
+      ]} />
     </CompendiumSidebar>
     <main className={styles.main}>
       {filteredIcons.length > 0 && <section className={styles.printedIcons} id="glossary-icons" aria-labelledby="glossary-icons-heading">
@@ -341,7 +339,7 @@ export function GlossaryScreen({ query = "", sidebarOpen, desktopSidebarVisible,
           <footer><span>{item.category}</span>{item.editorial && <span>Site reference</span>}{item.rule && <a href={`/compendium/rules#section-${item.rule}`}>Rule {item.rule} →</a>}<button type="button" onClick={()=>setSelected(item)}>Details</button></footer>
         </article>)}</div>
       </section>)}
-      {byCategory.length === 0 && filteredIcons.length === 0 && <section className={styles.empty} role="status"><h2>No matching glossary entries or printed icons</h2><p>Try a different search or category filter.</p><button type="button" onClick={()=>setCategory("All")}>All categories</button></section>}
+      {byCategory.length === 0 && filteredIcons.length === 0 && <section className={styles.empty} role="status"><h2>No matching glossary entries or printed icons</h2><p>Try a different search.</p></section>}
     </main>
     {selected && <div role="presentation" className={styles.backdrop} onMouseDown={(event)=>{if(event.target===event.currentTarget)setSelected(null);}}><section role="dialog" aria-modal="true" aria-labelledby="glossary-dialog-title" className={styles.modal}>
       <button className={styles.close} type="button" aria-label="Close definition" onClick={()=>setSelected(null)}>×</button>
