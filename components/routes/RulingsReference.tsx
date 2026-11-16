@@ -52,7 +52,7 @@ export function RulingsReference({ query = "", onCopy, sidebarOpen, desktopSideb
   const matches = useMemo(() => DEVELOPER_RULINGS.filter((ruling) =>
     !normalized || [ruling.title, ruling.preview, ruling.category, ruling.transcript, ...ruling.mentionedCards]
       .some((value) => value.toLowerCase().includes(normalized))
-  ), [category, normalized]);
+  ), [normalized]);
   const groups = categories.map((name) => ({
     name, entries: matches.filter((ruling) => ruling.category === name),
   })).filter((group) => group.entries.length > 0);
@@ -101,7 +101,7 @@ export function RulingsReference({ query = "", onCopy, sidebarOpen, desktopSideb
   };
 
   return <div className={chrome.layout} data-compendium-reference-layout>
-    <CompendiumSidebar as="nav" className={chrome.contents} label="Rulings contents" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={onSidebarClose}>
+    <CompendiumSidebar as="nav" className={chrome.contents} label="Contents" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={onSidebarClose}>
       <ContentsNavigation items={groups.map(({ name }) => ({ id: sectionId(name), label: name }))} />
     </CompendiumSidebar>
     <main className={chrome.main}>
