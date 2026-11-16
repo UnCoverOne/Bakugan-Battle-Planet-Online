@@ -101,7 +101,7 @@ export function RulingsReference({ query = "", onCopy, sidebarOpen, desktopSideb
   };
 
   return <div className={chrome.layout} data-compendium-reference-layout>
-    <CompendiumSidebar as="nav" className={chrome.contents} label="Contents" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={onSidebarClose}>
+    <CompendiumSidebar as="nav" label="Contents" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={onSidebarClose}>
       <ContentsNavigation items={groups.map(({ name }) => ({ id: sectionId(name), label: name }))} />
     </CompendiumSidebar>
     <main className={chrome.main}>
