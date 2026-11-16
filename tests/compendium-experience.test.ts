@@ -472,3 +472,40 @@ test("Character-only sorting uses the live Bakugan rolling values", () => {
   assert.ok(compareCompendiumCards(first.character, second.character, "roll-accuracy-desc", overrides) < 0);
   assert.ok(compareCompendiumCards(first.character, second.character, "double-core-chance-desc", overrides) > 0);
 });
+
+
+test("Compendium reference pages share compact continuous Contents navigation", async () => {
+  const [navigation, navigationCss, glossary, rules, rulings, glossaryCss, rulesCss, rulingsChrome, layoutCss] = await Promise.all([
+    read("components/routes/ContentsNavigation.tsx"),
+    read("components/routes/ContentsNavigation.module.css"),
+    read("components/routes/GlossaryScreen.tsx"),
+    read("components/routes/OfficialRulebook.tsx"),
+    read("components/routes/RulingsReference.tsx"),
+    read("components/routes/GlossaryScreen.module.css"),
+    read("components/routes/OfficialRulebook.module.css"),
+    read("components/routes/ReferenceChrome.module.css"),
+    read("components/routes/CompendiumScreen.module.css"),
+  ]);
+  for (const page of [glossary, rules, rulings]) {
+    assert.match(page, /<ContentsNavigation items=/);
+    assert.match(page, /label="Contents"/);
+    assert.doesNotMatch(page, /<h2>Contents<\/h2>/);
+  }
+  assert.match(navigation, /scrollIntoView/);
+  assert.match(navigation, /history\.pushState/);
+  assert.match(navigation, /aria-current=/);
+  assert.match(navigation, /aria-expanded=/);
+  assert.match(navigationCss, /min-height:44px/);
+  assert.match(navigationCss, /border-left:2px solid transparent/);
+  assert.doesNotMatch(navigationCss, /checkmark|check-circle/);
+  assert.match(glossary, /id: "glossary-icons", label: "Printed Icons"/);
+  assert.doesNotMatch(glossary, /All terms|setCategory\(/);
+  assert.doesNotMatch(rulings, /All rulings|setCategory\(/);
+  assert.match(rulings, /id=\{sectionId\(name\)\}/);
+  assert.match(rules, /children: chapter\.children\.flatMap/);
+  assert.match(rules, /id: "rulebook-errata", label: "Errata"/);
+  for (const css of [glossaryCss, rulesCss, rulingsChrome]) {
+    assert.doesNotMatch(css, /\.contents\{position:sticky|\.rail\{position:sticky/);
+  }
+  assert.match(layoutCss, /\[id\^="rulings-category-"\]/);
+});
