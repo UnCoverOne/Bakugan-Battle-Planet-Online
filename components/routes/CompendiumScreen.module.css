@@ -504,25 +504,13 @@
 }
 .rulebookFrame :global([data-rulebook-reader]) {
   display: grid;
-  grid-template-columns: minmax(12rem, 13.75rem) minmax(0, 1fr);
+  grid-template-columns: 15rem minmax(0, 1fr);
   align-items: start;
   gap: var(--space-4);
   width: 100%;
   max-width: 100%;
   margin-inline: 0;
   min-width: 0;
-}
-.rulebookFrame :global([data-rulebook-reader] > nav) {
-  min-width: 0;
-  width: 100%;
-  max-height: calc(100dvh - 204px);
-  overflow-y: auto;
-  position: sticky;
-  top: 192px;
-
-
-
-
 }
 .rulebookFrame :global([data-rulebook-reader] > main) {
   min-width: 0;
@@ -579,10 +567,6 @@
   font: 600 13px var(--bb-font-interface); white-space: nowrap; pointer-events: none;
 }
 .rulebookFrame[data-sidebar-hidden="true"] :global([data-compendium-reference-layout]) { grid-template-columns: minmax(0, 1fr); }
-.rulebookFrame :global([data-compendium-reference-layout] > nav[data-compendium-sidebar]) {
-  top: 192px;
-  max-height: calc(100dvh - 204px);
-}
 @media (min-width: 901px) {
   .workspace, .coreWorkspace { grid-template-columns: 15rem minmax(0, 1fr); }
   .workspace.withoutSidebar, .coreWorkspace.withoutSidebar { grid-template-columns: minmax(0, 1fr); }
@@ -590,7 +574,6 @@
 @media (max-width: 900px) {
   .workspace, .coreWorkspace { grid-template-columns: minmax(0,1fr); }
   .rulebookFrame :global([data-compendium-reference-layout]) { grid-template-columns: minmax(0, 1fr); }
-  .rulebookFrame :global([data-compendium-reference-layout] > nav[data-compendium-sidebar]) { position: fixed; top: 0; max-height: 100dvh; }
   .viewToast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 }
 
