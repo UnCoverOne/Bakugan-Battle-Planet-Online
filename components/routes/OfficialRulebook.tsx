@@ -95,7 +95,7 @@ export function OfficialRulebook({ query = "", sidebarOpen, desktopSidebarVisibl
     window.location.hash = id.split(".").length === 2 ? `section-${id}` : `rule-${id}`;
   };
   return <div className={styles.reader} data-rulebook-reader data-compendium-reference-layout>
-    <CompendiumSidebar as="nav" className={styles.contents} label="Contents" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={onSidebarClose}>
+    <CompendiumSidebar as="nav" label="Contents" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={onSidebarClose}>
       <ContentsNavigation items={[
         ...OFFICIAL_RULEBOOK.map((chapter, i) => ({
           id: `chapter-${i + 1}`, label: `${i + 1}. ${chapter.text}`,
