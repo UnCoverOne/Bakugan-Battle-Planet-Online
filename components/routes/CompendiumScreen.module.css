@@ -531,10 +531,19 @@
 
 /* Pagination starts at the top of the results column, beside the sidebar. */
 .gallery{scroll-margin-top:192px}
-.galleryHeader{display:flex;align-items:center;gap:8px;min-width:0;min-height:44px;margin-bottom:12px}
+.galleryHeader{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;gap:8px;min-width:0;min-height:44px;margin-bottom:12px}
+.galleryHeader::before{content:"";width:44px;height:1px}
+.galleryHeader> :first-child{grid-column:2;min-width:0}
+.galleryHeader .singlePageCount{grid-column:2}
 .singlePageCount{flex:1;min-width:0;color:var(--bb-muted);font:500 12px var(--bb-font-interface)}
-.galleryHeader .shareResults{display:grid;place-items:center;flex:none;width:44px;height:44px;padding:0;border:1px solid var(--bb-border);background:var(--bb-panel);color:var(--bb-text);cursor:pointer}
+.galleryHeader .shareResults{grid-column:3;display:grid;place-items:center;width:44px;height:44px;padding:0;border:1px solid var(--bb-border);background:var(--bb-panel);color:var(--bb-text);cursor:pointer}
 .galleryHeader .shareResults svg{width:18px;height:18px}
 .galleryHeader .shareResults:hover{border-color:var(--bb-border-hover);background:var(--bb-panel-hover)}
 .galleryHeader .shareResults:focus-visible{outline:2px solid var(--bb-focus);outline-offset:2px}
 @media(max-width:900px){.gallery{scroll-margin-top:176px}}
+@media(max-width:480px){
+ .galleryHeader{grid-template-columns:minmax(0,1fr) 44px;gap:6px}
+ .galleryHeader::before{display:none}
+ .galleryHeader> :first-child,.galleryHeader .singlePageCount{grid-column:1}
+ .galleryHeader .shareResults{grid-column:2}
+}

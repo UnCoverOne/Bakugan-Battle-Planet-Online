@@ -1,15 +1,15 @@
-.pagination{flex:1 1 auto;min-width:0;container-type:inline-size}
-.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;min-height:44px;white-space:nowrap}
-.range{min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--bb-muted);font:400 12px/1.4 var(--bb-font-interface)}
-.controls,.numbered{display:flex;align-items:center;gap:4px;white-space:nowrap}
-.controls{flex:none}
-.arrow,.page{display:grid;place-items:center;flex:none;min-width:40px;height:44px;padding:0 5px;border:1px solid var(--bb-border);background:var(--bb-panel);color:var(--bb-text);font:600 13px var(--bb-font-interface);cursor:pointer}
+.pagination{width:100%;min-width:0;container-type:inline-size}
+.bar{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;min-width:0;min-height:44px;gap:8px;white-space:nowrap}
+.range{grid-column:1;min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--bb-muted);font:400 12px/1.4 var(--bb-font-interface)}
+.controls{grid-column:2;display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap}
+.numbered{display:grid;grid-template-columns:40px 14px 40px 14px 40px;align-items:center;gap:4px}
+.arrow,.page{display:grid;place-items:center;box-sizing:border-box;width:40px;height:44px;padding:0 4px;border:1px solid var(--bb-border);background:var(--bb-panel);color:var(--bb-text);font:600 13px var(--bb-font-interface);cursor:pointer}
 .arrow{width:44px;padding:0}.arrow svg{width:18px;height:18px}
 .arrow:hover:not(:disabled),.page:hover:not(:disabled){border-color:var(--bb-border-hover);background:var(--bb-panel-hover)}
 .arrow:focus-visible,.page:focus-visible{outline:2px solid var(--bb-focus);outline-offset:2px}
 .arrow:disabled{opacity:.4;cursor:not-allowed}
 .page[aria-current="page"]{background:var(--bb-selection);border-color:var(--bb-focus);color:var(--bb-white)}
-.ellipsis{display:grid;place-items:center;min-width:14px;color:var(--bb-muted);font:400 13px var(--bb-font-interface)}
+.ellipsis,.placeholder{display:grid;place-items:center;min-width:0;height:44px;color:var(--bb-muted);font:400 13px var(--bb-font-interface)}
 .mobilePage{display:none;color:var(--bb-text);font:600 13px var(--bb-font-interface);white-space:nowrap}
-@container (max-width:510px){.range{display:none}}
-@container (max-width:330px){.numbered{display:none}.mobilePage{display:block}}
+@container (max-width:680px){.range{display:none}}
+@container (max-width:340px){.numbered{display:none}.mobilePage{display:block}}

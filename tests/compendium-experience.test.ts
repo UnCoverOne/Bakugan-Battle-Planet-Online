@@ -526,21 +526,23 @@ test("Compendium pagination is shared, single-row and located above each results
  assert.match(screen,/changeResultsPage\(next, "cores"\)/);
  assert.match(screen,/navigateCore\(\{ page: nextPage \}, \{ push: true \}\)/);
  assert.match(screen,/resultsStartRef\.current\?\.scrollIntoView/);
- assert.match(styles,/\.galleryHeader\{display:flex/);
+ assert.match(styles,/\.galleryHeader\{display:grid;grid-template-columns:44px minmax\(0,1fr\) 44px/);
  assert.match(pager,/compactPages\(page,totalPages\)/);
  assert.match(pager,/aria-current=\{item===page\?"page"/);
  assert.match(pagerCss,/white-space:nowrap/);
- assert.match(pagerCss,/@container \(max-width:330px\)/);
+ assert.match(pagerCss,/@container \(max-width:340px\)/);
+ assert.match(pagerCss,/grid-template-columns:40px 14px 40px 14px 40px/);
  assert.match(pager,/if\(totalPages<=1\)return null/);
 });
 
-test("Compact pagination includes only first, current and last with useful ellipses", () => {
+test("Compact pagination keeps page-number slots stable at every position", () => {
   assert.deepEqual(compactPages(1, 1), [1]);
-  assert.deepEqual(compactPages(1, 24), [1, "ellipsis", 24]);
-  assert.deepEqual(compactPages(2, 24), [1, 2, "ellipsis", 24]);
+  assert.deepEqual(compactPages(1, 2), [1, null, null, null, 2]);
+  assert.deepEqual(compactPages(1, 24), [1, null, 2, "ellipsis", 24]);
+  assert.deepEqual(compactPages(2, 24), [1, null, 2, "ellipsis", 24]);
   assert.deepEqual(compactPages(7, 24), [1, "ellipsis", 7, "ellipsis", 24]);
-  assert.deepEqual(compactPages(23, 24), [1, "ellipsis", 23, 24]);
-  assert.deepEqual(compactPages(24, 24), [1, "ellipsis", 24]);
-  assert.deepEqual(compactPages(2, 3), [1, 2, 3]);
-  assert.deepEqual(compactPages(99, 24), [1, "ellipsis", 24]);
+  assert.deepEqual(compactPages(23, 24), [1, "ellipsis", 23, null, 24]);
+  assert.deepEqual(compactPages(24, 24), [1, "ellipsis", 23, null, 24]);
+  assert.deepEqual(compactPages(2, 3), [1, null, 2, null, 3]);
+  assert.deepEqual(compactPages(99, 24), [1, "ellipsis", 23, null, 24]);
 });
