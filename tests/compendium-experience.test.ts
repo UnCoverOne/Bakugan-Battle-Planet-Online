@@ -519,6 +519,10 @@ test("Compendium pagination is a fixed, quiet first/previous/next/last toolbar",
   ]);
   assert.equal((route.match(/<CompendiumPagination /g) ?? []).length, 4);
   assert.equal((route.match(/placement="bottom"/g) ?? []).length, 2);
+  assert.match(route, /\{pages > 1 && <div className=\{styles\.galleryFooter\}>/);
+  assert.match(route, /\{corePages > 1 && <div className=\{styles\.galleryFooter\}>/);
+  assert.match(css, /\.galleryFooter\{min-width:0;margin-top:20px\}/);
+  assert.equal((route.match(/placement="bottom"/g) ?? []).length, 2);
   assert.match(pager, /placement = "top"/);
   assert.match(pager, /placement === "top" && <span className={styles.range}>/);
   assert.match(css, /\.galleryFooter\{min-width:0;margin-top:20px\}/);
