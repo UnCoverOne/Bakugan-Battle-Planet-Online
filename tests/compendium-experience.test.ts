@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { compactPages } from "../lib/compendium-pagination";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
@@ -531,4 +532,15 @@ test("Compendium pagination is shared, single-row and located above each results
  assert.match(pagerCss,/white-space:nowrap/);
  assert.match(pagerCss,/@container \(max-width:330px\)/);
  assert.match(pager,/if\(totalPages<=1\)return null/);
+});
+
+test("Compact pagination includes only first, current and last with useful ellipses", () => {
+  assert.deepEqual(compactPages(1, 1), [1]);
+  assert.deepEqual(compactPages(1, 24), [1, "ellipsis", 24]);
+  assert.deepEqual(compactPages(2, 24), [1, 2, "ellipsis", 24]);
+  assert.deepEqual(compactPages(7, 24), [1, "ellipsis", 7, "ellipsis", 24]);
+  assert.deepEqual(compactPages(23, 24), [1, "ellipsis", 23, 24]);
+  assert.deepEqual(compactPages(24, 24), [1, "ellipsis", 24]);
+  assert.deepEqual(compactPages(2, 3), [1, 2, 3]);
+  assert.deepEqual(compactPages(99, 24), [1, "ellipsis", 24]);
 });
