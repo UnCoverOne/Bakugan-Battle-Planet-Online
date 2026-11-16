@@ -509,3 +509,26 @@ test("Compendium reference pages share compact continuous Contents navigation", 
   }
   assert.match(layoutCss, /\[id\^="rulings-category-"\]/);
 });
+
+test("Compendium pagination is shared, single-row and located above each results grid", async () => {
+ const [screen,styles,pager,pagerCss] = await Promise.all([
+  read("components/routes/CompendiumScreen.tsx"),
+  read("components/routes/CompendiumScreen.module.css"),
+  read("components/routes/CompendiumPagination.tsx"),
+  read("components/routes/CompendiumPagination.module.css"),
+ ]);
+ assert.equal((screen.match(/<CompendiumPagination /g)??[]).length,2);
+ assert.equal((screen.match(/<main ref=\{resultsStartRef\}/g)??[]).length,2);
+ assert.doesNotMatch(screen,/className=\{styles\.pagination\}/);
+ assert.doesNotMatch(screen,/styles\.resultsToolbar/);
+ assert.match(screen,/changeResultsPage\(next, "cards"\)/);
+ assert.match(screen,/changeResultsPage\(next, "cores"\)/);
+ assert.match(screen,/navigateCore\(\{ page: nextPage \}, \{ push: true \}\)/);
+ assert.match(screen,/resultsStartRef\.current\?\.scrollIntoView/);
+ assert.match(styles,/\.galleryHeader\{display:flex/);
+ assert.match(pager,/compactPages\(page,totalPages\)/);
+ assert.match(pager,/aria-current=\{item===page\?"page"/);
+ assert.match(pagerCss,/white-space:nowrap/);
+ assert.match(pagerCss,/@container \(max-width:330px\)/);
+ assert.match(pager,/if\(totalPages<=1\)return null/);
+});

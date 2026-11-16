@@ -3,6 +3,7 @@
 import { OfficialRulebook } from "./OfficialRulebook";
 import { GlossaryScreen } from "./GlossaryScreen";
 import { RulingsReference } from "./RulingsReference";
+import { CompendiumPagination } from "./CompendiumPagination";
 import { FusionSymbol } from "@/components/media/FusionSymbol";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
@@ -156,6 +157,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const [desktopSidebarVisible, setDesktopSidebarVisible] = useState(true);
   const [viewMessage, setViewMessage] = useState("");
   const sidebarTrigger = useRef<HTMLButtonElement>(null);
+  const resultsStartRef = useRef<HTMLElement>(null);
   const inspectorTrigger = useRef<HTMLElement | null>(null);
   const localSearchEditRef = useRef(false);
   const searchTimerRef = useRef<number | null>(null);
@@ -221,6 +223,15 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     window.history[method === "push" ? "pushState" : "replaceState"](null, "", coreUrlFor(next));
     if (options.scroll) window.scrollTo({ top: 0 });
   }, [coreState, coreUrlFor, searchQuery]);
+
+  const changeResultsPage = (nextPage: number, kind: "cards" | "cores") => {
+    if (kind === "cards") navigate({ page: nextPage }, { push: true });
+    else navigateCore({ page: nextPage }, { push: true });
+    window.requestAnimationFrame(() => resultsStartRef.current?.scrollIntoView({
+      block: "start",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    }));
+  };
 
   const closeInspector = useCallback(() => {
     navigate({ card: "", tab: "overview" });
@@ -377,15 +388,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
       <div key={section} data-ui="compendium-section-content">
       {section === "cards" && (
         <>
-          <section className={styles.resultsToolbar}>
-            <div>
-              <strong>{cards.length.toLocaleString()} cards</strong>
-              <span>Page {page} of {pages}</span>
-            </div>
-            
-            
-            <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("Filtered results")}>Share results</button>
-          </section>
           <div className={`${styles.workspace} ${desktopSidebarVisible ? "" : styles.withoutSidebar}`}>
             <CompendiumSidebar label="Filters & Sort" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={closeSidebar} onClear={clearFilters} activeCount={activeFilterCount} footer={<button type="button" onClick={closeSidebar}>Show {cards.length.toLocaleString()} cards</button>}>
               <FilterControls
@@ -395,7 +397,18 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 onSortChange={(sort) => navigate({ sort }, { resetPage: true })}
               />
             </CompendiumSidebar>
-            <main className={styles.gallery}>
+            <main ref={resultsStartRef} className={styles.gallery}>
+              <div className={styles.galleryHeader}>
+                <CompendiumPagination page={page} totalPages={pages} totalResults={cards.length}
+                  pageSize={COMPENDIUM_PAGE_SIZE} noun="cards" onPageChange={next => changeResultsPage(next, "cards")} />
+                {pages <= 1 && <span className={styles.singlePageCount}>{cards.length.toLocaleString()} cards</span>}
+                <button type="button" className={styles.shareResults} aria-label="Share cards results" title="Share results"
+                  onClick={() => void copyCurrentLink("Filtered results")}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </button>
+              </div>
               {visible.length ? (
                 <CardGrid
                   className={`${styles.cardGrid} ${state.density === "compact" ? styles.cardGridCompact : ""}`}
@@ -434,11 +447,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                   <ActionButton tone="secondary" onClick={clearFilters}>Clear filters</ActionButton>
                 </Surface>
               )}
-              <nav className={styles.pagination} aria-label="Card result pages">
-                <button disabled={page === 1} onClick={() => navigate({ page: page - 1 }, { push: true })}>← Previous</button>
-                <span>Page {page} of {pages}</span>
-                <button disabled={page === pages} onClick={() => navigate({ page: page + 1 }, { push: true })}>Next →</button>
-              </nav>
             </main>
             {selected && (
               <CardInspector
@@ -464,15 +472,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
 
       {section === "cores" && (
         <>
-          <section className={styles.resultsToolbar}>
-            <div>
-              <strong>{cores.length.toLocaleString()} BakuCores</strong>
-              <span>Page {corePage} of {corePages}</span>
-            </div>
-            
-            
-            <button className={styles.shareResults} type="button" onClick={() => void copyCurrentLink("BakuCore results")}>Share results</button>
-          </section>
           <div className={`${styles.coreWorkspace} ${desktopSidebarVisible ? "" : styles.withoutSidebar}`}>
             <CompendiumSidebar label="Filters & Sort" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={closeSidebar} onClear={clearCoreFilters} activeCount={activeCoreFilterCount} footer={<button type="button" onClick={closeSidebar}>Show {cores.length.toLocaleString()} BakuCores</button>}>
               <CoreFilterControls
@@ -481,7 +480,18 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 onSortChange={(sort) => navigateCore({ sort }, { resetPage: true })}
               />
             </CompendiumSidebar>
-            <main className={styles.gallery}>
+            <main ref={resultsStartRef} className={styles.gallery}>
+              <div className={styles.galleryHeader}>
+                <CompendiumPagination page={corePage} totalPages={corePages} totalResults={cores.length}
+                  pageSize={CORE_COMPENDIUM_PAGE_SIZE} noun="BakuCores" onPageChange={next => changeResultsPage(next, "cores")} />
+                {corePages <= 1 && <span className={styles.singlePageCount}>{cores.length.toLocaleString()} BakuCores</span>}
+                <button type="button" className={styles.shareResults} aria-label="Share BakuCores results" title="Share results"
+                  onClick={() => void copyCurrentLink("BakuCore results")}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </button>
+              </div>
               {visibleCores.length ? (
                 <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>
                   {visibleCores.map((core) => {
@@ -516,11 +526,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                   <ActionButton tone="secondary" onClick={clearCoreFilters}>Clear filters</ActionButton>
                 </Surface>
               )}
-              <nav className={styles.pagination} aria-label="BakuCore result pages">
-                <button disabled={corePage === 1} onClick={() => navigateCore({ page: corePage - 1 }, { push: true })}>← Previous</button>
-                <span>Page {corePage} of {corePages}</span>
-                <button disabled={corePage === corePages} onClick={() => navigateCore({ page: corePage + 1 }, { push: true })}>Next →</button>
-              </nav>
             </main>
             {selectedCore && (
               <CardInspector

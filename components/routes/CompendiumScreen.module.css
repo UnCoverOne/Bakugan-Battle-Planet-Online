@@ -16,39 +16,6 @@
   border: 0;
 }
 
-.resultsToolbar {
-  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
-  margin: var(--space-4) auto;
-  display: grid;
-  grid-template-columns: minmax(9rem, 1fr) auto auto;
-  align-items: end;
-  gap: var(--space-3);
-}
-
-.resultsToolbar > div:first-child {
-  align-self: center;
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
-}
-
-.resultsToolbar > div:first-child span {
-
-}
-
-.resultsToolbar > label {
-  min-width: 11rem;
-}
-
-.shareResults {
-  min-height: 3rem;
-  padding: 0 var(--space-4);
-
-
-
-
-}
-
 .workspace,
 .coreWorkspace {
   width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
@@ -296,31 +263,6 @@
   display: none;
 }
 
-.pagination {
-  min-height: 4.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-4);
-  margin-top: var(--space-5);
-}
-
-.pagination button {
-  min-height: 2.75rem;
-  padding: 0 var(--space-4);
-
-
-
-
-}
-
-.pagination button:disabled {
-}
-
-.pagination span {
-
-}
-
 .emptyResults {
   min-height: 26rem;
   display: grid;
@@ -417,13 +359,6 @@
     display: none;
   }
 
-  .pagination {
-    gap: var(--space-2);
-  }
-
-  .pagination button {
-    padding-inline: var(--space-3);
-  }
 }
 
 @media (max-width: 420px) {
@@ -577,13 +512,6 @@
   .viewToast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 }
 
-/* Results information is content, not another sticky toolbar. */
-.resultsToolbar { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
-@media (max-width: 900px) {
-  .resultsToolbar { grid-template-columns: minmax(0, 1fr); }
-  .resultsToolbar .shareResults { display: none; }
-}
-
 /* Anchor links must clear the fixed website header plus sticky Compendium controls. */
 .rulebookFrame :global([id^="chapter-"]),
 .rulebookFrame :global([id^="section-"]),
@@ -601,3 +529,13 @@
 @media (min-width: 901px) {
   .rulebookFrame :global([data-compendium-reference-layout]) { grid-template-columns: 15rem minmax(0, 1fr); }
 }
+
+/* Pagination starts at the top of the results column, beside the sidebar. */
+.gallery{scroll-margin-top:192px}
+.galleryHeader{display:flex;align-items:center;gap:8px;min-width:0;min-height:44px;margin-bottom:12px}
+.singlePageCount{flex:1;min-width:0;color:var(--bb-muted);font:500 12px var(--bb-font-interface)}
+.galleryHeader .shareResults{display:grid;place-items:center;flex:none;width:44px;height:44px;padding:0;border:1px solid var(--bb-border);background:var(--bb-panel);color:var(--bb-text);cursor:pointer}
+.galleryHeader .shareResults svg{width:18px;height:18px}
+.galleryHeader .shareResults:hover{border-color:var(--bb-border-hover);background:var(--bb-panel-hover)}
+.galleryHeader .shareResults:focus-visible{outline:2px solid var(--bb-focus);outline-offset:2px}
+@media(max-width:900px){.gallery{scroll-margin-top:176px}}
