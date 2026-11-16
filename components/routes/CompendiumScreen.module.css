@@ -296,7 +296,6 @@
 }
 
 @media (max-width: 700px) {
-  .resultsToolbar,
   .workspace,
   .coreWorkspace {
     width: min(calc(100% - (2 * var(--space-4))), var(--content-wide));
