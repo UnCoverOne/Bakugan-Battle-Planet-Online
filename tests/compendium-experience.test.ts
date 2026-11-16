@@ -330,6 +330,13 @@ test("Compendium uses unified sticky toolbar, sidebar and responsive field picke
   assert.match(toolbarCss, /position:sticky/);
   assert.match(toolbar, /Filters/);
   assert.match(toolbar, /Contents/);
+  // The button presents the target view, not the currently active view.
+  assert.match(toolbar, /sliders-horizontal/);
+  assert.match(toolbar, /layout-list is the compact target; layout-grid is the gallery target/);
+  assert.match(toolbar, /density === "gallery"/);
+  assert.match(toolbar, /M14 4h7/);
+  assert.match(toolbar, /x="14" y="14" rx="1"/);
+  assert.doesNotMatch(toolbar, /grid-3x3/);
   assert.match(sidebar, /className=\{styles\.header\}/);
   assert.match(sidebar, /className=\{styles\.clearRow\}/);
   assert.match(sidebarCss, /width: 44px/);
