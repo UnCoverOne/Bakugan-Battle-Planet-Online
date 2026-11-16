@@ -517,7 +517,11 @@ test("Compendium pagination is a fixed, quiet first/previous/next/last toolbar",
     read("components/routes/CompendiumPagination.tsx"),
     read("components/routes/CompendiumPagination.module.css"),
   ]);
-  assert.equal((route.match(/<CompendiumPagination /g) ?? []).length, 2);
+  assert.equal((route.match(/<CompendiumPagination /g) ?? []).length, 4);
+  assert.equal((route.match(/placement="bottom"/g) ?? []).length, 2);
+  assert.match(pager, /placement = "top"/);
+  assert.match(pager, /placement === "top" && <span className={styles.range}>/);
+  assert.match(css, /\.galleryFooter\{min-width:0;margin-top:20px\}/);
   assert.equal((route.match(/<main ref=\{resultsStartRef\}/g) ?? []).length, 2);
   assert.match(route, /changeResultsPage\(next, "cards"\)/);
   assert.match(route, /changeResultsPage\(next, "cores"\)/);
