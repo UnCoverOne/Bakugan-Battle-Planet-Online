@@ -18,7 +18,7 @@ export function ContentsNavigation({ items }: { items: readonly ContentsEntry[] 
     const update = () => {
       const destinations = flat.map(item => ({ id: item.id, node: document.getElementById(item.id) }))
         .filter((entry): entry is { id: string; node: HTMLElement } => Boolean(entry.node));
-      if (!destinations.length) return;
+      if (!destinations.length) { setActive(""); return; }
       const top = 220;
       const current = destinations.reduce((selected, entry) =>
         entry.node.getBoundingClientRect().top <= top ? entry.id : selected, destinations[0].id);
@@ -28,10 +28,12 @@ export function ContentsNavigation({ items }: { items: readonly ContentsEntry[] 
     window.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
     window.addEventListener("hashchange", update);
+    window.addEventListener("popstate", update);
     return () => {
       window.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
       window.removeEventListener("hashchange", update);
+      window.removeEventListener("popstate", update);
     };
   }, [flat]);
 
@@ -45,7 +47,7 @@ export function ContentsNavigation({ items }: { items: readonly ContentsEntry[] 
   };
   const link = (item: ContentsEntry, nested = false) =>
     <a key={item.id} href={`#${item.id}`} className={`${styles.link} ${nested ? styles.nested : ""}`}
-      aria-current={active === item.id ? "location" : undefined}
+      aria-current={active === item.id || (Boolean(item.children?.some(child => child.id === active)) && !expanded.includes(item.id)) ? "location" : undefined}
       onClick={event => navigate(event, item.id)}>{item.label}</a>;
 
   return <div className={styles.contents}>
