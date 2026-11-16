@@ -511,38 +511,34 @@ test("Compendium reference pages share compact continuous Contents navigation", 
   assert.match(layoutCss, /\[id\^="rulings-category-"\]/);
 });
 
-test("Compendium pagination is shared, single-row and located above each results grid", async () => {
- const [screen,styles,pager,pagerCss] = await Promise.all([
-  read("components/routes/CompendiumScreen.tsx"),
-  read("components/routes/CompendiumScreen.module.css"),
-  read("components/routes/CompendiumPagination.tsx"),
-  read("components/routes/CompendiumPagination.module.css"),
- ]);
- assert.equal((screen.match(/<CompendiumPagination /g)??[]).length,2);
- assert.equal((screen.match(/<main ref=\{resultsStartRef\}/g)??[]).length,2);
- assert.doesNotMatch(screen,/className=\{styles\.pagination\}/);
- assert.doesNotMatch(screen,/styles\.resultsToolbar/);
- assert.match(screen,/changeResultsPage\(next, "cards"\)/);
- assert.match(screen,/changeResultsPage\(next, "cores"\)/);
- assert.match(screen,/navigateCore\(\{ page: nextPage \}, \{ push: true \}\)/);
- assert.match(screen,/resultsStartRef\.current\?\.scrollIntoView/);
- assert.match(styles,/\.galleryHeader\{display:grid;grid-template-columns:44px minmax\(0,1fr\) 44px/);
- assert.match(pager,/compactPages\(page,totalPages\)/);
- assert.match(pager,/aria-current=\{item===page\?"page"/);
- assert.match(pagerCss,/white-space:nowrap/);
- assert.match(pagerCss,/@container \(max-width:340px\)/);
- assert.match(pagerCss,/grid-template-columns:40px 14px 40px 14px 40px/);
- assert.match(pager,/if\(totalPages<=1\)return null/);
-});
-
-test("Compact pagination keeps page-number slots stable at every position", () => {
-  assert.deepEqual(compactPages(1, 1), [1]);
-  assert.deepEqual(compactPages(1, 2), [1, null, null, null, 2]);
-  assert.deepEqual(compactPages(1, 24), [1, null, 2, "ellipsis", 24]);
-  assert.deepEqual(compactPages(2, 24), [1, null, 2, "ellipsis", 24]);
-  assert.deepEqual(compactPages(7, 24), [1, "ellipsis", 7, "ellipsis", 24]);
-  assert.deepEqual(compactPages(23, 24), [1, "ellipsis", 23, null, 24]);
-  assert.deepEqual(compactPages(24, 24), [1, "ellipsis", 23, null, 24]);
-  assert.deepEqual(compactPages(2, 3), [1, null, 2, null, 3]);
-  assert.deepEqual(compactPages(99, 24), [1, "ellipsis", 23, null, 24]);
+test("Compendium pagination is a fixed, quiet first/previous/next/last toolbar", async () => {
+  const [route, css, pager, pagerCss] = await Promise.all([
+    read("components/routes/CompendiumScreen.tsx"),
+    read("components/routes/CompendiumScreen.module.css"),
+    read("components/routes/CompendiumPagination.tsx"),
+    read("components/routes/CompendiumPagination.module.css"),
+  ]);
+  assert.equal((route.match(/<CompendiumPagination /g) ?? []).length, 2);
+  assert.equal((route.match(/<main ref=\{resultsStartRef\}/g) ?? []).length, 2);
+  assert.match(route, /changeResultsPage\(next, "cards"\)/);
+  assert.match(route, /changeResultsPage\(next, "cores"\)/);
+  assert.match(route, /navigateCore\(\{ page: nextPage \}, \{ push: true \}\)/);
+  assert.match(route, /resultsStartRef\.current\?\.scrollIntoView/);
+  assert.doesNotMatch(route, /styles\.shareResults|styles\.resultsToolbar|styles\.pagination/);
+  assert.match(css, /margin: var\(--space-4\) auto 0/);
+  assert.match(css, /\.galleryHeader\{display:block/);
+  assert.doesNotMatch(css, /\.galleryHeader \.shareResults/);
+  for (const name of ["First page", "Previous page", "Next page", "Last page"]) {
+    assert.match(pager, new RegExp(`aria-label="${name}"`));
+  }
+  assert.match(pager, /onPageChange\(1\)/);
+  assert.match(pager, /onPageChange\(totalPages\)/);
+  assert.match(pager, /onPageChange\(page - 1\)/);
+  assert.match(pager, /onPageChange\(page \+ 1\)/);
+  assert.match(pager, /aria-live="polite"/);
+  assert.match(pager, /if \(totalPages <= 1\) return null/);
+  assert.match(pagerCss, /grid-template-columns:minmax\(0,1fr\) auto minmax\(0,1fr\)/);
+  assert.match(pagerCss, /\.pageIndicator\{[^}]*min-width:76px/);
+  assert.match(pagerCss, /white-space:nowrap/);
+  assert.match(pagerCss, /@container \(max-width:540px\)/);
 });

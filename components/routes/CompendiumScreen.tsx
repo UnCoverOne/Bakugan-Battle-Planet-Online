@@ -402,12 +402,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 <CompendiumPagination page={page} totalPages={pages} totalResults={cards.length}
                   pageSize={COMPENDIUM_PAGE_SIZE} noun="cards" onPageChange={next => changeResultsPage(next, "cards")} />
                 {pages <= 1 && <span className={styles.singlePageCount}>{cards.length.toLocaleString()} cards</span>}
-                <button type="button" className={styles.shareResults} aria-label="Share cards results" title="Share results"
-                  onClick={() => void copyCurrentLink("Filtered results")}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                  </svg>
-                </button>
               </div>
               {visible.length ? (
                 <CardGrid
@@ -485,12 +479,6 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 <CompendiumPagination page={corePage} totalPages={corePages} totalResults={cores.length}
                   pageSize={CORE_COMPENDIUM_PAGE_SIZE} noun="BakuCores" onPageChange={next => changeResultsPage(next, "cores")} />
                 {corePages <= 1 && <span className={styles.singlePageCount}>{cores.length.toLocaleString()} BakuCores</span>}
-                <button type="button" className={styles.shareResults} aria-label="Share BakuCores results" title="Share results"
-                  onClick={() => void copyCurrentLink("BakuCore results")}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                  </svg>
-                </button>
               </div>
               {visibleCores.length ? (
                 <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>
