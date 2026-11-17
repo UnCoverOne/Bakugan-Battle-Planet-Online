@@ -95,7 +95,7 @@ test("lobby invitations have five-minute validity and are not hidden when the ro
     source("lib/social.ts"), source("lib/social-server.ts"), source("app/api/social/route.ts"),
   ]);
   assert.match(types, /SOCIAL_INVITE_TTL_MS = 5 \* 60 \* 1000/);
-  assert.match(server, /available: Boolean\(invitedLobby\)/);
+  assert.match(server, /available: Boolean\(lobby\)/);
   assert.match(server, /getPendingLobbyInvitations/);
   assert.match(server, /expires_at > \?/);
   assert.match(server, /recordInviteEvent\(db, invite, "accepted"\)/);
