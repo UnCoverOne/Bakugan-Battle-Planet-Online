@@ -26,7 +26,8 @@ import { getSessionUserFromDatabase } from "../lib/account-server";
 import { MAX_MUSIC_TRACK_BYTES, storeMusicUploadObject } from "../lib/music-server";
 import { assertSameOrigin } from "../lib/request-security";
 import { AuthorizationError, ValidationError, serverErrorResponse } from "../lib/server-errors";
-import { ensureSocialSchema, loadSocialAccount } from "../lib/social-server";
+import { ensureSocialSchema, expireLobbyInvitations, loadSocialAccount } from "../lib/social-server";
+import { notifySocialUsers } from "../lib/social-presence-server";
 import { ensureMatchSessionSchema } from "../lib/match-session-schema";
 import { socialPresenceShard, type SocialAccountSummary } from "../lib/social";
 
@@ -60,6 +61,7 @@ type HibernatingState = {
 type SocialSocketAttachment = {
   userId: string;
   account: SocialAccountSummary;
+  activity?: "online" | "lobby" | "game";
 };
 
 function socialSocketSend(socket: WebSocket, payload: unknown) {
@@ -83,7 +85,12 @@ export class SocialPresence {
     for (const socket of this.state.getWebSockets()) {
       const attachment = socket.deserializeAttachment?.() as SocialSocketAttachment | undefined;
       if (attachment?.userId && attachment.account) {
-        accounts.set(attachment.userId, { ...attachment.account, online: true, relationship: "none" });
+        const activity = attachment.activity ?? "online";
+        const previous = accounts.get(attachment.userId);
+        const priority = { online: 0, lobby: 1, game: 2 };
+        if (!previous || priority[activity] >= priority[previous.activity === "game" || previous.activity === "lobby" ? previous.activity : "online"]) {
+          accounts.set(attachment.userId, { ...attachment.account, online: true, activity, relationship: "none" });
+        }
       }
     }
     return [...accounts.values()];
@@ -122,7 +129,7 @@ export class SocialPresence {
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
-    server.serializeAttachment?.({ userId, account } satisfies SocialSocketAttachment);
+    server.serializeAttachment?.({ userId, account, activity: "online" } satisfies SocialSocketAttachment);
     this.state.acceptWebSocket(server, [userId]);
     socialSocketSend(server, { type: "presence.snapshot", accounts: this.accounts() });
     if (!wasOnline) this.broadcast({ type: "presence.changed", account: { ...account, online: true, relationship: "none" } }, server);
@@ -134,7 +141,17 @@ export class SocialPresence {
   }
 
   webSocketMessage(socket: WebSocket, message: string | ArrayBuffer) {
-    if (typeof message === "string" && message === "ping") socialSocketSend(socket, { type: "pong" });
+    if (typeof message !== "string") return;
+    if (message === "ping") { socialSocketSend(socket, { type: "pong" }); return; }
+    let event: { type?: string; activity?: string } = {};
+    try { event = JSON.parse(message) as { type?: string; activity?: string }; } catch { return; }
+    if (event.type !== "presence.activity" || !["online", "lobby", "game"].includes(event.activity ?? "")) return;
+    const attachment = socket.deserializeAttachment?.() as SocialSocketAttachment | undefined;
+    if (!attachment?.userId || !attachment.account) return;
+    const activity = event.activity as "online" | "lobby" | "game";
+    if (attachment.activity === activity) return;
+    socket.serializeAttachment?.({ ...attachment, activity } satisfies SocialSocketAttachment);
+    this.broadcast({ type: "presence.changed", userId: attachment.userId }, socket);
   }
 
   webSocketClose(socket: WebSocket) {
@@ -705,9 +722,15 @@ const worker = {
   },
 };
 
-async function runScheduled(_controller: ScheduledController, env: Env) {
+async function runScheduled(controller: ScheduledController, env: Env) {
   const cutoff = Date.now();
   await ensureSocialSchema(env.DB);
+  const expired = await expireLobbyInvitations(env.DB, cutoff);
+  await Promise.all(expired.map((invite) => notifySocialUsers(
+    [invite.inviter_user_id, invite.recipient_user_id],
+    { type: "lobby.invite-expired", inviteId: invite.id, lobbyCode: invite.lobby_code },
+  ).catch((error) => console.error("Lobby expiry notification failed", error))));
+  if (controller.cron === "* * * * *") return;
   await env.DB.batch([
     env.DB.prepare("CREATE TABLE IF NOT EXISTS rum_events (id TEXT PRIMARY KEY, route TEXT NOT NULL, metric TEXT NOT NULL, value REAL NOT NULL, device TEXT NOT NULL, created_at INTEGER NOT NULL)"),
     env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(cutoff),
@@ -717,8 +740,8 @@ async function runScheduled(_controller: ScheduledController, env: Env) {
     env.DB.prepare("DELETE FROM match_presence WHERE code IN (SELECT code FROM matches WHERE updated_at < ?)").bind(cutoff - 2_592_000_000),
     env.DB.prepare("DELETE FROM matches WHERE updated_at < ?").bind(cutoff - 2_592_000_000),
     env.DB.prepare("DELETE FROM match_replays WHERE NOT EXISTS (SELECT 1 FROM match_replay_participants WHERE match_replay_participants.replay_id = match_replays.replay_id)"),
-    env.DB.prepare("UPDATE lobby_invitations SET status = 'expired', responded_at = ? WHERE status = 'pending' AND expires_at <= ?").bind(cutoff, cutoff),
     env.DB.prepare("DELETE FROM lobby_invitations WHERE status <> 'pending' AND COALESCE(responded_at, expires_at) < ?").bind(cutoff - 2_592_000_000),
+    env.DB.prepare("DELETE FROM social_lobby_events WHERE created_at < ?").bind(cutoff - 2_592_000_000),
   ]);
 }
 

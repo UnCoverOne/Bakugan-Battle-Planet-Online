@@ -1,7 +1,8 @@
 export const SOCIAL_SHARD_COUNT = 8;
-export const SOCIAL_INVITE_TTL_MS = 10 * 60 * 1000;
+export const SOCIAL_INVITE_TTL_MS = 5 * 60 * 1000;
 
 export type SocialRelationship = "friend" | "incoming" | "outgoing" | "none";
+export type SocialActivity = "offline" | "online" | "lobby" | "game";
 
 export type SocialAccountSummary = {
   userId: string;
@@ -15,6 +16,7 @@ export type SocialAccountSummary = {
   losses: number;
   winRate: number;
   online: boolean;
+  activity?: SocialActivity;
   relationship: SocialRelationship;
 };
 
@@ -22,10 +24,19 @@ export type LobbyInviteSummary = {
   id: string;
   lobbyCode: string;
   inviter: SocialAccountSummary;
-  format: "bo1" | "bo3";
-  rulesFormat: "standard" | "singleton" | "competitive";
+  format: "bo1" | "bo3" | null;
+  rulesFormat: "standard" | "singleton" | "competitive" | null;
+  available: boolean;
+  unavailableReason?: string;
   createdAt: number;
   expiresAt: number;
+};
+
+export type LobbySystemMessage = {
+  id: string;
+  lobbyCode: string;
+  at: number;
+  message: string;
 };
 
 export type ActiveSocialLobby = {
@@ -42,6 +53,7 @@ export type SocialSnapshot = {
   onlineBrawlers: SocialAccountSummary[];
   offlineBrawlers: SocialAccountSummary[];
   invitations: LobbyInviteSummary[];
+  lobbyMessages: LobbySystemMessage[];
   activeLobby: ActiveSocialLobby | null;
   unreadCount: number;
 };

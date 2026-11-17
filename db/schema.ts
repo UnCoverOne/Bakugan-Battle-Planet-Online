@@ -250,6 +250,15 @@ export const lobbyInvitations = sqliteTable("lobby_invitations", {
   index("lobby_invitations_expiry_idx").on(table.status, table.expiresAt),
 ]);
 
+export const socialLobbyEvents = sqliteTable("social_lobby_events", {
+  id: text("id").primaryKey(),
+  lobbyCode: text("lobby_code").notNull(),
+  message: text("message").notNull(),
+  createdAt: integer("created_at").notNull(),
+}, (table) => [
+  index("social_lobby_events_room_created_idx").on(table.lobbyCode, table.createdAt),
+]);
+
 export const socialPreferences = sqliteTable("social_preferences", {
   userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   presenceVisibility: text("presence_visibility").notNull().default("online"),

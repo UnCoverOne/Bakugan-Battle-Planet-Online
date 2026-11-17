@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { chatEntries, normalizeChatMessage } from "../../lib/chat";
+import { lobbyChatEntries, normalizeChatMessage } from "../../lib/chat";
+import { useSocial } from "../social/SocialProvider";
 import type { MatchState } from "../../lib/game";
 import { useAppFields } from "../application/AppProvider";
 import { Badge, PageHeader } from "../application/ui";
@@ -36,6 +37,7 @@ export function LobbyRoomScreen() {
     settings,
     leaveMatch,
   } = useAppFields(["ready", "match", "online", "playerId", "matchCapability", "matchControllerId", "settings", "leaveMatch"]);
+  const { snapshot: socialSnapshot } = useSocial();
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState<BusyAction>("");
   const [error, setError] = useState("");
@@ -63,7 +65,7 @@ export function LobbyRoomScreen() {
     capability: state.capability,
   }));
   const match = room.match;
-  const messages = useMemo(() => chatEntries(match), [match]);
+  const messages = useMemo(() => lobbyChatEntries(match, socialSnapshot.lobbyMessages), [match, socialSnapshot.lobbyMessages]);
   const owner = match?.players[0];
   const isOwner = Boolean(owner && owner.id === room.playerId);
   const bothReady = Boolean(match && match.players.length === 2 && match.players.every((player) => player.ready));
