@@ -252,7 +252,7 @@ export const lobbyInvitations = sqliteTable("lobby_invitations", {
 
 export const socialLobbyEvents = sqliteTable("social_lobby_events", {
   id: text("id").primaryKey(),
-  lobbyCode: text("lobby_code").notNull().references(() => matches.code, { onDelete: "cascade" }),
+  lobbyCode: text("lobby_code").notNull(),
   message: text("message").notNull(),
   createdAt: integer("created_at").notNull(),
 }, (table) => [

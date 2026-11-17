@@ -89,3 +89,51 @@ test("offline directory and hidden-account controls are wired through the social
   assert.match(migration, /social_hidden_accounts/);
   assert.match(schema, /socialHiddenAccounts/);
 });
+
+test("lobby invitations have five-minute validity and are not hidden when the room is unavailable", async () => {
+  const [types, server, api] = await Promise.all([
+    source("lib/social.ts"), source("lib/social-server.ts"), source("app/api/social/route.ts"),
+  ]);
+  assert.match(types, /SOCIAL_INVITE_TTL_MS = 5 \* 60 \* 1000/);
+  assert.match(server, /available: Boolean\(invitedLobby\)/);
+  assert.match(server, /visibleInvites\.map/);
+  assert.match(server, /expires_at > \?/);
+  assert.match(server, /recordInviteEvent\(db, invite, "accepted"\)/);
+  assert.match(server, /recordInviteEvent\(db, invite, "declined"\)/);
+  assert.match(api, /accepted\.inviterId/);
+  assert.match(api, /declined\.inviterId/);
+});
+
+test("actionable invites, activity labels, and invitation events are connected to the lobby UI", async () => {
+  const [drawer, room, legacyRoom, worker, migration] = await Promise.all([
+    source("components/social/SocialProvider.tsx"),
+    source("components/routes/StreamlinedLobbyRoomScreen.tsx"),
+    source("components/routes/LobbyRoomScreen.tsx"),
+    source("worker/index.ts"),
+    source("migrations/0016_social_lobby_events.sql"),
+  ]);
+  assert.match(drawer, /function LobbyInviteNotice/);
+  assert.match(drawer, /setSeconds\(15\)/);
+  assert.match(drawer, /respond\("accept-invite"\)/);
+  assert.match(drawer, /respond\("decline-invite"\)/);
+  assert.match(drawer, /activityLabel = activity === "lobby"/);
+  assert.match(room, /lobbyChatEntries/);
+  assert.match(legacyRoom, /lobbyChatEntries/);
+  assert.match(worker, /presence\.activity/);
+  assert.match(worker, /expireLobbyInvitations/);
+  assert.match(migration, /social_lobby_events/);
+});
+
+test("lobby system messages are scoped and ordered alongside player chat", async () => {
+  const { lobbyChatEntries } = await import("../lib/chat");
+  const match = {
+    code: "ABC123",
+    log: [{ id: "player-chat", kind: "chat", at: 300, playerId: "p1", author: "Dan", message: "Hi" }],
+  } as Parameters<typeof lobbyChatEntries>[0];
+  const output = lobbyChatEntries(match, [
+    { id: "other", lobbyCode: "OTHER1", at: 50, message: "Hidden" },
+    { id: "invite", lobbyCode: "ABC123", at: 100, message: "An invitation was sent." },
+  ]);
+  assert.deepEqual(output.map((event) => event.id), ["invite", "player-chat"]);
+  assert.equal(output[0]?.author, "SYSTEM");
+});

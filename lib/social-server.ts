@@ -60,7 +60,7 @@ export async function ensureSocialSchema(db: AccountDatabase) {
     db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS lobby_invitations_pending_pair_idx ON lobby_invitations(lobby_code, inviter_user_id, recipient_user_id) WHERE status = 'pending'"),
     db.prepare("CREATE INDEX IF NOT EXISTS lobby_invitations_recipient_idx ON lobby_invitations(recipient_user_id, status, expires_at DESC)"),
     db.prepare("CREATE INDEX IF NOT EXISTS lobby_invitations_expiry_idx ON lobby_invitations(status, expires_at)"),
-    db.prepare("CREATE TABLE IF NOT EXISTS social_lobby_events (id TEXT PRIMARY KEY, lobby_code TEXT NOT NULL REFERENCES matches(code) ON DELETE CASCADE, message TEXT NOT NULL, created_at INTEGER NOT NULL)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS social_lobby_events (id TEXT PRIMARY KEY, lobby_code TEXT NOT NULL, message TEXT NOT NULL, created_at INTEGER NOT NULL)"),
     db.prepare("CREATE INDEX IF NOT EXISTS social_lobby_events_room_created_idx ON social_lobby_events(lobby_code, created_at)"),
     db.prepare("CREATE TABLE IF NOT EXISTS social_preferences (user_id TEXT PRIMARY KEY, presence_visibility TEXT NOT NULL DEFAULT 'online' CHECK (presence_visibility IN ('online', 'friends', 'offline')), allow_lobby_invites INTEGER NOT NULL DEFAULT 1 CHECK (allow_lobby_invites IN (0, 1)), updated_at INTEGER NOT NULL, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)"),
   ]);
@@ -352,7 +352,7 @@ export async function acceptLobbyInvitation(db: AccountDatabase, recipientId: st
 }
 
 export async function declineLobbyInvitation(db: AccountDatabase, recipientId: string, inviteId: string) {
-  await requirePendingInvite(db, inviteId, recipientId);
+  const invite = await requirePendingInvite(db, inviteId, recipientId);
   const result = await db.prepare("UPDATE lobby_invitations SET status = 'declined', responded_at = ? WHERE id = ? AND recipient_user_id = ? AND status = 'pending'")
     .bind(Date.now(), inviteId, recipientId).run();
   if (!result.meta.changes) throw new ConflictError("That lobby invitation is no longer available.");

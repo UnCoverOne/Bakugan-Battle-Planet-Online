@@ -204,6 +204,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       setOpen(false);
       router.push("/play");
       notify(`Lobby ${result.lobby.code} is ready. Choose a deck to join.`);
+      await refresh();
       return;
     }
     const success: Record<string, string> = {

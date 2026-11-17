@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS social_lobby_events (
   id TEXT PRIMARY KEY,
-  lobby_code TEXT NOT NULL REFERENCES matches(code) ON DELETE CASCADE,
+  lobby_code TEXT NOT NULL,
   message TEXT NOT NULL,
   created_at INTEGER NOT NULL
 );
