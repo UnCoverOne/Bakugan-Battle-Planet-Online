@@ -6,6 +6,7 @@ import {
   type MatchLogEntry,
   type MatchState,
 } from "./game";
+import type { LobbySystemMessage } from "./social";
 
 export const CHAT_MESSAGE_LIMIT = 240;
 
@@ -30,6 +31,15 @@ export function chatEntries(match: MatchState | null | undefined): readonly Chat
   return (match?.log ?? [])
     .filter((entry) => String(entry.kind) === "chat")
     .map((entry) => entry as unknown as ChatLogEntry);
+}
+
+/** Merge persistent invitation system events into the visible lobby chat, without mutating match/replay state. */
+export function lobbyChatEntries(match: MatchState | null | undefined, events: readonly LobbySystemMessage[]): readonly ChatLogEntry[] {
+  const code = match?.code;
+  const systems: ChatLogEntry[] = events
+    .filter((event) => event.lobbyCode === code)
+    .map((event) => ({ id: event.id, at: event.at, kind: "chat", playerId: "system", author: "SYSTEM", message: event.message }));
+  return [...chatEntries(match), ...systems].sort((left, right) => left.at - right.at);
 }
 
 export function eventLogEntries(match: MatchState | null | undefined) {

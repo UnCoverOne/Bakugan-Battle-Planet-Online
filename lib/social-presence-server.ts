@@ -5,8 +5,11 @@ import {
 } from "./social";
 
 type SocialPresenceEvent = {
-  type: "social.changed" | "lobby.invited" | "lobby.invite-responded";
+  type: "social.changed" | "lobby.invited" | "lobby.invite-responded" | "lobby.invite-expired";
   actorId?: string;
+  actorName?: string;
+  status?: "accepted" | "declined";
+  lobbyCode?: string;
   inviteId?: string;
 };
 

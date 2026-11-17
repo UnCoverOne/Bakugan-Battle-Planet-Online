@@ -39,7 +39,7 @@
     { "tag": "v2", "new_sqlite_classes": ["SocialPresence"] }
   ],
   "triggers": {
-    "crons": ["17 */6 * * *"]
+    "crons": ["* * * * *", "17 */6 * * *"]
   },
   "observability": {
     "enabled": true,

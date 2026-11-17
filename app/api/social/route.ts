@@ -140,19 +140,21 @@ export async function POST(request: Request) {
         text(targetId, "Brawler", 100),
         text(body.lobbyCode, "Lobby code", 6).toUpperCase(),
       );
-      await notifySafely([targetId], { type: "lobby.invited", actorId: user.id, inviteId: invite.id }, correlationId);
+      await notifySafely([targetId], { type: "lobby.invited", actorId: user.id, inviteId: invite.id, lobbyCode: invite.lobby_code }, correlationId);
       return json({ inviteId: invite.id, expiresAt: invite.expires_at, correlationId }, 201);
     }
     if (action === "accept-invite") {
       const inviteId = text(body.inviteId, "Invitation", 100);
-      const lobby = await acceptLobbyInvitation(db, user.id, inviteId);
-      await notifySafely([user.id], { type: "lobby.invite-responded", actorId: user.id, inviteId }, correlationId);
-      return json({ lobby, correlationId });
+      const accepted = await acceptLobbyInvitation(db, user.id, inviteId);
+      const account = await loadSocialAccount(db, user.id);
+      await notifySafely([user.id, accepted.inviterId], { type: "lobby.invite-responded", actorId: user.id, actorName: account?.displayName, inviteId, status: "accepted", lobbyCode: accepted.lobby.code }, correlationId);
+      return json({ lobby: accepted.lobby, correlationId });
     }
     if (action === "decline-invite") {
       const inviteId = text(body.inviteId, "Invitation", 100);
-      await declineLobbyInvitation(db, user.id, inviteId);
-      await notifySafely([user.id], { type: "lobby.invite-responded", actorId: user.id, inviteId }, correlationId);
+      const declined = await declineLobbyInvitation(db, user.id, inviteId);
+      const account = await loadSocialAccount(db, user.id);
+      await notifySafely([user.id, declined.inviterId], { type: "lobby.invite-responded", actorId: user.id, actorName: account?.displayName, inviteId, status: "declined", lobbyCode: declined.lobbyCode }, correlationId);
       return json({ ok: true, correlationId });
     }
     throw new ValidationError("Unknown social action.");

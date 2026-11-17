@@ -12,6 +12,7 @@ import {
   sortSocialAccounts,
   type ActiveSocialLobby,
   type LobbyInviteSummary,
+  type LobbySystemMessage,
   type SocialAccountSummary,
   type SocialRelationship,
   type SocialSnapshot,
@@ -59,6 +60,8 @@ export async function ensureSocialSchema(db: AccountDatabase) {
     db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS lobby_invitations_pending_pair_idx ON lobby_invitations(lobby_code, inviter_user_id, recipient_user_id) WHERE status = 'pending'"),
     db.prepare("CREATE INDEX IF NOT EXISTS lobby_invitations_recipient_idx ON lobby_invitations(recipient_user_id, status, expires_at DESC)"),
     db.prepare("CREATE INDEX IF NOT EXISTS lobby_invitations_expiry_idx ON lobby_invitations(status, expires_at)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS social_lobby_events (id TEXT PRIMARY KEY, lobby_code TEXT NOT NULL REFERENCES matches(code) ON DELETE CASCADE, message TEXT NOT NULL, created_at INTEGER NOT NULL)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS social_lobby_events_room_created_idx ON social_lobby_events(lobby_code, created_at)"),
     db.prepare("CREATE TABLE IF NOT EXISTS social_preferences (user_id TEXT PRIMARY KEY, presence_visibility TEXT NOT NULL DEFAULT 'online' CHECK (presence_visibility IN ('online', 'friends', 'offline')), allow_lobby_invites INTEGER NOT NULL DEFAULT 1 CHECK (allow_lobby_invites IN (0, 1)), updated_at INTEGER NOT NULL, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)"),
   ]);
 }
@@ -262,9 +265,43 @@ async function requireInvitableLobby(db: AccountDatabase, userId: string, code: 
   return lobby;
 }
 
-async function expireInvitations(db: AccountDatabase, now = Date.now()) {
-  await db.prepare("UPDATE lobby_invitations SET status = 'expired', responded_at = ? WHERE status = 'pending' AND expires_at <= ?")
-    .bind(now, now).run();
+async function recordInviteEvent(db: AccountDatabase, invite: InviteRow, kind: "sent" | "accepted" | "declined" | "expired") {
+  const users = await db.prepare("SELECT id, display_name FROM users WHERE id IN (?, ?)")
+    .bind(invite.inviter_user_id, invite.recipient_user_id).all<{ id: string; display_name: string }>();
+  const byId = new Map((users.results ?? []).map((row) => [row.id, row.display_name]));
+  const inviter = byId.get(invite.inviter_user_id) ?? "A Brawler";
+  const recipient = byId.get(invite.recipient_user_id) ?? "a Brawler";
+  const message = kind === "sent"
+    ? `${inviter} invited ${recipient} to the lobby.`
+    : kind === "accepted" ? `${recipient} accepted the lobby invitation.`
+      : kind === "declined" ? `${recipient} declined the lobby invitation.`
+        : `The invitation to ${recipient} expired.`;
+  await db.prepare("INSERT OR IGNORE INTO social_lobby_events (id, lobby_code, message, created_at) VALUES (?, ?, ?, ?)")
+    .bind(`${invite.id}:${kind}`, invite.lobby_code, message, Date.now()).run();
+}
+
+/** Used by the minute cron and before sending a new invitation. Records outcomes once. */
+export async function expireLobbyInvitations(db: AccountDatabase, now = Date.now()) {
+  const expired = await db.prepare("UPDATE lobby_invitations SET status = 'expired', responded_at = ? WHERE status = 'pending' AND expires_at <= ? RETURNING id, lobby_code, inviter_user_id, recipient_user_id, status, created_at, expires_at")
+    .bind(now, now).all<InviteRow>();
+  for (const invite of expired.results ?? []) await recordInviteEvent(db, invite, "expired");
+  return expired.results ?? [];
+}
+
+async function currentLobbyMessages(db: AccountDatabase, viewerId: string): Promise<LobbySystemMessage[]> {
+  await ensureReplayArchiveSchema(db);
+  const seats = await db.prepare(`SELECT matches.state_json, matches.code
+    FROM match_seat_accounts JOIN matches ON matches.code = match_seat_accounts.code
+    WHERE match_seat_accounts.user_id = ? ORDER BY matches.updated_at DESC LIMIT 12`)
+    .bind(viewerId).all<{ state_json: string; code: string }>();
+  const room = (seats.results ?? []).find(({ state_json }) => {
+    const state = parseMatchState(state_json);
+    return state?.phase === "lobby" && lobbyConfig(state).mode !== "training";
+  });
+  if (!room) return [];
+  const events = await db.prepare("SELECT id, lobby_code, message, created_at FROM social_lobby_events WHERE lobby_code = ? ORDER BY created_at ASC LIMIT 100")
+    .bind(room.code).all<{ id: string; lobby_code: string; message: string; created_at: number }>();
+  return (events.results ?? []).map((event) => ({ id: event.id, lobbyCode: event.lobby_code, at: event.created_at, message: event.message }));
 }
 
 export async function createLobbyInvitation(db: AccountDatabase, inviterId: string, recipientId: string, lobbyCode: string) {
@@ -275,7 +312,7 @@ export async function createLobbyInvitation(db: AccountDatabase, inviterId: stri
     .bind(recipientId).first<{ allow_lobby_invites: number }>();
   if (preferences && !preferences.allow_lobby_invites) throw new AuthorizationError("That Brawler is not accepting lobby invitations.");
   const now = Date.now();
-  await expireInvitations(db, now);
+  await expireLobbyInvitations(db, now);
   const existing = await db.prepare("SELECT id, lobby_code, inviter_user_id, recipient_user_id, status, created_at, expires_at FROM lobby_invitations WHERE lobby_code = ? AND inviter_user_id = ? AND recipient_user_id = ? AND status = 'pending'")
     .bind(lobby.code, inviterId, recipientId).first<InviteRow>();
   if (existing) return existing;
@@ -290,15 +327,16 @@ export async function createLobbyInvitation(db: AccountDatabase, inviterId: stri
   };
   await db.prepare("INSERT OR IGNORE INTO lobby_invitations (id, lobby_code, inviter_user_id, recipient_user_id, status, created_at, expires_at) VALUES (?, ?, ?, ?, 'pending', ?, ?)")
     .bind(invite.id, invite.lobby_code, inviterId, recipientId, now, invite.expires_at).run();
-  return await db.prepare("SELECT id, lobby_code, inviter_user_id, recipient_user_id, status, created_at, expires_at FROM lobby_invitations WHERE lobby_code = ? AND inviter_user_id = ? AND recipient_user_id = ? AND status = 'pending'")
+  const pending = await db.prepare("SELECT id, lobby_code, inviter_user_id, recipient_user_id, status, created_at, expires_at FROM lobby_invitations WHERE lobby_code = ? AND inviter_user_id = ? AND recipient_user_id = ? AND status = 'pending'")
     .bind(lobby.code, inviterId, recipientId).first<InviteRow>() ?? invite;
+  await recordInviteEvent(db, pending, "sent");
+  return pending;
 }
 
 async function requirePendingInvite(db: AccountDatabase, inviteId: string, recipientId: string) {
   await ensureSocialSchema(db);
-  await expireInvitations(db);
-  const invite = await db.prepare("SELECT id, lobby_code, inviter_user_id, recipient_user_id, status, created_at, expires_at FROM lobby_invitations WHERE id = ? AND recipient_user_id = ? AND status = 'pending'")
-    .bind(inviteId, recipientId).first<InviteRow>();
+  const invite = await db.prepare("SELECT id, lobby_code, inviter_user_id, recipient_user_id, status, created_at, expires_at FROM lobby_invitations WHERE id = ? AND recipient_user_id = ? AND status = 'pending' AND expires_at > ?")
+    .bind(inviteId, recipientId, Date.now()).first<InviteRow>();
   if (!invite) throw new ConflictError("That lobby invitation is no longer available.");
   return invite;
 }
@@ -309,14 +347,17 @@ export async function acceptLobbyInvitation(db: AccountDatabase, recipientId: st
   const result = await db.prepare("UPDATE lobby_invitations SET status = 'accepted', responded_at = ? WHERE id = ? AND recipient_user_id = ? AND status = 'pending'")
     .bind(Date.now(), inviteId, recipientId).run();
   if (!result.meta.changes) throw new ConflictError("That lobby invitation is no longer available.");
-  return lobby;
+  await recordInviteEvent(db, invite, "accepted");
+  return { lobby, inviterId: invite.inviter_user_id };
 }
 
 export async function declineLobbyInvitation(db: AccountDatabase, recipientId: string, inviteId: string) {
   await requirePendingInvite(db, inviteId, recipientId);
-  await db.prepare("UPDATE lobby_invitations SET status = 'declined', responded_at = ? WHERE id = ? AND recipient_user_id = ? AND status = 'pending'")
+  const result = await db.prepare("UPDATE lobby_invitations SET status = 'declined', responded_at = ? WHERE id = ? AND recipient_user_id = ? AND status = 'pending'")
     .bind(Date.now(), inviteId, recipientId).run();
-  return true;
+  if (!result.meta.changes) throw new ConflictError("That lobby invitation is no longer available.");
+  await recordInviteEvent(db, invite, "declined");
+  return { inviterId: invite.inviter_user_id, lobbyCode: invite.lobby_code };
 }
 
 function relationshipTarget(row: RelationshipRow, viewerId: string) {
@@ -329,13 +370,13 @@ export async function buildSocialSnapshot(
   onlineAccounts: SocialAccountSummary[],
 ): Promise<SocialSnapshot> {
   await ensureSocialSchema(db);
-  await expireInvitations(db);
-  const [relationships, inviteRows, lobby] = await Promise.all([
+  const [relationships, inviteRows, lobby, lobbyMessages] = await Promise.all([
     db.prepare("SELECT user_low, user_high, requested_by, status FROM social_relationships WHERE user_low = ? OR user_high = ? ORDER BY updated_at DESC")
       .bind(viewerId, viewerId).all<RelationshipRow>(),
     db.prepare("SELECT id, lobby_code, inviter_user_id, recipient_user_id, status, created_at, expires_at FROM lobby_invitations WHERE recipient_user_id = ? AND status = 'pending' AND expires_at > ? ORDER BY created_at DESC")
       .bind(viewerId, Date.now()).all<InviteRow>(),
     activeSocialLobby(db, viewerId),
+    currentLobbyMessages(db, viewerId),
   ]);
   const hiddenRows = await db.prepare("SELECT user_id FROM social_hidden_accounts").all<{ user_id: string }>();
   const hiddenIds = new Set((hiddenRows.results ?? []).map((row) => row.user_id));
@@ -391,22 +432,27 @@ export async function buildSocialSnapshot(
       const row = relationshipRows.find((candidate) => relationshipTarget(candidate, viewerId) === account.userId) ?? null;
       return { ...account, online: true, relationship: relationshipFor(row, viewerId) };
     });
-  const invitations: LobbyInviteSummary[] = visibleInvites.flatMap((row) => {
-    const inviter = byId.get(row.inviter_user_id);
+  const invitations: LobbyInviteSummary[] = visibleInvites.map((row) => {
+    const inviter = byId.get(row.inviter_user_id) ?? {
+      userId: row.inviter_user_id, displayName: "Brawler", faction: "", avatar: "",
+      titleId: "battle-planet-brawler", rank: "", bp: 0, wins: 0, losses: 0, winRate: 0,
+      online: false, relationship: "none" as const,
+    };
     const invitedLobby = inviteLobbies.get(row.lobby_code);
-    if (!inviter || !invitedLobby) return [];
-    return [{
+    return {
       id: row.id,
       lobbyCode: row.lobby_code,
       inviter: { ...inviter, relationship: relationshipFor(
         relationshipRows.find((candidate) => relationshipTarget(candidate, viewerId) === inviter.userId) ?? null,
         viewerId,
       ) },
-      format: invitedLobby.format,
-      rulesFormat: invitedLobby.rulesFormat,
+      format: invitedLobby?.format ?? null,
+      rulesFormat: invitedLobby?.rulesFormat ?? null,
+      available: Boolean(invitedLobby),
+      unavailableReason: invitedLobby ? undefined : "This lobby is no longer open. You can decline the invitation.",
       createdAt: row.created_at,
       expiresAt: row.expires_at,
-    }];
+    };
   });
   return {
     friends: sortSocialAccounts(friends),
@@ -415,6 +461,7 @@ export async function buildSocialSnapshot(
     onlineBrawlers: sortSocialAccounts(onlineBrawlers),
     offlineBrawlers: sortSocialAccounts(offlineBrawlers),
     invitations,
+    lobbyMessages,
     activeLobby: lobby,
     unreadCount: incomingRequests.length + invitations.length,
   };
