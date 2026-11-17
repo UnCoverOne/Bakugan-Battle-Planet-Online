@@ -401,8 +401,7 @@
 
 
 
-/* Single sticky search/navigation unit and responsive shared sidebar. */
-.withoutSidebar { grid-template-columns: minmax(0, 1fr); }
+/* Animate both the sidebar rail and the gallery/reference content together. */
 .viewToast {
   position: fixed; z-index: 1300; bottom: calc(20px + env(safe-area-inset-bottom));
   left: 50%; transform: translateX(-50%); padding: 9px 14px;
@@ -410,15 +409,28 @@
   border: 1px solid var(--bb-border-hover);
   font: 600 13px var(--bb-font-interface); white-space: nowrap; pointer-events: none;
 }
-.rulebookFrame[data-sidebar-hidden="true"] :global([data-compendium-reference-layout]) { grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 901px) {
-  .workspace, .coreWorkspace { grid-template-columns: 15rem minmax(0, 1fr); }
-  .workspace.withoutSidebar, .coreWorkspace.withoutSidebar { grid-template-columns: minmax(0, 1fr); }
+  .workspace, .coreWorkspace,
+  .rulebookFrame :global([data-compendium-reference-layout]) {
+    grid-template-columns: 15rem minmax(0, 1fr);
+    column-gap: var(--space-4);
+    transition: grid-template-columns 240ms cubic-bezier(.2, 0, .2, 1),
+                column-gap 240ms cubic-bezier(.2, 0, .2, 1);
+  }
+  .workspace.withoutSidebar, .coreWorkspace.withoutSidebar,
+  .rulebookFrame[data-sidebar-hidden="true"] :global([data-compendium-reference-layout]) {
+    grid-template-columns: 0px minmax(0, 1fr);
+    column-gap: 0px;
+  }
 }
 @media (max-width: 900px) {
-  .workspace, .coreWorkspace { grid-template-columns: minmax(0,1fr); }
+  .workspace, .coreWorkspace { grid-template-columns: minmax(0, 1fr); }
   .rulebookFrame :global([data-compendium-reference-layout]) { grid-template-columns: minmax(0, 1fr); }
   .viewToast { bottom: calc(80px + env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace, .coreWorkspace,
+  .rulebookFrame :global([data-compendium-reference-layout]) { transition: none; }
 }
 
 /* Anchor links must clear the fixed website header plus sticky Compendium controls. */
@@ -429,15 +441,6 @@
 .rulebookFrame :global([id^="ruling-"]),
 .rulebookFrame :global([id^="rulings-category-"]),
 .rulebookFrame :global(#rulebook-errata) { scroll-margin-top: 200px; }
-
-/* The sidebar and main grid share a 240px desktop rail. */
-@media (min-width: 901px) {
-  .rulebookFrame :global([data-rulebook-reader]) { grid-template-columns: 15rem minmax(0, 1fr); }
-}
-
-@media (min-width: 901px) {
-  .rulebookFrame :global([data-compendium-reference-layout]) { grid-template-columns: 15rem minmax(0, 1fr); }
-}
 
 /* Pagination is a quiet, single-row control above the results, clear of sticky search. */
 .gallery{scroll-margin-top:210px}

@@ -14,3 +14,14 @@
 @media(max-width:850px){.sticky{top:56px}}
 @media(max-width:700px){.controls{width:min(calc(100% - (2 * var(--space-4))),var(--content-wide));gap:5px}.action{padding:0 8px;gap:4px;font-size:12px}.action svg{width:18px;height:18px}.search{padding:0 8px;gap:6px}.search input{font-size:13px}}
 @media(max-width:360px){.controls{width:calc(100% - 12px)}.action{padding:0 6px}}
+
+/* Panel visibility is independent of the count of applied filters. */
+.action[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--bb-focus) 9%, var(--bb-panel));
+  border-color: color-mix(in srgb, var(--bb-focus) 55%, var(--bb-border));
+}
+.action[aria-expanded="true"] svg { color: var(--bb-focus); }
+.action[aria-expanded="true"]:hover {
+  background: color-mix(in srgb, var(--bb-focus) 14%, var(--bb-panel));
+}
+.action:focus-visible { outline: 2px solid var(--bb-focus); outline-offset: 2px; }

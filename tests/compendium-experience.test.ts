@@ -549,3 +549,37 @@ test("Compendium pagination is a fixed, quiet first/previous/next/last toolbar",
   assert.match(pagerCss, /white-space:nowrap/);
   assert.match(pagerCss, /@container \(max-width:540px\)/);
 });
+
+test("Compendium sidebar communicates visibility and animates desktop collapse", async () => {
+  const [screen, layout, toolbar, toolbarCss, sidebar, sidebarCss] = await Promise.all([
+    read("components/routes/CompendiumScreen.tsx"),
+    read("components/routes/CompendiumScreen.module.css"),
+    read("components/routes/CompendiumToolbar.tsx"),
+    read("components/routes/CompendiumToolbar.module.css"),
+    read("components/routes/CompendiumSidebar.tsx"),
+    read("components/routes/CompendiumSidebar.module.css"),
+  ]);
+  assert.match(toolbar, /const expanded = mobile \? sidebarOpen : desktopSidebarVisible/);
+  assert.match(toolbar, /aria-expanded=\{expanded\}/);
+  assert.match(toolbar, /aria-controls=\{COMPENDIUM_SIDEBAR_ID\}/);
+  assert.match(toolbar, /expanded \? "Hide" : "Show"/);
+  assert.match(toolbarCss, /\.action\[aria-expanded="true"\]/);
+  assert.match(sidebar, /export const COMPENDIUM_SIDEBAR_ID = "compendium-sidebar"/);
+  assert.match(sidebar, /id=\{COMPENDIUM_SIDEBAR_ID\}/);
+  assert.match(sidebar, /Collapse \$\{label\} panel/);
+  assert.match(sidebar, /className=\{styles\.collapseIcon\}/);
+  assert.match(sidebar, /m15 18-6-6 6-6/);
+  assert.match(sidebar, /className=\{styles\.closeIcon\}/);
+  assert.match(sidebar, /inert=\{!desktopVisible && !open \? true : undefined\}/);
+  assert.match(sidebarCss, /\.panel\[data-desktop-visible="false"\] \{/);
+  assert.match(sidebarCss, /transform: translateX\(-100%\)/);
+  assert.doesNotMatch(sidebarCss, /data-desktop-visible="false"\] \{ display: none/);
+  assert.match(sidebarCss, /\.closeIcon \{ display: none; \}/);
+  assert.match(sidebarCss, /\.closeIcon \{ display: block; \}/);
+  assert.match(layout, /grid-template-columns: 0px minmax\(0, 1fr\)/);
+  assert.match(layout, /column-gap: 0px/);
+  assert.match(layout, /transition: grid-template-columns 240ms/);
+  assert.match(layout, /prefers-reduced-motion: reduce/);
+  assert.match(sidebarCss, /prefers-reduced-motion: reduce/);
+  assert.match(screen, /sidebarTrigger\.current\?\.focus\(\)/);
+});
