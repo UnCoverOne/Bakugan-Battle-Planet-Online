@@ -37,6 +37,7 @@ import {
 } from "../../lib/account-sync";
 import { summarizeGuestData } from "../../lib/guest-data";
 import { accountMatchSessionHref } from "../../lib/account-match-session";
+import { selectJoinSeatPlayerId } from "../../lib/room-join-session";
 import { readJsonResponse } from "../../lib/json-response";
 import { completedMatchKey, hasRecordableMatchDetails, isCompletedSeriesResult, isFreshCompletedMatchResult } from "../../lib/match-result-navigation";
 import { MATCH_SESSION_REPLACED_EVENT, MATCH_UPDATE_EVENT } from "../../lib/match-state-events";
@@ -1366,23 +1367,64 @@ export function AppProvider({ children }) {
     }
   }, [accountDataReady, authChecking, authUser, history, match, online, playerId, ready, setHistory, setLifetimeStats, setReplay, setReplayIndex]);
 
-  const api = useCallback(async (action, payload, code, selection, rankedDecks) => {
+  const api = useCallback(async (action, payload, code, selection, rankedDecks, requestOptions = {}) => {
     setMatchError("");
-    const response = await fetch("/api/game", { method: "POST", headers: { "content-type": "application/json", ...(matchCapability ? { "x-match-capability": matchCapability } : {}), ...(matchControllerId ? { "x-match-controller": matchControllerId } : {}) }, body: JSON.stringify({ action, code: action === "create" ? undefined : code ?? match?.code, playerId, expectedVersion: match?.version, format, selection, rankedDecks, payload }) });
+    // A new room join is not a command against the last room stored in this
+    // browser. Let the target server choose its current version.
+    const freshSeatAction = action === "join" || action === "create";
+    const seatPlayerId = freshSeatAction ? selection?.playerId ?? playerId : playerId;
+    const sameSeatReconnect = action === "join" && seatPlayerId === playerId
+      && String(code ?? "").toUpperCase() === String(match?.code ?? "").toUpperCase();
+    // Credentials from an unrelated match must not accompany a new join.
+    const includeSeatCredentials = !freshSeatAction || sameSeatReconnect;
+    const response = await fetch("/api/game", { method: "POST", headers: { "content-type": "application/json", ...(includeSeatCredentials && matchCapability ? { "x-match-capability": matchCapability } : {}), ...(includeSeatCredentials && matchControllerId ? { "x-match-controller": matchControllerId } : {}) }, body: JSON.stringify({ action, code: action === "create" ? undefined : code ?? match?.code, playerId: seatPlayerId, expectedVersion: freshSeatAction ? undefined : match?.version, format: requestOptions.format ?? format, selection, rankedDecks, payload }) });
     const result = await response.json();
     if (response.status === 403 && /match seat capability/i.test(result.error ?? "")) {
       window.dispatchEvent(new CustomEvent(MATCH_SESSION_REPLACED_EVENT, { detail: { reason: result.error } }));
     }
-    if (!response.ok) { if (result.state) setMatch(result.state); throw new Error(result.error ?? "Match request failed."); }
+    if (!response.ok) { if (result.state && action !== "join") setMatch(result.state); throw new Error(result.error ?? "Match request failed."); }
     if (result.capability) setMatchCapability(result.capability);
     if (result.controllerId) setMatchControllerId(result.controllerId);
+    // Publish the correct seat identity alongside its freshly issued capability
+    // before rendering the joined room or starting its transport.
+    if (action === "join" && result.capability && seatPlayerId !== playerId) setPlayerId(seatPlayerId);
     if (result.state) setMatch(result.state);
     return result.state;
-  }, [format, match, matchCapability, matchControllerId, playerId, setMatch, setMatchCapability, setMatchControllerId]);
-  const selection = useCallback((deck, rulesFormat = "standard") => ({ playerId, name: profile.name, cosmetics: { avatar: profile.avatar }, deck: { id: deck.id, name: deck.name, bakuganIds: [...deck.bakuganIds], coreIds: [...deck.coreIds], cardIds: [...deck.cardIds], format: rulesFormat, factions: [...(deck.factions ?? [])], leadCardId: deck.leadCardId } }), [playerId, profile.avatar, profile.name]);
+  }, [format, match, matchCapability, matchControllerId, playerId, setMatch, setMatchCapability, setMatchControllerId, setPlayerId]);
+  const selection = useCallback((deck, rulesFormat = "standard", seatPlayerId = playerId) => ({ playerId: seatPlayerId, name: profile.name, cosmetics: { avatar: profile.avatar }, deck: { id: deck.id, name: deck.name, bakuganIds: [...deck.bakuganIds], coreIds: [...deck.coreIds], cardIds: [...deck.cardIds], format: rulesFormat, factions: [...(deck.factions ?? [])], leadCardId: deck.leadCardId } }), [playerId, profile.avatar, profile.name]);
   const startSolo = useCallback(async () => { if (!selectedDeck) { router.push("/decks"); return { ok: false, error: "Select a deck before starting a match." }; } setMatchError(""); try { const [data, engine, replayJournal, localDispatcher] = await Promise.all([import("../../lib/data"), import("../../lib/engine"), import("../../lib/replay-journal"), import("../../lib/engine/local-command-dispatcher")]); if (!data.deckIsLegal(selectedDeck)) throw new Error("Select a legal deck first."); const overridesResponse = await fetch("/api/card-overrides", { cache: "no-store" }); const overridesResult = await readJsonResponse(overridesResponse, "Bakugan configuration is unavailable."); if (!overridesResponse.ok || !Array.isArray(overridesResult.overrides) || !Array.isArray(overridesResult.rollingOverrides)) throw new Error("Bakugan configuration is unavailable."); data.applyCardOverrides(overridesResult.overrides); data.applyBakuganRollingOverrides(overridesResult.rollingOverrides); invalidateResponse("card-overrides"); appliedOverrideSignature = JSON.stringify([overridesResult.overrides, overridesResult.rollingOverrides]); const response = await fetch("/api/ai-decks", { cache: "no-store" }); const result = await readJsonResponse(response, "Training AI deck selection returned an invalid response."); if (!response.ok) throw new Error(result.error ?? "No enabled legal Training AI deck is available."); const aiSelection = requireTrainingAiDeckSelection(result, data.deckIsLegal); const code = crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase(); const issuedAt = Date.now(); const players = [data.makePlayer(playerId, profile.name, selectedDeck), data.makePlayer("training-bot", "Mira Nova • Training AI", aiSelection.deck)]; let state = engine.initializeMatch(code, format, players, { commandId: `training-create-${crypto.randomUUID()}`, actorId: playerId, issuedAt, randomSeed: crypto.randomUUID(), requestHash: `training-create:${code}` }).state; state = structuredClone(state); state.trainingAiDeck = { resourceId: aiSelection.resourceId, configurationRevision: aiSelection.configurationRevision }; replayJournal.initializeLocalReplayJournal(state, authUser?.id ?? playerId); for (const actorId of [playerId, "training-bot"]) { state = localDispatcher.dispatchLocalGameCommand(state, actorId, { type: "SET_READY" }, authUser?.id ?? playerId); } setOnline(false); setMatch(state); router.push("/play/match"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "Training match could not be started."; setMatchError(message); return { ok: false, error: message }; } }, [authUser?.id, format, playerId, profile.name, router, selectedDeck, setMatch, setOnline]);
   const createOnline = useCallback(async (options = {}) => { const activeDeck = options.decks?.[0] ?? selectedDeck; if (!activeDeck) { router.push("/decks"); return { ok: false, error: "Select a deck before creating a room." }; } try { clearBrowserMatchCredentials(); setMatchCapability(""); setMatchControllerId(""); const rankedSelections = options.mode === "ranked" ? options.decks.map((deck) => selection(deck, "competitive")) : undefined; const state = await api("create", options.mode === "ranked" ? { lobbyMode: "ranked" } : undefined, undefined, selection(activeDeck), rankedSelections); setOnline(true); setMatch(state); router.push("/play/lobby"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "The private room could not be created."; setMatchError(message); return { ok: false, error: message }; } }, [api, router, selectedDeck, selection, setMatch, setMatchCapability, setMatchControllerId, setOnline]);
-  const joinOnline = useCallback(async (options = {}) => { const activeDeck = options.decks?.[0] ?? selectedDeck; if (!activeDeck) { router.push("/decks"); return { ok: false, error: "Select a deck before joining a room." }; } try { const rankedSelections = options.mode === "ranked" ? options.decks.map((deck) => selection(deck, "competitive")) : undefined; const state = await api("join", undefined, joinCode.toUpperCase(), selection(activeDeck), rankedSelections); setOnline(true); setMatch(state); router.push("/play/lobby"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "The private room could not be joined."; setMatchError(message); return { ok: false, error: message }; } }, [api, joinCode, router, selectedDeck, selection, setMatch, setOnline]);
+  const joinOnline = useCallback(async (options = {}) => {
+    const activeDeck = options.decks?.[0] ?? selectedDeck;
+    if (!activeDeck) {
+      router.push("/decks");
+      return { ok: false, error: "Select a deck before joining a room." };
+    }
+    const roomCode = String(options.code ?? joinCode).toUpperCase();
+    const seatPlayerId = selectJoinSeatPlayerId({
+      roomCode,
+      currentMatchCode: match?.code,
+      currentMatchPlayerIds: match?.players?.map((entry) => entry.id),
+      playerId,
+      matchCapability,
+      matchControllerId,
+    });
+    try {
+      const deckFormat = options.mode === "ranked" ? "competitive" : "standard";
+      const rankedSelections = options.mode === "ranked"
+        ? options.decks.map((deck) => selection(deck, "competitive", seatPlayerId))
+        : undefined;
+      const state = await api("join", undefined, roomCode, selection(activeDeck, deckFormat, seatPlayerId), rankedSelections, { format: options.format ?? format });
+      setOnline(true);
+      setMatch(state);
+      router.push("/play/lobby");
+      return { ok: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The private room could not be joined.";
+      setMatchError(message);
+      return { ok: false, error: message };
+    }
+  }, [api, format, joinCode, match, matchCapability, matchControllerId, playerId, router, selectedDeck, selection, setMatch, setOnline]);
   const readyMatch = useCallback(async () => { if (!match) return; try { if (online) await api("ready"); else { const { dispatchLocalGameCommand } = await import("../../lib/engine/local-command-dispatcher"); setMatch(dispatchLocalGameCommand(match, playerId, { type: "SET_READY" }, authUser?.id ?? playerId)); } } catch (error) { setMatchError(error.message); } }, [api, authUser?.id, match, online, playerId, setMatch]);
   const nextSeriesGame = useCallback(async () => {
     if (!match) return;

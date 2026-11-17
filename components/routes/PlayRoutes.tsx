@@ -7,7 +7,7 @@ import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useReducer } from "react";
+import { useEffect, useMemo, useReducer, useRef } from "react";
 import { useAppFields } from "../application/AppProvider";
 import { completedMatchKey, isCompletedSeriesResult } from "../../lib/match-result-navigation";
 import { useMatchSelector } from "../game-screen-v2/matchStore";
@@ -19,6 +19,7 @@ import { ActionButton, Field, RouteHero, StatusChip, Surface } from "../design-s
 import {
   classifyPlaySetupFailure,
   createPlaySetupState,
+  normalizeRoomCode,
   parsePlaySetupStep,
   playSetupReducer,
   playSetupStartBlockers,
@@ -81,13 +82,18 @@ export function PlayScreen() {
     authError,
     profile,
   } = useAppFields(["format", "setFormat", "matchMode", "setMatchMode", "decks", "selectedDeck", "selectedDeckId", "setSelectedDeckId", "joinCode", "setJoinCode", "startSolo", "createOnline", "joinOnline", "matchError", "authUser", "authChecking", "authError", "profile"]);
+  const incomingInviteCode = normalizeRoomCode(searchParams.get("invite") ?? "");
+  const invitedRoom = incomingInviteCode.length === 6;
+  const invitedFormat = searchParams.get("format") === "bo3" ? "bo3" : "bo1";
   const initial = createPlaySetupState({
-    mode: matchMode,
-    format,
+    mode: invitedRoom ? "join" : matchMode,
+    format: invitedRoom ? invitedFormat : format,
     selectedDeckId: selectedDeckId || selectedDeck?.id || "",
-    joinCode,
+    joinCode: invitedRoom ? incomingInviteCode : joinCode,
+    step: invitedRoom ? "loadout" : undefined,
   });
   const [setup, dispatch] = useReducer(playSetupReducer, initial);
+  const appliedInvite = useRef("");
   const chosenDeck = decks.find((deck: DeckRecord) => deck.id === setup.selectedDeckId) ?? null;
   const report = useMemo(() => chosenDeck ? validateDeck(chosenDeck) : null, [chosenDeck]);
   const environment = useMemo<PlaySetupEnvironment>(() => ({
@@ -108,6 +114,7 @@ export function PlayScreen() {
   const startBlockers = playSetupStartBlockers(setup, environment);
 
   useEffect(() => {
+    if (invitedRoom) return;
     try {
       const saved = sessionStorage.getItem(SETUP_STORAGE_KEY);
       if (saved) {
@@ -118,6 +125,26 @@ export function PlayScreen() {
   // The machine hydrates exactly once; provider fields are synchronized below.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  useEffect(() => {
+    if (!invitedRoom) {
+      appliedInvite.current = "";
+      return;
+    }
+    const key = `${incomingInviteCode}:${invitedFormat}`;
+    if (appliedInvite.current === key) return;
+    appliedInvite.current = key;
+    dispatch({
+      event: {
+        type: "RESTORE",
+        state: createPlaySetupState({
+          mode: "join", step: "loadout", format: invitedFormat,
+          joinCode: incomingInviteCode,
+          selectedDeckId: selectedDeckId || selectedDeck?.id || "",
+        }),
+      },
+      environment,
+    });
+  }, [incomingInviteCode, invitedFormat, invitedRoom, environment, selectedDeckId, selectedDeck]);
   useEffect(() => {
     try { sessionStorage.setItem(SETUP_STORAGE_KEY, JSON.stringify(setup)); } catch {}
     if (setup.mode !== matchMode) setMatchMode(setup.mode);
@@ -160,7 +187,7 @@ export function PlayScreen() {
     const result = await (
       setup.mode === "solo" ? startSolo()
         : setup.mode === "online" ? createOnline()
-          : joinOnline()
+          : joinOnline({ code: setup.joinCode, format: setup.format })
     );
     if (result?.ok === false) {
       dispatch({

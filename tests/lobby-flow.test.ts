@@ -371,9 +371,10 @@ test("Training accepts a 40-card Standard-legal deck saved with Competitive form
 
 test("Online lobby selection serializes Standard versus Competitive formats by mode", async () => {
   const provider = await readFile(new URL("../components/application/AppProvider.jsx", import.meta.url), "utf8");
-  assert.match(provider, /const selection = useCallback\(\(deck, rulesFormat = "standard"\)/);
+  assert.match(provider, /const selection = useCallback\(\(deck, rulesFormat = "standard", seatPlayerId = playerId\)/);
   assert.match(provider, /format: rulesFormat/);
-  assert.equal((provider.match(/options\.decks\.map\(\(deck\) => selection\(deck, "competitive"\)\)/g) ?? []).length, 2);
+  assert.match(provider, /options\.decks\.map\(\(deck\) => selection\(deck, "competitive"\)\)/);
+  assert.match(provider, /options\.decks\.map\(\(deck\) => selection\(deck, "competitive", seatPlayerId\)\)/);
   const route = await readFile(new URL("../app/api/game/route.ts", import.meta.url), "utf8");
   assert.match(route, /canonicalSelectionForFormat\(submittedSelection, requestedRanked \? "competitive" : "standard"\)/);
 });

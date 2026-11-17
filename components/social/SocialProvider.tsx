@@ -280,7 +280,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       setJoinCode(result.lobby.code);
       setFormat(result.lobby.format);
       setOpen(false);
-      router.push("/play");
+      router.push(`/play?invite=${encodeURIComponent(result.lobby.code)}&format=${result.lobby.format}&step=loadout`);
       notify(`Lobby ${result.lobby.code} is ready. Choose a deck to join.`);
       if (inviteId) setInvitations((current) => current.filter((invite) => invite.id !== inviteId));
       void refreshInvitations();
