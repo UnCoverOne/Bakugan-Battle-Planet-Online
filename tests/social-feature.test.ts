@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { canonicalSocialPair, socialPresenceShard, sortSocialAccounts } from "../lib/social";
+import { canonicalSocialPair, isLobbyInviteSummary, socialPresenceShard, sortSocialAccounts } from "../lib/social";
 
 const source = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -96,7 +96,7 @@ test("lobby invitations have five-minute validity and are not hidden when the ro
   ]);
   assert.match(types, /SOCIAL_INVITE_TTL_MS = 5 \* 60 \* 1000/);
   assert.match(server, /available: Boolean\(invitedLobby\)/);
-  assert.match(server, /visibleInvites\.map/);
+  assert.match(server, /getPendingLobbyInvitations/);
   assert.match(server, /expires_at > \?/);
   assert.match(server, /recordInviteEvent\(db, invite, "accepted"\)/);
   assert.match(server, /recordInviteEvent\(db, invite, "declined"\)/);
@@ -136,4 +136,75 @@ test("lobby system messages are scoped and ordered alongside player chat", async
   ]);
   assert.deepEqual(output.map((event) => event.id), ["invite", "player-chat"]);
   assert.equal(output[0]?.author, "SYSTEM");
+});
+
+
+test("complete lobby events validate without a social snapshot", () => {
+  const invite = {
+    id: "inv-123",
+    lobbyCode: "ABC234",
+    inviter: { userId: "player-a", displayName: "Dan" },
+    format: "bo3",
+    rulesFormat: "standard",
+    available: true,
+    createdAt: Date.now() - 500,
+    expiresAt: Date.now() + 300_000,
+  };
+  assert.equal(isLobbyInviteSummary(invite), true);
+  assert.equal(isLobbyInviteSummary({ ...invite, id: "" }), false);
+  assert.equal(isLobbyInviteSummary({ ...invite, inviter: null }), false);
+  assert.equal(isLobbyInviteSummary({ ...invite, expiresAt: "tomorrow" }), false);
+  assert.equal(isLobbyInviteSummary({ ...invite, lobbyCode: "abc234" }), false);
+  assert.equal(isLobbyInviteSummary(null), false);
+});
+
+test("dedicated invite endpoint does not use presence shards and sends complete socket payloads", async () => {
+  const [api, drawer, server, events] = await Promise.all([
+    source("app/api/social/route.ts"),
+    source("components/social/SocialProvider.tsx"),
+    source("lib/social-server.ts"),
+    source("lib/social-presence-server.ts"),
+  ]);
+  assert.ok(api.indexOf('action === "invitations"') < api.indexOf("await onlineSocialAccounts()"));
+  assert.match(api, /type: "lobby.invited"[\s\S]*invite: inviteSummary/);
+  assert.match(events, /invite\?: LobbyInviteSummary/);
+  assert.match(server, /JOIN users inviter ON inviter.id = invite.inviter_user_id/);
+  assert.match(server, /LEFT JOIN matches ON matches.code = invite.lobby_code/);
+  assert.match(drawer, /setIncomingInvite\(invite\)/);
+  assert.match(drawer, /api\/social\?action=invitations/);
+  assert.match(drawer, /Could not refresh lobby invitations\. Retry below/);
+  assert.match(drawer, /RETRY INVITES/);
+  assert.doesNotMatch(drawer, /Loading invitation details/);
+});
+
+test("pending invitation is still returned by the small endpoint when the lobby is unavailable", async () => {
+  const { getPendingLobbyInvitations } = await import("../lib/social-server");
+  const sqlStatements: string[] = [];
+  const db = {
+    prepare(sql: string) {
+      sqlStatements.push(sql);
+      const statement = {
+        bind(..._values: unknown[]) { return statement; },
+        run: async () => ({ meta: { changes: 1 } }),
+        all: async () => ({
+          results: sql.includes("FROM lobby_invitations invite")
+            ? [{
+              id: "inv-1", lobby_code: "ABC234", inviter_user_id: "player-a",
+              created_at: 10, expires_at: Date.now() + 300_000,
+              display_name: "Dan", faction: "Pyrus", state_json: null,
+            }]
+            : [],
+        }),
+      };
+      return statement;
+    },
+    batch: async () => [],
+  } as unknown as Parameters<typeof getPendingLobbyInvitations>[0];
+  const invitations = await getPendingLobbyInvitations(db, "player-b");
+  assert.equal(invitations.length, 1);
+  assert.equal(invitations[0]?.id, "inv-1");
+  assert.equal(invitations[0]?.inviter.displayName, "Dan");
+  assert.equal(invitations[0]?.available, false);
+  assert.match(invitations[0]?.unavailableReason ?? "", /no longer open/);
+  assert.ok(sqlStatements.some((sql) => sql.includes("invite.recipient_user_id = ?")));
 });

@@ -266,18 +266,24 @@ async function requireInvitableLobby(db: AccountDatabase, userId: string, code: 
 }
 
 async function recordInviteEvent(db: AccountDatabase, invite: InviteRow, kind: "sent" | "accepted" | "declined" | "expired") {
-  const users = await db.prepare("SELECT id, display_name FROM users WHERE id IN (?, ?)")
-    .bind(invite.inviter_user_id, invite.recipient_user_id).all<{ id: string; display_name: string }>();
-  const byId = new Map((users.results ?? []).map((row) => [row.id, row.display_name]));
-  const inviter = byId.get(invite.inviter_user_id) ?? "A Brawler";
-  const recipient = byId.get(invite.recipient_user_id) ?? "a Brawler";
-  const message = kind === "sent"
-    ? `${inviter} invited ${recipient} to the lobby.`
-    : kind === "accepted" ? `${recipient} accepted the lobby invitation.`
-      : kind === "declined" ? `${recipient} declined the lobby invitation.`
-        : `The invitation to ${recipient} expired.`;
-  await db.prepare("INSERT OR IGNORE INTO social_lobby_events (id, lobby_code, message, created_at) VALUES (?, ?, ?, ?)")
-    .bind(`${invite.id}:${kind}`, invite.lobby_code, message, Date.now()).run();
+  // Lobby chat is supplementary. If its write fails, the invitation must
+  // still be delivered or answered successfully.
+  try {
+    const users = await db.prepare("SELECT id, display_name FROM users WHERE id IN (?, ?)")
+      .bind(invite.inviter_user_id, invite.recipient_user_id).all<{ id: string; display_name: string }>();
+    const byId = new Map((users.results ?? []).map((row) => [row.id, row.display_name]));
+    const inviter = byId.get(invite.inviter_user_id) ?? "A Brawler";
+    const recipient = byId.get(invite.recipient_user_id) ?? "a Brawler";
+    const message = kind === "sent"
+      ? `${inviter} invited ${recipient} to the lobby.`
+      : kind === "accepted" ? `${recipient} accepted the lobby invitation.`
+        : kind === "declined" ? `${recipient} declined the lobby invitation.`
+          : `The invitation to ${recipient} expired.`;
+    await db.prepare("INSERT OR IGNORE INTO social_lobby_events (id, lobby_code, message, created_at) VALUES (?, ?, ?, ?)")
+      .bind(`${invite.id}:${kind}`, invite.lobby_code, message, Date.now()).run();
+  } catch (error) {
+    console.error("Lobby invitation chat event could not be recorded.", error);
+  }
 }
 
 /** Used by the minute cron and before sending a new invitation. Records outcomes once. */
