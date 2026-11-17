@@ -274,7 +274,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       lobby?: { code: string; format: "bo1" | "bo3" };
     };
     if (!response.ok) throw new Error(result.error ?? "Social action failed.");
-    if (action === "accept-invite" && result.lobby) {
+    if (action === "accept-invite") {
+      if (!result.lobby) throw new Error("The lobby invitation could not be accepted. Please retry.");
       setMatchMode("join");
       setJoinCode(result.lobby.code);
       setFormat(result.lobby.format);

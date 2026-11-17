@@ -170,14 +170,14 @@ export async function POST(request: Request) {
     if (action === "accept-invite") {
       const inviteId = text(body.inviteId, "Invitation", 100);
       const accepted = await acceptLobbyInvitation(db, user.id, inviteId);
-      const account = await loadSocialAccount(db, user.id);
+      const account = await loadSocialAccount(db, user.id).catch(() => null);
       await notifySafely([user.id, accepted.inviterId], { type: "lobby.invite-responded", actorId: user.id, actorName: account?.displayName, inviteId, status: "accepted", lobbyCode: accepted.lobby.code }, correlationId);
       return json({ lobby: accepted.lobby, correlationId });
     }
     if (action === "decline-invite") {
       const inviteId = text(body.inviteId, "Invitation", 100);
       const declined = await declineLobbyInvitation(db, user.id, inviteId);
-      const account = await loadSocialAccount(db, user.id);
+      const account = await loadSocialAccount(db, user.id).catch(() => null);
       await notifySafely([user.id, declined.inviterId], { type: "lobby.invite-responded", actorId: user.id, actorName: account?.displayName, inviteId, status: "declined", lobbyCode: declined.lobbyCode }, correlationId);
       return json({ ok: true, correlationId });
     }

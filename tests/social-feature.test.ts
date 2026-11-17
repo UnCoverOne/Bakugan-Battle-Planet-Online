@@ -102,6 +102,7 @@ test("lobby invitations have five-minute validity and are not hidden when the ro
   assert.match(server, /recordInviteEvent\(db, invite, "declined"\)/);
   assert.match(api, /accepted\.inviterId/);
   assert.match(api, /declined\.inviterId/);
+  assert.match(api, /loadSocialAccount\(db, user\.id\)\.catch\(\(\) => null\)/);
 });
 
 test("actionable invites, activity labels, and invitation events are connected to the lobby UI", async () => {
