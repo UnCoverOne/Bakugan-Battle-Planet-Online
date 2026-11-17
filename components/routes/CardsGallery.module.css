@@ -122,6 +122,32 @@
   text-overflow: ellipsis;
 }
 .typeTag { flex: 0 1 auto; }
+/* Character rolling stats reuse the existing metadata line rather than adding a row. */
+.tile { container-type: inline-size; }
+.metadataWithRolling { gap: 3px; }
+.rollingTag {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding-inline: 4px;
+  color: var(--bb-text);
+  font-variant-numeric: tabular-nums;
+}
+.rollingTag > span { gap: 2px; }
+
+/* At ordinary catalogue tile widths, prioritize faction, set and both stats. */
+@container (max-width: 265px) {
+  .metadataWithRolling .typeTag { display: none; }
+}
+@container (max-width: 175px) {
+  .metadataWithRolling { gap: 2px; }
+  .metadataWithRolling .faction { width: 14px; height: 14px; }
+  .metadataWithRolling .factions { gap: 1px; }
+  .metadataWithRolling .tag { padding-inline: 3px; font-size: 9px; }
+  .metadataWithRolling .rollingTag { padding-inline: 2px; font-size: 9px; }
+  .metadataWithRolling .rollingTag > span { gap: 1px; }
+}
+
 @media (max-width: 700px) {
   .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
   .gallery.compact { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
