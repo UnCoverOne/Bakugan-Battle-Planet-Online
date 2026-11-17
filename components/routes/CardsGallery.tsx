@@ -5,6 +5,7 @@ import type { CompendiumDensity } from "../../lib/compendium";
 import { FACTION_SYMBOLS } from "../../lib/card-filters";
 import { CARD_SET_INFO, cardSetCode } from "../../lib/content/catalogue";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
+import { OriginalImage } from "../media/OriginalImage";
 import styles from "./CardsGallery.module.css";
 
 type CardsGalleryProps = {
@@ -37,7 +38,7 @@ export function CardsGallery({ cards, density, selectedId, onSelect }: CardsGall
           <strong className={styles.name} data-card-name title={card.displayName}>{card.displayName}</strong>
           <span className={styles.metadata} data-card-meta>
             <span className={styles.factions} aria-label={factions.join(" / ")}>
-              {factions.map(faction => <img key={faction} className={styles.faction}
+              {factions.map(faction => <OriginalImage key={faction} className={styles.faction}
                 src={FACTION_SYMBOLS[faction]} width={18} height={18} alt={faction} title={faction} loading="lazy" />)}
             </span>
             <span className={`${styles.tag} ${styles.typeTag}`} title={card.type}>{card.type}</span>

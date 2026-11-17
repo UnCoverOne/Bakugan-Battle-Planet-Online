@@ -81,8 +81,6 @@
   display: grid;
   align-content: start;
   gap: .2rem;
-
-
   line-height: 1.35;
 }
 
@@ -94,11 +92,6 @@
   display: block;
   margin-top: auto;
   padding-top: .45rem;
-
-
-
-
-
 }
 
 /* The original BakuCore view is independent of the Cards gallery. */
@@ -155,10 +148,6 @@
   gap: var(--space-3);
   padding: var(--space-7);
   text-align: center;
-}
-
-.emptyResults > span {
-
 }
 
 .emptyResults h2,
