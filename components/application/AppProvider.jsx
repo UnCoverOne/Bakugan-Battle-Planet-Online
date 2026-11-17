@@ -1373,7 +1373,11 @@ export function AppProvider({ children }) {
     // browser. Let the target server choose its current version.
     const freshSeatAction = action === "join" || action === "create";
     const seatPlayerId = freshSeatAction ? selection?.playerId ?? playerId : playerId;
-    const response = await fetch("/api/game", { method: "POST", headers: { "content-type": "application/json", ...(matchCapability ? { "x-match-capability": matchCapability } : {}), ...(matchControllerId ? { "x-match-controller": matchControllerId } : {}) }, body: JSON.stringify({ action, code: action === "create" ? undefined : code ?? match?.code, playerId: seatPlayerId, expectedVersion: freshSeatAction ? undefined : match?.version, format: requestOptions.format ?? format, selection, rankedDecks, payload }) });
+    const sameSeatReconnect = action === "join" && seatPlayerId === playerId
+      && String(code ?? "").toUpperCase() === String(match?.code ?? "").toUpperCase();
+    // Credentials from an unrelated match must not accompany a new join.
+    const includeSeatCredentials = !freshSeatAction || sameSeatReconnect;
+    const response = await fetch("/api/game", { method: "POST", headers: { "content-type": "application/json", ...(includeSeatCredentials && matchCapability ? { "x-match-capability": matchCapability } : {}), ...(includeSeatCredentials && matchControllerId ? { "x-match-controller": matchControllerId } : {}) }, body: JSON.stringify({ action, code: action === "create" ? undefined : code ?? match?.code, playerId: seatPlayerId, expectedVersion: freshSeatAction ? undefined : match?.version, format: requestOptions.format ?? format, selection, rankedDecks, payload }) });
     const result = await response.json();
     if (response.status === 403 && /match seat capability/i.test(result.error ?? "")) {
       window.dispatchEvent(new CustomEvent(MATCH_SESSION_REPLACED_EVENT, { detail: { reason: result.error } }));
