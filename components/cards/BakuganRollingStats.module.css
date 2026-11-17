@@ -51,13 +51,15 @@
   width: 1.2em;
   height: 1.2em;
   flex: none;
-
-
-
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
 }
 
 .rollIcon {
+  background-image: url("/assets/symbols/roll.svg");
 }
 
 .doubleCoreIcon {
+  background-image: url("/assets/symbols/double-core.svg");
 }
