@@ -5,7 +5,8 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { chatEntries, normalizeChatMessage } from "../../lib/chat";
+import { lobbyChatEntries, normalizeChatMessage } from "../../lib/chat";
+import { useSocial } from "../social/SocialProvider";
 import {
   CARD_BY_ID,
   canonicalSelectionForFormat,
@@ -134,6 +135,7 @@ export function LobbyRoomScreen() {
     setMatch,
     leaveMatch,
   } = useAppFields(["ready", "match", "online", "playerId", "matchCapability", "matchControllerId", "profile", "settings", "decks", "setMatch", "leaveMatch"]);
+  const { snapshot: socialSnapshot } = useSocial();
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState<BusyAction>("");
   const [error, setError] = useState("");
@@ -167,7 +169,7 @@ export function LobbyRoomScreen() {
   const ranked = match ? rankedSeries(match) : undefined;
   const myRanked = ranked?.players[localPlayerId];
   const opponentRanked = ranked ? Object.entries(ranked.players).find(([id]) => id !== localPlayerId)?.[1] : undefined;
-  const messages = useMemo(() => chatEntries(match), [match]);
+  const messages = useMemo(() => lobbyChatEntries(match, socialSnapshot.lobbyMessages), [match, socialSnapshot.lobbyMessages]);
   const me = match?.players.find((player) => player.id === localPlayerId);
   const ownerId = match ? roomOwnerId(match) : "";
   const isOwner = Boolean(ownerId && ownerId === localPlayerId);

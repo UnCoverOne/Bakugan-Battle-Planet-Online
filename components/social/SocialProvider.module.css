@@ -5,3 +5,25 @@
 @media(prefers-reduced-motion:reduce){.drawer{animation:none}}
 .inlineActions{position:relative;display:inline-flex;vertical-align:middle}.inlineActions>button{display:inline-flex;min-height:34px;align-items:center;gap:.45rem;padding:.35rem .65rem;border:1px solid rgba(96,214,247,.34);background:rgba(3,32,42,.85);color:#bceefb;font-size:.72rem;font-weight:900;cursor:pointer}.inlineActions .actionMenu{top:calc(100% + 5px);right:0}.actionLabel{font-size:.58rem;letter-spacing:.08em}.compact .actionLabel{display:none}.compact>button{width:34px;justify-content:center;padding:.25rem}
 .resultActionPopover{position:fixed;z-index:50001}.resultActionPopover .actionMenu{position:static;width:190px}
+
+/* Actionable incoming lobby invitation: separate from ephemeral confirmation toasts. */
+.inviteNotice{position:fixed;z-index:50010;top:max(16px,env(safe-area-inset-top));right:16px;width:min(365px,calc(100vw - 32px));display:grid;gap:.8rem;padding:1rem;border:1px solid #2887a4;background:linear-gradient(145deg,#0a2b39,#04151e);box-shadow:0 18px 50px rgba(0,0,0,.72);color:#e8faff}
+.inviteNoticeHeading{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}
+.inviteNoticeHeading>div{display:grid;gap:.35rem}
+.inviteNoticeHeading strong{color:#75dbfb;font-size:.72rem;letter-spacing:.12em}
+.inviteNoticeHeading span{color:#fff;font-size:.84rem}
+.inviteNoticeHeading>button{border:0;background:transparent;color:#a3bac5;font-size:1.5rem;cursor:pointer}
+.inviteNoticeIdentity{display:flex;align-items:center;gap:.7rem}
+.inviteNoticeIdentity>div{display:grid;gap:.3rem}
+.inviteNoticeIdentity strong{font-size:.85rem}
+.inviteNoticeIdentity span{font-size:.7rem;color:#aabfc8}
+.inviteNoticeActions{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+.inviteNoticeActions button{padding:.7rem;border:1px solid #1c91b3;background:#086080;color:#fff;font-size:.76rem;font-weight:900;cursor:pointer}
+.inviteNoticeActions button+button{border-color:#526a72;background:transparent}
+.inviteNoticeActions button:disabled{opacity:.5;cursor:not-allowed}
+.inviteNoticeFooter{display:flex;gap:.8rem;align-items:center;justify-content:space-between;color:#aabfc8;font-size:.66rem}
+.inviteNoticeFooter button{border:0;background:transparent;color:#75dbfb;font:inherit;cursor:pointer;text-decoration:underline}
+.inviteNoticeUnavailable,.unavailable{color:#ffcb83;font-size:.7rem;line-height:1.45}
+.inLobby{background:#e3af35;box-shadow:0 0 8px #e3af35}
+.inGame{background:#e65a50;box-shadow:0 0 8px #e65a50}
+@media(max-width:620px){.inviteNotice{top:auto;bottom:max(16px,env(safe-area-inset-bottom));right:16px}}

@@ -27,6 +27,7 @@ const EMPTY_SNAPSHOT: SocialSnapshot = {
   onlineBrawlers: [],
   offlineBrawlers: [],
   invitations: [],
+  lobbyMessages: [],
   activeLobby: null,
   unreadCount: 0,
 };
@@ -52,15 +53,22 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const {
     authUser,
     notify,
+    match: appMatch,
+    online: appOnline,
     requestAccountAccess,
     setFormat,
     setJoinCode,
     setMatchMode,
-  } = useAppFields(["authUser", "notify", "requestAccountAccess", "setFormat", "setJoinCode", "setMatchMode"]);
+  } = useAppFields(["authUser", "notify", "match", "online", "requestAccountAccess", "setFormat", "setJoinCode", "setMatchMode"]);
   const router = useRouter();
   const [snapshot, setSnapshot] = useState<SocialSnapshot>(EMPTY_SNAPSHOT);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [incomingInviteId, setIncomingInviteId] = useState<string | null>(null);
+  const activity = appOnline && appMatch && appMatch.phase !== "result"
+    ? (appMatch.phase === "lobby" ? "lobby" : "game") : "online";
+  const activityRef = useRef(activity);
+  const socketRef = useRef<WebSocket | null>(null);
   const requestId = useRef(0);
   const openRef = useRef(false);
   const refreshing = useRef(false);
@@ -68,6 +76,13 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   const refreshLatest = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => { openRef.current = open; }, [open]);
+  useEffect(() => {
+    activityRef.current = activity;
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: "presence.activity", activity }));
+    }
+  }, [activity]);
+  useEffect(() => { if (!authUser) setIncomingInviteId(null); }, [authUser]);
 
   const refresh = useCallback(async () => {
     if (!authUser) {
@@ -101,6 +116,10 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   }, [authUser, refresh]);
 
   useEffect(() => {
+    if (open && authUser) void refresh();
+  }, [open, authUser, refresh]);
+
+  useEffect(() => {
     if (!authUser) return;
     void refresh();
     const refreshVisible = () => {
@@ -121,11 +140,19 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       if (disposed || !navigator.onLine) return;
       const protocol = location.protocol === "https:" ? "wss:" : "ws:";
       socket = new WebSocket(`${protocol}//${location.host}/api/social/socket`, "bbp-social-v1");
-      socket.addEventListener("open", () => { attempts = 0; });
+      socketRef.current = socket;
+      socket.addEventListener("open", () => {
+        attempts = 0;
+        socket?.send(JSON.stringify({ type: "presence.activity", activity: activityRef.current }));
+      });
       socket.addEventListener("message", (event) => {
-        let message: { type?: string } = {};
-        try { message = JSON.parse(String(event.data)) as { type?: string }; } catch { return; }
-        if (message.type === "lobby.invited") notify("New lobby invitation received.");
+        let message: { type?: string; inviteId?: string; actorId?: string; actorName?: string; status?: string } = {};
+        try { message = JSON.parse(String(event.data)) as typeof message; } catch { return; }
+        if (message.type === "lobby.invited" && message.inviteId) setIncomingInviteId(message.inviteId);
+        if (message.type === "lobby.invite-responded" && message.actorId !== authUser.id && (message.status === "accepted" || message.status === "declined")) {
+          notify(`${message.actorName ?? "A Brawler"} ${message.status} your lobby invitation.`);
+        }
+        if (message.type === "lobby.invite-expired") notify("A lobby invitation expired.");
         if (message.type !== "pong") void refresh();
       });
       socket.addEventListener("close", () => {
@@ -146,6 +173,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       if (retry) window.clearTimeout(retry);
       window.removeEventListener("online", reconnect);
       socket?.close(1000, "Page closed");
+      socketRef.current = null;
     };
   }, [authUser, notify, refresh]);
 
@@ -192,7 +220,84 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   }, [authUser, notify, refresh, requestAccountAccess, router, setFormat, setJoinCode, setMatchMode, snapshot.activeLobby?.code]);
 
   const value = useMemo(() => ({ snapshot, open, setOpen, loading, refresh, perform }), [snapshot, open, loading, refresh, perform]);
-  return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;
+  const incomingInvite = incomingInviteId ? snapshot.invitations.find((invite) => invite.id === incomingInviteId) ?? null : null;
+  return (
+    <SocialContext.Provider value={value}>
+      {children}
+      {incomingInviteId && (
+        <LobbyInviteNotice
+          key={incomingInviteId}
+          invite={incomingInvite}
+          onDismiss={() => setIncomingInviteId(null)}
+          onOpenMenu={() => { setIncomingInviteId(null); setOpen(true); }}
+          onAction={async (action, inviteId) => {
+            await perform(action, undefined, inviteId);
+            setIncomingInviteId(null);
+          }}
+        />
+      )}
+    </SocialContext.Provider>
+  );
+}
+
+function LobbyInviteNotice({
+  invite, onDismiss, onOpenMenu, onAction,
+}: {
+  invite: LobbyInviteSummary | null;
+  onDismiss(): void;
+  onOpenMenu(): void;
+  onAction(action: "accept-invite" | "decline-invite", inviteId: string): Promise<void>;
+}) {
+  const { notify } = useAppFields(["notify"]);
+  const [seconds, setSeconds] = useState(15);
+  const [paused, setPaused] = useState(false);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (paused) return;
+    const timer = window.setInterval(() => setSeconds((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [paused]);
+  useEffect(() => { if (seconds === 0) onDismiss(); }, [seconds, onDismiss]);
+  const respond = async (action: "accept-invite" | "decline-invite") => {
+    if (!invite || busy) return;
+    setBusy(true);
+    try { await onAction(action, invite.id); }
+    catch (error) { notify(error instanceof Error ? error.message : "Could not respond to lobby invitation."); }
+    finally { setBusy(false); }
+  };
+  return (
+    <aside className={styles.inviteNotice} role="alertdialog" aria-label="Lobby invitation"
+      onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setPaused(false); }}>
+      <div className={styles.inviteNoticeHeading}>
+        <div><strong>LOBBY INVITATION</strong><span>You've been invited to battle!</span></div>
+        <button type="button" onClick={onDismiss} aria-label="Dismiss invitation notification">×</button>
+      </div>
+      {invite ? (
+        <>
+          <div className={styles.inviteNoticeIdentity}>
+            <ProfileAvatar profile={{ name: invite.inviter.displayName, avatar: invite.inviter.avatar }} className={styles.avatar} />
+            <div><strong>{invite.inviter.displayName}</strong><span>Lobby {invite.lobbyCode} · {invite.format?.toUpperCase() ?? "Unavailable"}</span></div>
+          </div>
+          {!invite.available && <p className={styles.inviteNoticeUnavailable}>{invite.unavailableReason}</p>}
+          <div className={styles.inviteNoticeActions}>
+            <button type="button" disabled={busy || !invite.available} onClick={() => void respond("accept-invite")}>ACCEPT</button>
+            <button type="button" disabled={busy} onClick={() => void respond("decline-invite")}>DECLINE</button>
+          </div>
+          <div className={styles.inviteNoticeFooter}>
+            <span>Expires in {Math.max(0, Math.ceil((invite.expiresAt - Date.now()) / 60_000))} min</span>
+            <button type="button" onClick={onOpenMenu}>View in Social Menu</button>
+          </div>
+        </>
+      ) : (
+        <div className={styles.inviteNoticeFooter}>
+          <span>Loading invitation details…</span>
+          <button type="button" onClick={onOpenMenu}>Open Social Menu</button>
+        </div>
+      )}
+    </aside>
+  );
 }
 
 export function SocialMenuButton() {
@@ -349,9 +454,9 @@ function InviteCard({ invite, busy, onAction }: { invite: LobbyInviteSummary; bu
   return (
     <article className={styles.inviteCard}>
       <ProfileAvatar profile={{ name: invite.inviter.displayName, avatar: invite.inviter.avatar }} className={styles.avatar} />
-      <div><strong>{invite.inviter.displayName}</strong><span>Lobby {invite.lobbyCode} · {invite.format.toUpperCase()}</span></div>
+      <div><strong>{invite.inviter.displayName}</strong><span>Lobby {invite.lobbyCode} · {invite.format?.toUpperCase() ?? "Unavailable"}</span>{!invite.available && <small className={styles.unavailable}>{invite.unavailableReason}</small>}</div>
       <div className={styles.inviteActions}>
-        <button disabled={Boolean(busy)} type="button" onClick={() => onAction("accept-invite", undefined, invite.id)}>ACCEPT</button>
+        <button disabled={Boolean(busy) || !invite.available} type="button" onClick={() => onAction("accept-invite", undefined, invite.id)}>ACCEPT</button>
         <button disabled={Boolean(busy)} type="button" onClick={() => onAction("decline-invite", undefined, invite.id)}>DECLINE</button>
       </div>
     </article>
@@ -371,14 +476,16 @@ type SocialRowProps = {
 
 function SocialRow({ account, label, menuFor, busy, inviteEnabled, onMenu, onSelect, onAction }: SocialRowProps) {
   const menuOpen = menuFor === account.userId;
+  const activity = account.online ? account.activity ?? "online" : "offline";
+  const activityLabel = activity === "lobby" ? "In Lobby" : activity === "game" ? "In Game" : activity === "offline" ? "Offline" : "Online";
   return (
     <article className={styles.row}>
       <button className={styles.rowBody} type="button" onClick={() => onSelect(account)}>
         <span className={styles.avatarWrap}>
           <ProfileAvatar profile={{ name: account.displayName, avatar: account.avatar }} className={styles.avatar} />
-          <i className={account.online ? styles.online : styles.offline} aria-label={account.online ? "Online" : "Offline"} />
+          <i className={activity === "lobby" ? styles.inLobby : activity === "game" ? styles.inGame : account.online ? styles.online : styles.offline} aria-label={activityLabel} />
         </span>
-        <span className={styles.identity}><strong>{account.displayName}</strong><small>{label ?? (account.online ? `${account.faction} · Online` : `${account.faction} · Offline`)}</small></span>
+        <span className={styles.identity}><strong>{account.displayName}</strong><small>{label ?? `${account.faction} · ${activityLabel}`}</small></span>
       </button>
       <button className={styles.more} type="button" aria-label={`Options for ${account.displayName}`} aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => onMenu(menuOpen ? null : account.userId)}>•••</button>
       {menuOpen && (
