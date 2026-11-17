@@ -38,6 +38,9 @@ test("joining a new room never inherits the previous match version or credential
   assert.match(provider, /selectJoinSeatPlayerId\(/);
   assert.match(provider, /expectedVersion: freshSeatAction \? undefined : match\?\.version/);
   assert.match(provider, /playerId: seatPlayerId/);
+  assert.match(provider, /const includeSeatCredentials = !freshSeatAction \|\| sameSeatReconnect/);
+  assert.match(provider, /includeSeatCredentials && matchCapability/);
+  assert.match(provider, /includeSeatCredentials && matchControllerId/);
   assert.match(provider, /if \(action === "join" && result\.capability && seatPlayerId !== playerId\) setPlayerId\(seatPlayerId\)/);
   const play = readFileSync("components/routes/PlayRoutes.tsx", "utf8");
   assert.match(play, /joinOnline\(\{ code: setup\.joinCode, format: setup\.format \}\)/, "play setup passes its own room code and format");
