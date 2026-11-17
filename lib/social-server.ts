@@ -315,7 +315,7 @@ export async function createLobbyInvitation(db: AccountDatabase, inviterId: stri
   await expireLobbyInvitations(db, now);
   const existing = await db.prepare("SELECT id, lobby_code, inviter_user_id, recipient_user_id, status, created_at, expires_at FROM lobby_invitations WHERE lobby_code = ? AND inviter_user_id = ? AND recipient_user_id = ? AND status = 'pending'")
     .bind(lobby.code, inviterId, recipientId).first<InviteRow>();
-  if (existing) return existing;
+  if (existing) return { ...existing, format: lobby.format, rulesFormat: lobby.rulesFormat };
   const invite: InviteRow = {
     id: crypto.randomUUID(),
     lobby_code: lobby.code,
@@ -330,7 +330,7 @@ export async function createLobbyInvitation(db: AccountDatabase, inviterId: stri
   const pending = await db.prepare("SELECT id, lobby_code, inviter_user_id, recipient_user_id, status, created_at, expires_at FROM lobby_invitations WHERE lobby_code = ? AND inviter_user_id = ? AND recipient_user_id = ? AND status = 'pending'")
     .bind(lobby.code, inviterId, recipientId).first<InviteRow>() ?? invite;
   await recordInviteEvent(db, pending, "sent");
-  return pending;
+  return { ...pending, format: lobby.format, rulesFormat: lobby.rulesFormat };
 }
 
 async function requirePendingInvite(db: AccountDatabase, inviteId: string, recipientId: string) {
@@ -364,39 +364,75 @@ function relationshipTarget(row: RelationshipRow, viewerId: string) {
   return row.user_low === viewerId ? row.user_high : row.user_low;
 }
 
+/**
+ * Read pending invitations without loading the social directory, friends, room
+ * messages or the presence shards. Used by the drawer and reconnect recovery.
+ */
+export async function getPendingLobbyInvitations(db: AccountDatabase, viewerId: string): Promise<LobbyInviteSummary[]> {
+  await ensureSocialSchema(db);
+  const result = await db.prepare(`SELECT
+      invite.id, invite.lobby_code, invite.inviter_user_id, invite.created_at, invite.expires_at,
+      inviter.display_name, inviter.faction, matches.state_json
+    FROM lobby_invitations invite
+    JOIN users inviter ON inviter.id = invite.inviter_user_id
+    LEFT JOIN social_hidden_accounts hidden ON hidden.user_id = inviter.id
+    LEFT JOIN matches ON matches.code = invite.lobby_code
+    WHERE invite.recipient_user_id = ? AND invite.status = 'pending'
+      AND invite.expires_at > ? AND hidden.user_id IS NULL
+    ORDER BY invite.created_at DESC`)
+    .bind(viewerId, Date.now()).all<InviteRow & {
+      display_name: string;
+      faction: string;
+      state_json: string | null;
+    }>();
+  return (result.results ?? []).map((row) => {
+    const state = row.state_json ? parseMatchState(row.state_json) : null;
+    const lobby = state ? lobbySummary(state) : null;
+    return {
+      id: row.id,
+      lobbyCode: row.lobby_code,
+      inviter: {
+        userId: row.inviter_user_id,
+        displayName: row.display_name,
+        faction: row.faction,
+        avatar: "",
+        titleId: "battle-planet-brawler",
+        rank: "",
+        bp: 0,
+        wins: 0,
+        losses: 0,
+        winRate: 0,
+        online: false,
+        relationship: "none",
+      },
+      format: lobby?.format ?? null,
+      rulesFormat: lobby?.rulesFormat ?? null,
+      available: Boolean(lobby),
+      unavailableReason: lobby ? undefined : "This lobby is no longer open. You can decline the invitation.",
+      createdAt: row.created_at,
+      expiresAt: row.expires_at,
+    };
+  });
+}
+
 export async function buildSocialSnapshot(
   db: AccountDatabase,
   viewerId: string,
   onlineAccounts: SocialAccountSummary[],
 ): Promise<SocialSnapshot> {
   await ensureSocialSchema(db);
-  const [relationships, inviteRows, lobby, lobbyMessages] = await Promise.all([
+  const [relationships, invitations, lobby, lobbyMessages] = await Promise.all([
     db.prepare("SELECT user_low, user_high, requested_by, status FROM social_relationships WHERE user_low = ? OR user_high = ? ORDER BY updated_at DESC")
       .bind(viewerId, viewerId).all<RelationshipRow>(),
-    db.prepare("SELECT id, lobby_code, inviter_user_id, recipient_user_id, status, created_at, expires_at FROM lobby_invitations WHERE recipient_user_id = ? AND status = 'pending' AND expires_at > ? ORDER BY created_at DESC")
-      .bind(viewerId, Date.now()).all<InviteRow>(),
+    getPendingLobbyInvitations(db, viewerId),
     activeSocialLobby(db, viewerId),
     currentLobbyMessages(db, viewerId),
   ]);
   const hiddenRows = await db.prepare("SELECT user_id FROM social_hidden_accounts").all<{ user_id: string }>();
   const hiddenIds = new Set((hiddenRows.results ?? []).map((row) => row.user_id));
   const relationshipRows = (relationships.results ?? []).filter((row) => !hiddenIds.has(relationshipTarget(row, viewerId)));
-  const visibleInvites = (inviteRows.results ?? []).filter((row) => !hiddenIds.has(row.inviter_user_id));
   const targetIds = relationshipRows.map((row) => relationshipTarget(row, viewerId));
-  const inviterIds = visibleInvites.map((row) => row.inviter_user_id);
-  const storedAccounts = await loadSocialAccounts(db, [...targetIds, ...inviterIds]);
-  const inviteCodes = [...new Set(visibleInvites.map((row) => row.lobby_code))];
-  const inviteLobbies = new Map<string, ActiveSocialLobby>();
-  if (inviteCodes.length) {
-    const placeholders = inviteCodes.map(() => "?").join(", ");
-    const states = await db.prepare(`SELECT code, state_json FROM matches WHERE code IN (${placeholders})`)
-      .bind(...inviteCodes).all<{ code: string; state_json: string }>();
-    for (const row of states.results ?? []) {
-      const state = parseMatchState(row.state_json);
-      const summary = state ? lobbySummary(state) : null;
-      if (summary) inviteLobbies.set(row.code, summary);
-    }
-  }
+  const storedAccounts = await loadSocialAccounts(db, targetIds);
   const byId = new Map<string, SocialAccountSummary>();
   for (const account of [...storedAccounts, ...onlineAccounts].filter((account) => !hiddenIds.has(account.userId))) {
     const existing = byId.get(account.userId);
@@ -432,28 +468,6 @@ export async function buildSocialSnapshot(
       const row = relationshipRows.find((candidate) => relationshipTarget(candidate, viewerId) === account.userId) ?? null;
       return { ...account, online: true, relationship: relationshipFor(row, viewerId) };
     });
-  const invitations: LobbyInviteSummary[] = visibleInvites.map((row) => {
-    const inviter = byId.get(row.inviter_user_id) ?? {
-      userId: row.inviter_user_id, displayName: "Brawler", faction: "", avatar: "",
-      titleId: "battle-planet-brawler", rank: "", bp: 0, wins: 0, losses: 0, winRate: 0,
-      online: false, relationship: "none" as const,
-    };
-    const invitedLobby = inviteLobbies.get(row.lobby_code);
-    return {
-      id: row.id,
-      lobbyCode: row.lobby_code,
-      inviter: { ...inviter, relationship: relationshipFor(
-        relationshipRows.find((candidate) => relationshipTarget(candidate, viewerId) === inviter.userId) ?? null,
-        viewerId,
-      ) },
-      format: invitedLobby?.format ?? null,
-      rulesFormat: invitedLobby?.rulesFormat ?? null,
-      available: Boolean(invitedLobby),
-      unavailableReason: invitedLobby ? undefined : "This lobby is no longer open. You can decline the invitation.",
-      createdAt: row.created_at,
-      expiresAt: row.expires_at,
-    };
-  });
   return {
     friends: sortSocialAccounts(friends),
     incomingRequests: sortSocialAccounts(incomingRequests),

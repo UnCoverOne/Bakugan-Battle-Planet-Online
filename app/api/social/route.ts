@@ -9,6 +9,7 @@ import {
   createLobbyInvitation,
   declineFriend,
   declineLobbyInvitation,
+  getPendingLobbyInvitations,
   loadSocialAccount,
   removeFriend,
   requestFriend,
@@ -73,6 +74,9 @@ export async function GET(request: Request) {
     const user = await requireUser(request);
     const db = await getDatabase();
     await enforceD1RateLimit(db, `social:get:${user.id}:${requestClientKey(request)}`, 120, 60_000);
+    if (action === "invitations") {
+      return json({ invitations: await getPendingLobbyInvitations(db, user.id), correlationId });
+    }
     if (action === "snapshot") {
       const snapshot = await buildSocialSnapshot(db, user.id, await onlineSocialAccounts());
       return json({ snapshot, correlationId });
@@ -140,7 +144,27 @@ export async function POST(request: Request) {
         text(targetId, "Brawler", 100),
         text(body.lobbyCode, "Lobby code", 6).toUpperCase(),
       );
-      await notifySafely([targetId], { type: "lobby.invited", actorId: user.id, inviteId: invite.id, lobbyCode: invite.lobby_code }, correlationId);
+      // Send an actionable, complete invitation. Receiving the notification must
+      // not depend on reloading the entire social snapshot or presence directory.
+      const inviter = await loadSocialAccount(db, user.id).catch(() => null);
+      const inviteSummary = {
+        id: invite.id,
+        lobbyCode: invite.lobby_code,
+        inviter: inviter ?? {
+          userId: user.id, displayName: "Brawler", faction: "", avatar: "",
+          titleId: "battle-planet-brawler", rank: "", bp: 0,
+          wins: 0, losses: 0, winRate: 0, online: true, relationship: "none" as const,
+        },
+        format: invite.format,
+        rulesFormat: invite.rulesFormat,
+        available: true,
+        createdAt: invite.created_at,
+        expiresAt: invite.expires_at,
+      };
+      await notifySafely([targetId], {
+        type: "lobby.invited", actorId: user.id, inviteId: invite.id,
+        lobbyCode: invite.lobby_code, invite: inviteSummary,
+      }, correlationId);
       return json({ inviteId: invite.id, expiresAt: invite.expires_at, correlationId }, 201);
     }
     if (action === "accept-invite") {
