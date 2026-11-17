@@ -412,11 +412,10 @@ test("Compendium Rulings leaves submission and heading to the global feedback me
 });
 
 
-test("Bakugan rolling probabilities appear in every card gallery and the inspector", async () => {
-  const [rolling, rollingStyles, compendium, collection, builder, administrator, detail, inspector] = await Promise.all([
+test("Bakugan rolling probabilities remain in other galleries and the inspector", async () => {
+  const [rolling, rollingStyles, collection, builder, administrator, detail, inspector] = await Promise.all([
     read("components/cards/BakuganRollingStats.tsx"),
     read("components/cards/BakuganRollingStats.module.css"),
-    read("components/routes/CompendiumScreen.tsx"),
     read("components/routes/CollectionScreen.tsx"),
     read("components/routes/DeckBuilderScreen.tsx"),
     read("components/routes/AdministratorCardManagement.tsx"),
