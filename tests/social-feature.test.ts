@@ -113,7 +113,7 @@ test("actionable invites, activity labels, and invitation events are connected t
     source("migrations/0016_social_lobby_events.sql"),
   ]);
   assert.match(drawer, /function LobbyInviteNotice/);
-  assert.match(drawer, /setSeconds\(15\)/);
+  assert.match(drawer, /useState\(15\)/);
   assert.match(drawer, /respond\("accept-invite"\)/);
   assert.match(drawer, /respond\("decline-invite"\)/);
   assert.match(drawer, /activityLabel = activity === "lobby"/);
