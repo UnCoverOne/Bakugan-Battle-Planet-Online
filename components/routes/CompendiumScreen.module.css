@@ -101,6 +101,7 @@
 
 }
 
+/* The original BakuCore view is independent of the Cards gallery. */
 .cardGrid {
   width: 100%;
   max-width: none;
@@ -109,86 +110,22 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 11.5rem), 1fr));
   gap: var(--space-4);
 }
-
 .cardGridCompact {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.25rem), 1fr));
   gap: var(--space-3);
 }
-
 .cardTile {
   min-width: 0;
   padding: 0;
   overflow: hidden;
-
-
-
   text-align: left;
-
-
-
 }
-
-.cardTile:hover,
-.cardTile:focus-visible,
-.cardTileSelected {
-
-  transform: translateY(-2px);
-}
-
-.cardTileSelected {
-
-}
-
-.cardArt {
-  min-height: 0;
-  display: grid;
-  place-items: center;
-  aspect-ratio: 5 / 7;
-  padding: var(--space-3) var(--space-3) 0;
-
-}
-
-.cardArtFrame {
-  position: relative;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 5 / 7;
-  min-width: 0;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-}
-
-.cardArtFrame > img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.fusionBadge {
-  position: absolute;
-  right: 2.5%;
-  bottom: 2.5%;
-  width: clamp(3rem, 28%, 5.5rem);
-  aspect-ratio: 2048 / 1206;
-  display: grid;
-  place-items: center;
-  padding: 0;
-
-}
-
-.fusionBadge img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
+.cardTile:hover, .cardTile:focus-visible, .cardTileSelected { transform: translateY(-2px); }
 .cardCopy {
   display: grid;
   gap: var(--space-2);
   padding: var(--space-4);
 }
-
 .coreTile .cardCopy {
   flex: 1 1 auto;
   display: flex;
@@ -196,72 +133,19 @@
   align-items: stretch;
   gap: .4rem;
 }
-
 .coreTile .cardCopy > strong {
   display: block;
   min-height: 0;
-
   line-height: 1.2;
 }
-
 .cardCopy > strong {
-  min-height: 2.3em;
-  display: -webkit-box;
+  display: block;
   overflow: hidden;
-
-
   overflow-wrap: anywhere;
-
   line-height: 1.15;
 }
-
-.cardCopy small,
-.route :global(.rule-article small),
-.route :global(.modern-rulings small) {
-
-  line-height: 1.45;
-}
-
-.cardCopy small {
-  min-height: 2.9em;
-  display: -webkit-box;
-  overflow: hidden;
-
-
-}
-
-.cardBadges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.cardGridCompact .cardArt {
-  padding: var(--space-2) var(--space-2) 0;
-}
-
-.cardGridCompact .cardCopy {
-  gap: var(--space-1);
-  padding: var(--space-3);
-}
-
-.cardGridCompact .cardCopy > strong {
-  min-height: 2.2em;
-
-}
-
-
-.cardGridCompact .coreTile .cardCopy > strong {
-  min-height: 0;
-}
-
-.cardGridCompact .cardCopy small {
-  display: none;
-}
-
-.cardGridCompact .cardBadges > span:nth-child(2) {
-  display: none;
-}
+.cardGridCompact .cardCopy { gap: var(--space-1); padding: var(--space-3); }
+.cardGridCompact .coreTile .cardCopy > strong { min-height: 0; }
 
 .emptyResults {
   min-height: 26rem;
@@ -288,57 +172,14 @@
 }
 
 @media (max-width: 700px) {
-  .workspace,
-  .coreWorkspace {
+  .workspace, .coreWorkspace {
     width: min(calc(100% - (2 * var(--space-4))), var(--content-wide));
   }
-
-
-
-  .cardGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-3);
-  }
-
-  .cardGridCompact {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-2);
-  }
-
-  .cardArt {
-    padding: var(--space-2) var(--space-2) 0;
-  }
-
-  .cardCopy {
-    padding: var(--space-3);
-  }
-
-  .cardCopy > strong {
-  }
-
-  .cardGridCompact .cardCopy {
-    padding: var(--space-2);
-  }
-
-  .cardGridCompact .cardBadges {
-    display: none;
-  }
-
+  .cardGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+  .cardGridCompact { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+  .cardCopy { padding: var(--space-3); }
+  .cardGridCompact .cardCopy { padding: var(--space-2); }
 }
-
-@media (max-width: 420px) {
-  .cardGridCompact {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cardTile {
-  }
-}
-
-
-
 
 .rulebookFrame {
   width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));

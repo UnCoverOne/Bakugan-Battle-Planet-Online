@@ -377,3 +377,49 @@ test("mobile glossary terms render in two columns", async ({ page }) => {
   const columns = await grid.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length);
   expect(columns).toBe(2);
 });
+
+test("Cards Detailed and Compact views differ in metadata and preview density", async ({ page }) => {
+  await page.goto("/compendium");
+  const gallery = page.locator("[data-cards-gallery]");
+  await expect(gallery).toHaveAttribute("data-cards-view", "detailed");
+  const first = gallery.locator(":scope > button").first();
+  await expect(first.locator("[data-card-preview] img")).toBeVisible();
+  await expect(first.locator("[data-card-name]")).toBeVisible();
+  await expect(first.locator("[data-card-meta]")).toBeVisible();
+  expect(await first.locator("[data-card-name]").evaluate(el => getComputedStyle(el).whiteSpace)).toBe("nowrap");
+  expect(await first.locator("[data-card-meta]").evaluate(el => getComputedStyle(el).flexWrap)).toBe("nowrap");
+  const detailedWidth = (await first.boundingBox())!.width;
+
+  await page.getByRole("button", { name: "Switch to compact view" }).click();
+  await expect(gallery).toHaveAttribute("data-cards-view", "compact");
+  await expect(gallery.locator("[data-card-details]")).toHaveCount(0);
+  const compactFirst = gallery.locator(":scope > button").first();
+  await expect(compactFirst.locator("[data-card-preview] img")).toBeVisible();
+  const compactWidth = (await compactFirst.boundingBox())!.width;
+  expect(compactWidth).toBeLessThan(detailedWidth);
+  await compactFirst.click();
+  await expect(page.locator('[data-ui="card-inspector"]')).toBeVisible();
+});
+
+test("Cards mobile layout shows two Detailed and three Compact previews per row", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/compendium");
+  const gallery = page.locator("[data-cards-gallery]");
+  await expect(gallery).toBeVisible();
+  const columns = () => gallery.evaluate(el => getComputedStyle(el).gridTemplateColumns.split(" ").length);
+  expect(await columns()).toBe(2);
+  await page.getByRole("button", { name: "Switch to compact view" }).click();
+  await expect(gallery).toHaveAttribute("data-cards-view", "compact");
+  expect(await columns()).toBe(3);
+});
+
+test("Cards previews illuminate on hover without moving or scaling", async ({ page }) => {
+  await page.goto("/compendium");
+  const first = page.locator("[data-cards-gallery] > button").first();
+  const preview = first.locator("[data-card-preview]");
+  const before = await preview.evaluate(el => getComputedStyle(el, "::after").opacity);
+  expect(before).toBe("0");
+  await first.hover();
+  await expect.poll(() => preview.evaluate(el => getComputedStyle(el, "::after").opacity)).toBe("1");
+  expect(await first.evaluate(el => getComputedStyle(el).transform)).toBe("none");
+});

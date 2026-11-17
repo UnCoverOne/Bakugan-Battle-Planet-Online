@@ -4,15 +4,12 @@ import { OfficialRulebook } from "./OfficialRulebook";
 import { GlossaryScreen } from "./GlossaryScreen";
 import { RulingsReference } from "./RulingsReference";
 import { CompendiumPagination } from "./CompendiumPagination";
-import { FusionSymbol } from "@/components/media/FusionSymbol";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
 import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { compendiumLocation, compendiumSectionHref, type CompendiumSection } from "../../lib/compendium-navigation";
 import { CardInspector } from "../cards/CardInspector";
-import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
-import { BakuganRollingOverlay } from "../cards/BakuganRollingStats";
 import {
   COMPENDIUM_PAGE_SIZE,
   CORE_COMPENDIUM_PAGE_SIZE,
@@ -30,11 +27,11 @@ import {
 } from "../../lib/compendium";
 import { CARDS, CORE_COMPENDIUM, RULE_ENTRIES } from "../../lib/data";
 import { updateCollection, type CollectionField } from "../../lib/collection";
-import { cardSetCode } from "../../lib/content/catalogue";
 import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT } from "../../lib/reference";
 import { useAppFields } from "../application/AppProvider";
 import { copyText } from "../application/ui";
-import { ActionButton, CardGrid, StatusChip, Surface } from "../design-system/primitives";
+import { ActionButton, CardGrid, Surface } from "../design-system/primitives";
+import { CardsGallery } from "./CardsGallery";
 import { CompendiumFieldPicker } from "./CompendiumFieldPicker";
 import type { CardFilterOption as FilterOption } from "../../lib/card-filters";
 import {
@@ -381,7 +378,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
           const next = density === "gallery" ? "compact" : "gallery";
           if (section === "cards") navigate({ density: next });
           else navigateCore({ density: next });
-          setViewMessage(next === "compact" ? "Compact view enabled" : "Gallery view enabled");
+          setViewMessage(next === "compact" ? "Compact view enabled" : section === "cards" ? "Detailed view enabled" : "Gallery view enabled");
         }} />
       {viewMessage && <div className={styles.viewToast} role="status">{viewMessage}</div>}
 
@@ -404,37 +401,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 {pages <= 1 && <span className={styles.singlePageCount}>{cards.length.toLocaleString()} cards</span>}
               </div>
               {visible.length ? (
-                <CardGrid
-                  className={`${styles.cardGrid} ${state.density === "compact" ? styles.cardGridCompact : ""}`}
-                  minCardWidth={state.density === "compact" ? "9.25rem" : "11.5rem"}
-                >
-                  {visible.map((card) => (
-                    <button
-                      className={`${styles.cardTile} ${selected?.catalogId === card.catalogId ? styles.cardTileSelected : ""}`}
-                      type="button"
-                      aria-pressed={selected?.catalogId === card.catalogId}
-                      key={card.catalogId}
-                      onClick={(event) => selectCard(card, event.currentTarget)}
-                    >
-                      <span className={styles.cardArt}>
-                        <span className={styles.cardArtFrame}>
-                          <ResponsiveCardImage card={card} presentation="tile" />
-                          <BakuganRollingOverlay card={card} />
-                          {card.fusionPairId && (
-                            <span className={styles.fusionBadge} aria-label="Fusion Character Card">
-                              <FusionSymbol alt="" width={24} height={24} />
-                            </span>
-                          )}
-                        </span>
-                      </span>
-                      <span className={styles.cardCopy}>
-                        <span className={styles.cardBadges}><StatusChip tone="info">{card.faction}</StatusChip><StatusChip>{cardSetCode(card)}</StatusChip></span>
-                        <strong>{card.displayName}</strong>
-                        <small>{card.type} · {card.cost} Energy · {card.rarity}</small>
-                      </span>
-                    </button>
-                  ))}
-                </CardGrid>
+                <CardsGallery cards={visible} density={state.density} selectedId={selected?.catalogId}
+                  onSelect={(card, trigger) => selectCard(card, trigger)} />
               ) : (
                 <Surface className={styles.emptyResults} role="status">
                   <span>◇</span><h2>No cards match</h2><p>Adjust the search or clear the active filters to return to the full archive.</p>

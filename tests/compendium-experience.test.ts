@@ -431,7 +431,7 @@ test("Bakugan rolling probabilities appear in every card gallery and the inspect
   assert.match(rollingStyles, /\/assets\/symbols\/double-core\.svg/);
   assert.match(rollingStyles, /display: flex/);
   assert.match(rollingStyles, /\.plain\s*\{/);
-  for (const gallery of [compendium, collection, builder, administrator, detail]) {
+  for (const gallery of [collection, builder, administrator, detail]) {
     assert.match(gallery, /<BakuganRollingOverlay card=/);
   }
   assert.match(inspector, /<dt>Roll Accuracy<\/dt>/);
@@ -582,4 +582,37 @@ test("Compendium sidebar communicates visibility and animates desktop collapse",
   assert.match(layout, /prefers-reduced-motion: reduce/);
   assert.match(sidebarCss, /prefers-reduced-motion: reduce/);
   assert.match(screen, /sidebarTrigger\.current\?\.focus\(\)/);
+});
+
+test("Cards has frameless Detailed and Compact galleries with artwork-only compact tiles", async () => {
+  const [route, gallery, galleryCss, toolbar] = await Promise.all([
+    read("components/routes/CompendiumScreen.tsx"),
+    read("components/routes/CardsGallery.tsx"),
+    read("components/routes/CardsGallery.module.css"),
+    read("components/routes/CompendiumToolbar.tsx"),
+  ]);
+  assert.match(route, /<CardsGallery cards=\{visible\} density=\{state\.density\}/);
+  assert.match(route, /onSelect=\{\(card, trigger\) => selectCard\(card, trigger\)\}/);
+  assert.match(toolbar, /"Switch to detailed view"/);
+  assert.match(route, /"Detailed view enabled"/);
+  assert.match(gallery, /data-cards-view=\{compact \? "compact" : "detailed"\}/);
+  assert.match(gallery, /!compact && <span className=\{styles\.details\} data-card-details>/);
+  assert.match(gallery, /<strong className=\{styles\.name\} data-card-name title=\{card\.displayName\}>/);
+  assert.match(gallery, /<span className=\{styles\.metadata\} data-card-meta>/);
+  assert.match(gallery, /FACTION_SYMBOLS\[faction\]/);
+  assert.match(gallery, /CARD_SET_INFO\[set\]\.name/);
+  assert.match(gallery, /title=\{card\.type\}/);
+  assert.match(gallery, /onClick=\{event => onSelect\(card, event\.currentTarget\)\}/);
+  assert.match(gallery, /aria-pressed=\{selectedId === card\.catalogId\}/);
+  assert.match(galleryCss, /grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 13rem\), 1fr\)\)/);
+  assert.match(galleryCss, /grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 9rem\), 1fr\)\)/);
+  assert.match(galleryCss, /\.gallery \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(galleryCss, /\.gallery\.compact \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(galleryCss, /\.name \{[^}]*white-space: nowrap/);
+  assert.match(galleryCss, /\.metadata \{[^}]*flex-wrap: nowrap/);
+  assert.match(galleryCss, /\.artwork::after \{[^}]*linear-gradient\(135deg/);
+  assert.match(galleryCss, /\.tile:hover \.artwork::after/);
+  assert.match(galleryCss, /prefers-reduced-motion: reduce/);
+  assert.doesNotMatch(gallery, /BakuganRollingOverlay|FusionSymbol|StatusChip|card\.cost|card\.rarity/);
+  assert.doesNotMatch(route, /styles\.cardArtFrame|styles\.fusionBadge|styles\.cardBadges/);
 });

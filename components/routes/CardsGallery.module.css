@@ -1,0 +1,134 @@
+/* Frameless Cards catalogue. The viewport and sidebar decide how many previews fit. */
+.gallery {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+  align-items: start;
+  column-gap: var(--space-4);
+  row-gap: var(--space-6);
+}
+.gallery.compact {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
+  column-gap: var(--space-3);
+  row-gap: var(--space-3);
+}
+.tile {
+  display: block;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--bb-text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  appearance: none;
+}
+.artwork {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  border-radius: 3px;
+  isolation: isolate;
+  overflow: hidden;
+}
+.artwork img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+/* Light travels diagonally over the preview; the card and metadata never move. */
+.artwork::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,255,255,.17), rgba(218,237,255,.075) 43%, rgba(255,255,255,0) 78%);
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.tile:hover .artwork::after,
+.tile:focus-visible .artwork::after,
+.tile:active .artwork::after { opacity: 1; }
+.tile:focus-visible { outline: none; }
+.tile:focus-visible .artwork {
+  outline: 2px solid var(--bb-focus);
+  outline-offset: 2px;
+}
+.tile[aria-pressed="true"] .artwork { box-shadow: inset 0 0 0 2px var(--bb-focus); }
+/* Exactly two nonwrapping metadata rows, displayed only in Detailed mode. */
+.details {
+  display: grid;
+  grid-template-rows: minmax(0,auto) 24px;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 8px;
+}
+.name {
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--bb-text);
+  font: 600 13px/20px var(--bb-font-interface);
+}
+.metadata {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.factions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+}
+.faction {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  object-fit: contain;
+}
+.tag {
+  display: inline-block;
+  flex: none;
+  min-width: 0;
+  max-width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--bb-border);
+  border-radius: 2px;
+  background: var(--bb-panel);
+  color: var(--bb-muted);
+  font: 500 10px/14px var(--bb-font-interface);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.typeTag { flex: 0 1 auto; }
+@media (max-width: 700px) {
+  .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+  .gallery.compact { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+  .name { font-size: 12px; }
+  .tag { padding-inline: 4px; font-size: 9px; }
+  .faction { width: 16px; height: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .artwork::after { transition: none; }
+}
