@@ -251,6 +251,7 @@ function LobbyInviteNotice({
 }) {
   const { notify } = useAppFields(["notify"]);
   const [seconds, setSeconds] = useState(15);
+  const [remainingMinutes, setRemainingMinutes] = useState(5);
   const [paused, setPaused] = useState(false);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -259,6 +260,11 @@ function LobbyInviteNotice({
     return () => window.clearInterval(timer);
   }, [paused]);
   useEffect(() => { if (seconds === 0) onDismiss(); }, [seconds, onDismiss]);
+  useEffect(() => {
+    if (!invite) return;
+    const timer = window.setInterval(() => setRemainingMinutes(Math.max(0, Math.ceil((invite.expiresAt - Date.now()) / 60_000))), 1000);
+    return () => window.clearInterval(timer);
+  }, [invite?.expiresAt]);
   const respond = async (action: "accept-invite" | "decline-invite") => {
     if (!invite || busy) return;
     setBusy(true);
@@ -272,7 +278,7 @@ function LobbyInviteNotice({
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setPaused(false); }}>
       <div className={styles.inviteNoticeHeading}>
-        <div><strong>LOBBY INVITATION</strong><span>You've been invited to battle!</span></div>
+        <div><strong>LOBBY INVITATION</strong><span>You&apos;ve been invited to battle!</span></div>
         <button type="button" onClick={onDismiss} aria-label="Dismiss invitation notification">×</button>
       </div>
       {invite ? (
@@ -287,7 +293,7 @@ function LobbyInviteNotice({
             <button type="button" disabled={busy} onClick={() => void respond("decline-invite")}>DECLINE</button>
           </div>
           <div className={styles.inviteNoticeFooter}>
-            <span>Expires in {Math.max(0, Math.ceil((invite.expiresAt - Date.now()) / 60_000))} min</span>
+            <span>Expires in {remainingMinutes} min</span>
             <button type="button" onClick={onOpenMenu}>View in Social Menu</button>
           </div>
         </>
