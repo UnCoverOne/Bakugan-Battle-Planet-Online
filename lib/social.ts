@@ -86,3 +86,17 @@ export function sortSocialAccounts<T extends Pick<SocialAccountSummary, "display
     || left.displayName.localeCompare(right.displayName, undefined, { sensitivity: "base" })
   ));
 }
+
+/** Reject incomplete legacy/malformed socket payloads before rendering invite controls. */
+export function isLobbyInviteSummary(value: unknown): value is LobbyInviteSummary {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const invite = value as Partial<LobbyInviteSummary>;
+  return typeof invite.id === "string" && invite.id.length > 0
+    && typeof invite.lobbyCode === "string" && /^[A-Z2-9]{6}$/.test(invite.lobbyCode)
+    && typeof invite.inviter?.displayName === "string"
+    && typeof invite.inviter.userId === "string"
+    && Number.isFinite(invite.expiresAt)
+    && typeof invite.available === "boolean"
+    && (invite.format === null || invite.format === "bo1" || invite.format === "bo3")
+    && (invite.rulesFormat === null || invite.rulesFormat === "standard" || invite.rulesFormat === "singleton" || invite.rulesFormat === "competitive");
+}

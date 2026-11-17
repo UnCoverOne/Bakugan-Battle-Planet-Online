@@ -2,6 +2,7 @@ import {
   SOCIAL_SHARD_COUNT,
   socialPresenceShard,
   type SocialAccountSummary,
+  type LobbyInviteSummary,
 } from "./social";
 
 type SocialPresenceEvent = {
@@ -11,6 +12,7 @@ type SocialPresenceEvent = {
   status?: "accepted" | "declined";
   lobbyCode?: string;
   inviteId?: string;
+  invite?: LobbyInviteSummary;
 };
 
 async function namespace() {

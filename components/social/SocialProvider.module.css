@@ -27,3 +27,7 @@
 .inLobby{background:#e3af35;box-shadow:0 0 8px #e3af35}
 .inGame{background:#e65a50;box-shadow:0 0 8px #e65a50}
 @media(max-width:620px){.inviteNotice{top:auto;bottom:max(16px,env(safe-area-inset-bottom));right:16px}}
+
+/* Invitation-only request failures should not hide social data or pending cards. */
+.inviteLoadError{display:flex;align-items:center;justify-content:space-between;gap:1rem;color:#ffcb83;font-size:.72rem}
+.inviteLoadError button{flex:none;padding:.5rem .6rem;border:1px solid #e3af35;background:#382c0a;color:#ffdc87;font-size:.65rem;font-weight:900;cursor:pointer}
