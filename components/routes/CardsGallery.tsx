@@ -5,6 +5,8 @@ import type { CompendiumDensity } from "../../lib/compendium";
 import { FACTION_SYMBOLS } from "../../lib/card-filters";
 import { CARD_SET_INFO, cardSetCode } from "../../lib/content/catalogue";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
+import { BakuganRollingStat } from "../cards/BakuganRollingStats";
+import { bakuganRollingValues } from "../../lib/bakugan-rolling";
 import { OriginalImage } from "../media/OriginalImage";
 import styles from "./CardsGallery.module.css";
 
@@ -26,9 +28,10 @@ export function CardsGallery({ cards, density, selectedId, onSelect }: CardsGall
       const factions = [...new Set(card.factions.length ? card.factions : [card.faction])];
       const set = cardSetCode(card);
       const setName = CARD_SET_INFO[set].name;
+      const rolling = bakuganRollingValues(card);
 
       return <button key={card.catalogId} type="button" className={styles.tile}
-        aria-label={`Inspect ${card.displayName}, ${factions.join(" / ")}, ${card.type}, ${setName}`}
+        aria-label={`Inspect ${card.displayName}, ${factions.join(" / ")}, ${card.type}, ${setName}${rolling ? `, Roll Accuracy ${rolling.rollAccuracy}%, Double Core Chance ${rolling.doubleCoreChance}%` : ""}`}
         aria-pressed={selectedId === card.catalogId}
         onClick={event => onSelect(card, event.currentTarget)}>
         <span className={styles.artwork} data-card-preview>
@@ -36,13 +39,17 @@ export function CardsGallery({ cards, density, selectedId, onSelect }: CardsGall
         </span>
         {!compact && <span className={styles.details} data-card-details>
           <strong className={styles.name} data-card-name title={card.displayName}>{card.displayName}</strong>
-          <span className={styles.metadata} data-card-meta>
+          <span className={`${styles.metadata} ${rolling ? styles.metadataWithRolling : ""}`} data-card-meta>
             <span className={styles.factions} aria-label={factions.join(" / ")}>
               {factions.map(faction => <OriginalImage key={faction} className={styles.faction}
                 src={FACTION_SYMBOLS[faction]} width={18} height={18} alt={faction} title={faction} loading="lazy" />)}
             </span>
             <span className={`${styles.tag} ${styles.typeTag}`} title={card.type}>{card.type}</span>
             <span className={styles.tag} title={setName} aria-label={setName}>{set}</span>
+            {rolling && <>
+              <span className={`${styles.tag} ${styles.rollingTag}`}><BakuganRollingStat kind="rollAccuracy" value={rolling.rollAccuracy} plain /></span>
+              <span className={`${styles.tag} ${styles.rollingTag}`}><BakuganRollingStat kind="doubleCoreChance" value={rolling.doubleCoreChance} plain /></span>
+            </>}
           </span>
         </span>}
       </button>;
