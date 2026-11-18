@@ -54,6 +54,7 @@ const SEARCH_URL_DEBOUNCE_MS = 450;
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const CORE_SORT_OPTIONS: FilterOption[] = Object.entries(CORE_SORT_LABELS)
   .map(([value, label]) => ({ value, label }));
+const FUSION_OPTIONS: FilterOption[] = [{ value: "fused", label: "Fused side only" }];
 
 type FilterKey = CardFilterFacet;
 type StatePatch = Partial<CompendiumState>;
@@ -70,11 +71,12 @@ const ruleReferences = [
 ];
 
 function FilterControls({
-  state, filterOptions, onChange, onSortChange,
+  state, filterOptions, onChange, onFusionChange, onSortChange,
 }: {
   state: CompendiumState;
   filterOptions: CardFilterOptionCatalogue;
   onChange: (key: FilterKey, values: string[]) => void;
+  onFusionChange: (enabled: boolean) => void;
   onSortChange: (sort: CompendiumState["sort"]) => void;
 }) {
   const characterOnly = state.type.length === 1 && state.type[0] === "Character";
@@ -108,6 +110,10 @@ function FilterControls({
   );
   return <>
     {picker("type")}
+    {characterOnly && <CompendiumFieldPicker label="Fusions" values={state.fusionOnly ? ["fused"] : []}
+      options={FUSION_OPTIONS} mode="single"
+      info="Show only Fusion Bakugan on the fused face of their Character Cards."
+      onChange={(values) => onFusionChange(values.includes("fused"))} />}
     <CompendiumFieldPicker label="Sort By" values={[selectedSort]} mode="single" clearable={false}
       options={sorts.map(([value, label]) => ({ value, label }))}
       onChange={(values) => { if (values[0]) onSortChange(values[0] as CompendiumState["sort"]); }} />
@@ -183,7 +189,9 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const corePages = Math.max(1, Math.ceil(cores.length / CORE_COMPENDIUM_PAGE_SIZE));
   const corePage = Math.min(coreState.page, corePages);
   const visibleCores = cores.slice((corePage - 1) * CORE_COMPENDIUM_PAGE_SIZE, corePage * CORE_COMPENDIUM_PAGE_SIZE);
-  const selected = section === "cards" ? selectedCompendiumCard(CARDS, state.card || legacyDetail) : null;
+  const selected = section === "cards"
+    ? selectedCompendiumCard(CARDS, state.card || legacyDetail, state.fusionOnly)
+    : null;
   const selectedCore = section === "cores" ? selectedCompendiumCore(CORE_COMPENDIUM, coreState.core) : null;
   const normalized = deferredSearchQuery.trim().toLowerCase();
 
@@ -293,7 +301,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     return () => removeEventListener("keydown", closeOverlays);
   }, [closeInspector, sidebarOpen, navigateCore, selected, selectedCore]);
 
-  const activeFilterCount = activeCardFilterCount(state);
+  const activeFilterCount = activeCardFilterCount(state) + (state.fusionOnly ? 1 : 0);
   const activeCoreFilterCount = (["set", "type"] as const)
     .filter((key) => coreState[key] !== "All").length;
   const isCatalogue = section === "cards" || section === "cores";
@@ -308,7 +316,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     const nextSorts = nextIsCharacterOnly ? CHARACTER_SORTS : NON_CHARACTER_SORTS;
     const patch: StatePatch = {
       type: values,
-      ...(!nextIsCharacterOnly ? { coreType: [] } : {}),
+      ...(!nextIsCharacterOnly ? { coreType: [], fusionOnly: false } : {}),
       ...(!includesCharacter && !values.includes("Evo") ? { bPower: [], damage: [] } : {}),
       ...(nextIsCharacterOnly ? { cost: [], rarity: [] } : {}),
       ...(nextSorts.has(state.sort) ? {} : { sort: "collector" }),
@@ -318,6 +326,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   const clearFilters = () => navigate({
     set: [],
     type: [],
+    fusionOnly: false,
     coreType: [],
     bPower: [],
     damage: [],
@@ -391,6 +400,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 state={state}
                 filterOptions={filterOptions}
                 onChange={setFilter}
+                onFusionChange={(fusionOnly) => navigate({ fusionOnly }, { resetPage: true })}
                 onSortChange={(sort) => navigate({ sort }, { resetPage: true })}
               />
             </CompendiumSidebar>
