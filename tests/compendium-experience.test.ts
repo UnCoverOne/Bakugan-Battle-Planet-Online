@@ -371,7 +371,7 @@ test("BakuCore effect tags cover all ten supported mechanics without ranking the
   assert.ok(effects.every((effect) => effect.label.length > 0));
   assert.equal(effects.find((effect) => effect.kind === "power")?.value, "-100");
   assert.deepEqual(effects.find((effect) => effect.kind === "conditional-damage")?.factions, ["Pyrus", "Darkus"]);
-  assert.deepEqual(coreEffects(core({ id: "zero", number: 91, name: "Zero" })), []);
+  assert.deepEqual(coreEffects(core({ id: "zero", number: 91, name: "Zero", damageBonus: 0 })), []);
 });
 
 test("Core multi-select fields combine OR within a facet and AND between facets", () => {
@@ -381,7 +381,7 @@ test("Core multi-select fields combine OR within a facet and AND between facets"
     core({ id: "aa-core-74", number: 74, name: "Fusion Power", set: "Armored Alliance",
       type: "Shield", fusionBonus: 500, bonus: 0 }),
     core({ id: "core-11", number: 11, name: "Conditional", set: "Battle Brawlers",
-      type: "Fist", bonus: 100, conditionalFactions: ["Pyrus", "Darkus"], conditionalDamage: 3 }),
+      type: "Fist", bonus: 100, damageBonus: 0, conditionalFactions: ["Pyrus", "Darkus"], conditionalDamage: 3 }),
     core({ id: "core-37", number: 37, name: "Magic Shield", set: "Battle Brawlers",
       type: "Magic Shield", bonus: 500 }),
   ];
