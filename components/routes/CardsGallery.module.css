@@ -100,11 +100,32 @@
   gap: 2px;
 }
 .faction {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(0, 0, 0, .22);
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+.factionGlyph {
   display: block;
   width: 18px;
   height: 18px;
-  flex: none;
-  object-fit: contain;
+  color: #f7f9fc; /* One shared light foreground across every faction. */
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, .65));
+}
+.factionFallback {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding-inline: 4px;
+  border: 1px solid var(--bb-border);
+  border-radius: 2px;
+  background: var(--bb-panel);
+  color: var(--bb-text);
+  font-size: 10px;
 }
 .tag {
   display: inline-block;
@@ -122,6 +143,7 @@
   text-overflow: ellipsis;
 }
 .typeTag { flex: 0 1 auto; }
+.metadataWithRolling .typeTag { flex: none; }
 /* Character rolling stats reuse the existing metadata line rather than adding a row. */
 .tile { container-type: inline-size; }
 .metadataWithRolling { gap: 3px; }
@@ -135,17 +157,22 @@
 }
 .rollingTag > span { gap: 2px; }
 
-/* At ordinary catalogue tile widths, prioritize faction, set and both stats. */
-@container (max-width: 265px) {
-  .metadataWithRolling .typeTag { display: none; }
+/* All metadata stays visible; adjust spacing instead of hiding Character/CC. */
+@container (max-width: 220px) {
+  .metadataWithRolling { gap: 2px; }
+  .metadataWithRolling .factions { gap: 1px; }
+  .metadataWithRolling .faction { width: 19px; height: 20px; }
+  .metadataWithRolling .factionGlyph { width: 15px; height: 15px; }
+  .metadataWithRolling .tag { padding-inline: 3px; font-size: 9px; }
+  .metadataWithRolling .rollingTag { padding-inline: 2px; }
+  .metadataWithRolling .rollingTag > span { gap: 1px; }
 }
 @container (max-width: 175px) {
-  .metadataWithRolling { gap: 2px; }
-  .metadataWithRolling .faction { width: 14px; height: 14px; }
-  .metadataWithRolling .factions { gap: 1px; }
-  .metadataWithRolling .tag { padding-inline: 3px; font-size: 9px; }
-  .metadataWithRolling .rollingTag { padding-inline: 2px; font-size: 9px; }
-  .metadataWithRolling .rollingTag > span { gap: 1px; }
+  .metadataWithRolling .faction { width: 16px; height: 18px; }
+  .metadataWithRolling .factionGlyph { width: 13px; height: 13px; }
+  .metadataWithRolling .factions { gap: 0; }
+  .metadataWithRolling .tag { padding-inline: 2px; font-size: 9px; }
+  .metadataWithRolling .rollingTag { padding-inline: 1px; font-size: 9px; }
 }
 
 @media (max-width: 700px) {
@@ -153,7 +180,12 @@
   .gallery.compact { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
   .name { font-size: 12px; }
   .tag { padding-inline: 4px; font-size: 9px; }
-  .faction { width: 16px; height: 16px; }
+  .faction { width: 20px; height: 22px; }
+  .factionGlyph { width: 16px; height: 16px; }
+}
+/* Avoid clipping the metadata on the very narrowest phone displays. */
+@media (max-width: 350px) {
+  .gallery:not(.compact) { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
   .artwork::after { transition: none; }
