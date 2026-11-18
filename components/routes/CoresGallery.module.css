@@ -1,0 +1,179 @@
+/* BakuCores use their natural hexagonal ratio and the Cards gallery's frameless language. */
+.gallery {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 12.5rem), 1fr));
+  align-items: start;
+  column-gap: var(--space-4);
+  row-gap: var(--space-6);
+}
+.gallery.compact {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
+  column-gap: var(--space-3);
+  row-gap: var(--space-3);
+}
+.tile {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  appearance: none;
+  background: transparent;
+  color: var(--bb-text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.artwork {
+  display: grid;
+  position: relative;
+  place-items: center;
+  isolation: isolate;
+  width: 100%;
+  aspect-ratio: 240 / 209;
+  overflow: hidden;
+  border-radius: 3px;
+}
+.artwork > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.artwork img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+.artwork::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,255,255,.17), rgba(218,237,255,.075) 43%, rgba(255,255,255,0) 78%);
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.tile:hover .artwork::after,
+.tile:focus-visible .artwork::after,
+.tile:active .artwork::after { opacity: 1; }
+.tile:focus-visible { outline: none; }
+.tile:focus-visible .artwork { outline: 2px solid var(--bb-focus); outline-offset: 2px; }
+.tile[aria-pressed="true"] .artwork { box-shadow: inset 0 0 0 2px var(--bb-focus); }
+
+/* One name row and precisely one 24px metadata row, independent of effect count. */
+.details {
+  display: grid;
+  grid-template-rows: 20px 24px;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 8px;
+}
+.name {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--bb-text);
+  font: 600 13px/20px var(--bb-font-interface);
+}
+.metadata {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+  gap: 4px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.setTag, .effectTag, .more {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 24px;
+  max-width: 100%;
+  padding-inline: 5px;
+  border: 1px solid var(--bb-border);
+  border-radius: 2px;
+  background: var(--bb-panel);
+  color: var(--bb-text);
+  font: 500 10px/16px var(--bb-font-interface);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.setTag { color: var(--bb-muted); }
+.effectStrip {
+  position: relative;
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  gap: 3px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.effectTag { gap: 3px; }
+.effectValue { flex: none; }
+.effectSymbol {
+  display: inline-block;
+  flex: none;
+  width: 15px;
+  height: 15px;
+  background-color: currentColor;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+.conditionalFactions, .conditionalFaction {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 1px;
+}
+.factionSymbol { display: block; width: 14px; height: 14px; flex: none; }
+.orSeparator { font-size: 9px; opacity: .75; }
+.more { padding-inline: 4px; }
+.measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  width: max-content;
+  height: 24px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media (max-width: 700px) {
+  .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+  .gallery.compact { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+  .name { font-size: 12px; }
+  .setTag, .effectTag, .more { font-size: 9px; padding-inline: 3px; }
+  .effectSymbol { width: 13px; height: 13px; }
+  .factionSymbol { width: 12px; height: 12px; }
+  .effectTag { gap: 2px; }
+  .metadata { gap: 3px; }
+  .effectStrip { gap: 2px; }
+  .measure { gap: 2px; }
+}
+@media (max-width: 350px) {
+  .gallery:not(.compact) { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .artwork::after { transition: none; }
+}
