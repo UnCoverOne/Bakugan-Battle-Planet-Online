@@ -105,6 +105,7 @@
   flex: none;
   width: 24px;
   height: 24px;
+  aspect-ratio: 1 / 1;
   border: 1px solid rgba(0, 0, 0, .22);
   border-radius: 2px;
   box-sizing: border-box;
@@ -137,7 +138,8 @@
   border-radius: 2px;
   background: var(--bb-panel);
   color: var(--bb-muted);
-  font: 500 10px/14px var(--bb-font-interface);
+  /* 16px line + 6px padding + 2px borders = 24px, matching faction tags. */
+  font: 500 10px/16px var(--bb-font-interface);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -161,14 +163,12 @@
 @container (max-width: 220px) {
   .metadataWithRolling { gap: 2px; }
   .metadataWithRolling .factions { gap: 1px; }
-  .metadataWithRolling .faction { width: 19px; height: 20px; }
   .metadataWithRolling .factionGlyph { width: 15px; height: 15px; }
   .metadataWithRolling .tag { padding-inline: 3px; font-size: 9px; }
   .metadataWithRolling .rollingTag { padding-inline: 2px; }
   .metadataWithRolling .rollingTag > span { gap: 1px; }
 }
 @container (max-width: 175px) {
-  .metadataWithRolling .faction { width: 16px; height: 18px; }
   .metadataWithRolling .factionGlyph { width: 13px; height: 13px; }
   .metadataWithRolling .factions { gap: 0; }
   .metadataWithRolling .tag { padding-inline: 2px; font-size: 9px; }
@@ -180,7 +180,7 @@
   .gallery.compact { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
   .name { font-size: 12px; }
   .tag { padding-inline: 4px; font-size: 9px; }
-  .faction { width: 20px; height: 22px; }
+  /* Keep faction backgrounds square and level with the 24px metadata tags. */
   .factionGlyph { width: 16px; height: 16px; }
 }
 /* Avoid clipping the metadata on the very narrowest phone displays. */
