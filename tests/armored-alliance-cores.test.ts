@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { ARMORED_ALLIANCE_CORE_SCAN_NUMBERS, CARDS, CORE_COMPENDIUM, CORES, STARTER_DECKS, makePlayer } from "../lib/data";
+import { CARDS, CORE_COMPENDIUM, CORES, STARTER_DECKS, makePlayer } from "../lib/data";
 import { createMatch } from "../lib/game";
 import { cardCostBreakdown } from "../lib/rules/costs";
 import { evaluateBakuganCharacteristics } from "../lib/rules/modifiers";
@@ -20,7 +20,7 @@ test("only the 28 unique Armored Alliance BakuCores are playable", () => {
   assert.equal(aaCores.find((core) => core.number === 69)?.frostStrike, 1);
   assert.equal(aaCores.find((core) => core.number === 78)?.fusionFrostStrike, 2);
   assert.equal(aaCores.find((core) => core.number === 79)?.fusionBonus, 500);
-  assert.equal(aaCores.find((core) => core.number === 1)?.art, "/assets/cores/full/1.webp");
+  assert.equal(aaCores.find((core) => core.number === 1)?.art, "/assets/cores/armored-alliance/aa-01.png");
 });
 
 test("AA artwork references stay attached to canonical gameplay cores", () => {
@@ -35,18 +35,19 @@ test("AA artwork references stay attached to canonical gameplay cores", () => {
   assert.ok(printings.every((printing) => printing.set === "Armored Alliance" && printing.art.endsWith(".png")));
 });
 
-test("Armored Alliance fronts use supplied scans and retain explicit placeholders only when needed", () => {
-  assert.deepEqual([...ARMORED_ALLIANCE_CORE_SCAN_NUMBERS], [2, 7, 15, 16, 17, 73, 75, 76, 78, 79]);
-  assert.ok(aaCores.filter((core) => ARMORED_ALLIANCE_CORE_SCAN_NUMBERS.has(core.number)).every((core) => core.art.endsWith(`/aa-${String(core.number).padStart(2, "0")}.png`)));
-  assert.ok(aaCores.filter((core) => !ARMORED_ALLIANCE_CORE_SCAN_NUMBERS.has(core.number)).every((core) => core.art.startsWith("/assets/cores/full/")));
-  assert.ok(aaCores.every((core) => core.type && core.art));
-  for (const number of [2, 7, 15, 16, 17]) assert.equal(aaCores.find((core) => core.number === number)?.hasProvidedScan, true);
+test("AA Core art always points at its own set rather than unrelated BB fallbacks", () => {
+  const pending = new Set([69, 70, 71, 72, 74, 77]);
+  for (const candidate of aaCores) {
+    const stem = `/assets/cores/armored-alliance/aa-${String(candidate.number).padStart(2, "0")}`;
+    assert.equal(candidate.art, `${stem}${pending.has(candidate.number) ? "-placeholder" : ""}.png`);
+    assert.equal(candidate.art.includes("/assets/cores/full/"), false);
+  }
 });
 
-test("supplied AA scan files exist for every scan-backed catalogue core", () => {
-  for (const number of ARMORED_ALLIANCE_CORE_SCAN_NUMBERS) {
-    const asset = fileURLToPath(new URL(`../public/assets/cores/armored-alliance/aa-${String(number).padStart(2, "0")}.png`, import.meta.url));
-    assert.equal(existsSync(asset), true, `missing supplied scan for AA core ${number}`);
+test("every referenced AA primary artwork file exists, including explicit pending placeholders", () => {
+  for (const candidate of aaCores) {
+    const asset = fileURLToPath(new URL(`../public${candidate.art}`, import.meta.url));
+    assert.equal(existsSync(asset), true, `missing AA art for Core ${candidate.number}`);
   }
 });
 
