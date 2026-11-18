@@ -1,6 +1,7 @@
 "use client";
 
 import type { CoreEffect } from "../../lib/core-preview";
+import { OriginalImage } from "../media/OriginalImage";
 import { CardFactionGlyph } from "./CardFactionTag";
 import styles from "./CoresGallery.module.css";
 
@@ -15,8 +16,11 @@ const SYMBOLS = {
 } as const;
 
 function Symbol({ kind }: { kind: keyof typeof SYMBOLS }) {
+  // The supplied Fusion mark has important outline details: preserve the actual PNG.
+  if (kind === "fusion") return <OriginalImage className={styles.fusionSymbol}
+    src={SYMBOLS.fusion} width={16} height={16} alt="" aria-hidden="true" />;
   const mask = `url("${SYMBOLS[kind]}")`;
-  // Masks keep the original game artwork but let all tags use the same text colour.
+  // SVG masks retain the actual icon silhouette and match the theme's text colour.
   return <span className={styles.effectSymbol} style={{ maskImage: mask, WebkitMaskImage: mask }} aria-hidden="true" />;
 }
 
