@@ -139,8 +139,6 @@ export type Core = {
   conditionalDamage?: number;
   /** Alternate physical printings that share this catalogue core's rules. */
   printings?: CorePrinting[];
-  /** True only when the supplied archive contains a front scan for this printing. */
-  hasProvidedScan?: boolean;
   art: string;
 };
 
