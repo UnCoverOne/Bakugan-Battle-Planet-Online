@@ -35,6 +35,17 @@ const FACTION_TAGS: Record<string, { background: string; viewBox: string; path: 
   },
 };
 
+/** Reusable vector glyph for the Card gallery and conditional BakuCore effects. */
+export function CardFactionGlyph({ faction, className }: { faction: string; className?: string }) {
+  const symbol = FACTION_TAGS[faction];
+  if (!symbol) return null;
+  return (
+    <svg viewBox={symbol.viewBox} className={className} aria-hidden="true" focusable="false">
+      <path d={symbol.path} fill="currentColor" />
+    </svg>
+  );
+}
+
 export function CardFactionTag({ faction }: { faction: string }) {
   const symbol = FACTION_TAGS[faction];
   if (!symbol) return <span className={styles.factionFallback} title={faction}>{faction}</span>;
@@ -42,9 +53,7 @@ export function CardFactionTag({ faction }: { faction: string }) {
   return (
     <span className={styles.faction} role="img" aria-label={faction} title={faction}
       style={{ backgroundColor: symbol.background }}>
-      <svg viewBox={symbol.viewBox} className={styles.factionGlyph} aria-hidden="true" focusable="false">
-        <path d={symbol.path} fill="currentColor" />
-      </svg>
+      <CardFactionGlyph faction={faction} className={styles.factionGlyph} />
     </span>
   );
 }
