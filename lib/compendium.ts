@@ -1,6 +1,7 @@
 import { cardMatchesFilters, createEmptyCardFilters, type CardFilterState } from "./card-filters";
 import { bakuganRollingValues, type BakuganRollingValues } from "./bakugan-rolling";
 import { cardSetCode, compareCardCollectorOrder } from "./content/catalogue";
+import { coreEffects, coreForSet } from "./core-preview";
 import type { Core, GameCard } from "./game";
 
 export const COMPENDIUM_PAGE_SIZE = 24;
@@ -52,7 +53,6 @@ const oneOf = <T extends readonly string[]>(value: string | null, values: T, fal
 const choices = (params: URLSearchParams, key: string) => (
   [...new Set(params.getAll(key).map((value) => value.trim()).filter((value) => value && value !== "All"))]
 );
-const choice = (value: string | null) => value?.trim() || "All";
 const setCodeFor = (card: Pick<GameCard, "catalogId">) => cardSetCode(card);
 
 export function parseCompendiumState(input: URLSearchParams | string): CompendiumState {
@@ -194,15 +194,20 @@ export function relatedCompendiumCards(card: GameCard, cards: readonly GameCard[
 }
 
 export const CORE_COMPENDIUM_PAGE_SIZE = 24;
-export const CORE_COMPENDIUM_SORTS = ["collector", "type", "bonus", "damage"] as const;
+export const CORE_COMPENDIUM_SORTS = ["collector", "type", "bonus", "bonus-asc", "damage", "damage-asc"] as const;
 export const CORE_COMPENDIUM_DENSITIES = ["gallery", "compact"] as const;
 
 export type CoreCompendiumSort = (typeof CORE_COMPENDIUM_SORTS)[number];
 export type CoreCompendiumDensity = (typeof CORE_COMPENDIUM_DENSITIES)[number];
 export type CoreCompendiumState = {
   q: string;
-  set: string;
-  type: string;
+  /** Multi-select facets; each facet is OR within itself and AND across facets. */
+  set: string[];
+  type: string[];
+  bonus: string[];
+  damage: string[];
+  effects: string[];
+  faction: string[];
   sort: CoreCompendiumSort;
   density: CoreCompendiumDensity;
   page: number;
@@ -212,8 +217,12 @@ export type CoreCompendiumState = {
 
 export const DEFAULT_CORE_COMPENDIUM_STATE: CoreCompendiumState = Object.freeze({
   q: "",
-  set: "All",
-  type: "All",
+  set: [],
+  type: [],
+  bonus: [],
+  damage: [],
+  effects: [],
+  faction: [],
   sort: "collector",
   density: "gallery",
   page: 1,
@@ -226,8 +235,12 @@ export function parseCoreCompendiumState(input: URLSearchParams | string): CoreC
   const requestedPage = Number.parseInt(params.get("corePage") ?? "1", 10);
   return {
     q: params.get("q") ?? "",
-    set: choice(params.get("coreSet")),
-    type: choice(params.get("coreType")),
+    set: choices(params, "coreSet"),
+    type: choices(params, "coreType"),
+    bonus: choices(params, "corePower"),
+    damage: choices(params, "coreDamage"),
+    effects: choices(params, "coreEffect"),
+    faction: choices(params, "coreFaction"),
     sort: oneOf(params.get("coreSort"), CORE_COMPENDIUM_SORTS, DEFAULT_CORE_COMPENDIUM_STATE.sort),
     density: oneOf(params.get("coreDensity"), CORE_COMPENDIUM_DENSITIES, DEFAULT_CORE_COMPENDIUM_STATE.density),
     page: Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1,
@@ -238,9 +251,16 @@ export function parseCoreCompendiumState(input: URLSearchParams | string): CoreC
 
 export function coreCompendiumSearchParams(state: CoreCompendiumState) {
   const params = new URLSearchParams();
+  const append = (key: string, values: readonly string[]) => {
+    for (const value of values) if (value) params.append(key, value);
+  };
   if (state.q) params.set("q", state.q);
-  if (state.set !== DEFAULT_CORE_COMPENDIUM_STATE.set) params.set("coreSet", state.set);
-  if (state.type !== DEFAULT_CORE_COMPENDIUM_STATE.type) params.set("coreType", state.type);
+  append("coreSet", state.set);
+  append("coreType", state.type);
+  append("corePower", state.bonus);
+  append("coreDamage", state.damage);
+  append("coreEffect", state.effects);
+  append("coreFaction", state.faction);
   if (state.sort !== DEFAULT_CORE_COMPENDIUM_STATE.sort) params.set("coreSort", state.sort);
   if (state.density !== DEFAULT_CORE_COMPENDIUM_STATE.density) params.set("coreDensity", state.density);
   if (state.page > 1) params.set("corePage", String(state.page));
@@ -252,63 +272,50 @@ export function coreCompendiumSearchParams(state: CoreCompendiumState) {
 }
 
 const coreSearchTextCache = new WeakMap<Core, string>();
-
 const coreSearchableText = (core: Core) => {
   const cached = coreSearchTextCache.get(core);
   if (cached !== undefined) return cached;
-
   const value = [
-    core.name,
-    core.catalogId ?? core.id,
-    core.set ?? "Battle Brawlers",
-    core.type,
-    core.number,
-    core.bonus,
-    core.damageBonus,
-    core.frostStrike ? "FrostStrike" : "",
-    core.shadowStrike ? "ShadowStrike" : "",
-    core.bakuGearCostReduction ? "Baku-Gear" : "",
-    core.fusionBonus ? "Fusion" : "",
-    core.fusionDamageBonus ? "Fusion" : "",
+    core.name, core.catalogId ?? core.id, core.set ?? "Battle Brawlers",
+    core.type, core.number, core.bonus, core.damageBonus,
+    ...coreEffects(core).map((effect) => effect.label),
     ...(core.printings ?? []).flatMap((printing) => [
-      printing.set,
-      printing.number,
-      "alternate printing",
-      "reprint",
+      printing.set, printing.number, "alternate printing", "reprint",
     ]),
   ].join(" ").toLowerCase();
   coreSearchTextCache.set(core, value);
   return value;
 };
 
-const coreMatchesSet = (core: Core, set: string) =>
-  set === "All"
-  || (core.set ?? "Battle Brawlers") === set
-  || core.printings?.some((printing) => printing.set === set) === true;
+const coreMatchesSet = (core: Core, sets: readonly string[]) =>
+  !sets.length || sets.includes(core.set ?? "Battle Brawlers")
+  || core.printings?.some((printing) => sets.includes(printing.set)) === true;
 
-const coreNumberForSet = (core: Core, set: string) =>
-  core.printings?.find((printing) => printing.set === set)?.number ?? core.number;
-
-// Group the default collector view by release set before comparing numbers.
-// A selected set can also include alternate artwork tied to a canonical core,
-// so use that printing's collector number for the selected-set view.
+// Collector order uses the selected printing's number when a single set is selected.
+const coreNumberForSet = (core: Core, sets: readonly string[]) => coreForSet(core, sets).number;
 const coreCollectorSetRank = (core: Core) =>
   (core.set ?? "Battle Brawlers") === "Battle Brawlers" ? 0 : 1;
 
-export function compareCompendiumCores(left: Core, right: Core, sort: CoreCompendiumSort, set = "All") {
-  if (sort === "type") return left.type.localeCompare(right.type) || coreNumberForSet(left, set) - coreNumberForSet(right, set);
-  if (sort === "bonus") return right.bonus - left.bonus || left.damageBonus - right.damageBonus || coreNumberForSet(left, set) - coreNumberForSet(right, set);
-  if (sort === "damage") return right.damageBonus - left.damageBonus || left.bonus - right.bonus || coreNumberForSet(left, set) - coreNumberForSet(right, set);
-  return (set === "All" ? coreCollectorSetRank(left) - coreCollectorSetRank(right) : 0)
-    || coreNumberForSet(left, set) - coreNumberForSet(right, set)
-    || left.id.localeCompare(right.id);
+export function compareCompendiumCores(left: Core, right: Core, sort: CoreCompendiumSort, sets: readonly string[] = []) {
+  const collectorOrder = coreNumberForSet(left, sets) - coreNumberForSet(right, sets) || left.id.localeCompare(right.id);
+  if (sort === "type") return left.type.localeCompare(right.type) || collectorOrder;
+  if (sort === "bonus") return right.bonus - left.bonus || left.damageBonus - right.damageBonus || collectorOrder;
+  if (sort === "bonus-asc") return left.bonus - right.bonus || collectorOrder;
+  if (sort === "damage") return right.damageBonus - left.damageBonus || left.bonus - right.bonus || collectorOrder;
+  if (sort === "damage-asc") return left.damageBonus - right.damageBonus || collectorOrder;
+  return (sets.length === 1 ? 0 : coreCollectorSetRank(left) - coreCollectorSetRank(right))
+    || collectorOrder;
 }
 
 export function filterAndSortCompendiumCores(cores: readonly Core[], state: CoreCompendiumState) {
   const query = state.q.trim().toLowerCase();
   return cores.filter((core) => (
     coreMatchesSet(core, state.set)
-    && (state.type === "All" || core.type === state.type)
+    && (!state.type.length || state.type.includes(core.type))
+    && (!state.bonus.length || state.bonus.includes(String(core.bonus)))
+    && (!state.damage.length || state.damage.includes(String(core.damageBonus)))
+    && (!state.effects.length || coreEffects(core).some((effect) => state.effects.includes(effect.kind)))
+    && (!state.faction.length || core.conditionalFactions?.some((faction) => state.faction.includes(faction)) === true)
     && (!query || coreSearchableText(core).includes(query))
   )).toSorted((left, right) => compareCompendiumCores(left, right, state.sort, state.set));
 }
