@@ -31,5 +31,7 @@ export const CORE_SORT_LABELS: Record<CoreCompendiumState["sort"], string> = {
   collector: "Collector number",
   type: "Core type",
   bonus: "B-Power high–low",
+  "bonus-asc": "B-Power low–high",
   damage: "Damage high–low",
+  "damage-asc": "Damage low–high",
 };
