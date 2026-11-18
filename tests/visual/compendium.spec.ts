@@ -281,7 +281,7 @@ test("BakuCore detailed previews have uniform single-line effects and artwork-on
   const tile = gallery.locator("> button").first();
   await expect(tile.locator('[data-core-details] strong')).toHaveText("Fist");
   await expect(tile.locator('[data-core-meta]')).toContainText("BB #1");
-  await expect(tile.locator('[class*="effectTag"]')).toHaveCount(1);
+  await expect(tile.locator('[data-core-meta] > [class*="effectStrip"] > [class*="effectTag"]')).toHaveCount(1);
   const metrics = await tile.locator('[data-core-meta]').evaluate((element) => ({
     height: element.getBoundingClientRect().height,
     nowrap: getComputedStyle(element).whiteSpace === "nowrap",
