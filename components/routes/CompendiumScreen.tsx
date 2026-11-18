@@ -4,7 +4,6 @@ import { OfficialRulebook } from "./OfficialRulebook";
 import { GlossaryScreen } from "./GlossaryScreen";
 import { RulingsReference } from "./RulingsReference";
 import { CompendiumPagination } from "./CompendiumPagination";
-import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
 import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -30,8 +29,9 @@ import { updateCollection, type CollectionField } from "../../lib/collection";
 import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT } from "../../lib/reference";
 import { useAppFields } from "../application/AppProvider";
 import { copyText } from "../application/ui";
-import { ActionButton, CardGrid, Surface } from "../design-system/primitives";
+import { ActionButton, Surface } from "../design-system/primitives";
 import { CardsGallery } from "./CardsGallery";
+import { CoresGallery } from "./CoresGallery";
 import { CompendiumFieldPicker } from "./CompendiumFieldPicker";
 import type { CardFilterOption as FilterOption } from "../../lib/card-filters";
 import {
@@ -39,12 +39,13 @@ import {
   CARD_FILTER_LABELS,
   CORE_SET_OPTIONS,
   CORE_TYPE_OPTIONS,
+  FACTION_OPTIONS,
   createCardFilterOptionCatalogue,
   type CardFilterFacet,
   type CardFilterOptionCatalogue,
 } from "../../lib/card-filters";
 import { SORT_LABELS, CHARACTER_SORTS, NON_CHARACTER_SORTS, CORE_SORT_LABELS } from "../../lib/catalogue-sorting";
-import { coreForSet, corePreviewStats } from "../../lib/core-preview";
+import { CORE_EFFECT_OPTIONS } from "../../lib/core-preview";
 import styles from "./CompendiumScreen.module.css";
 import { CompendiumToolbar } from "./CompendiumToolbar";
 import { CompendiumSidebar } from "./CompendiumSidebar";
@@ -121,6 +122,11 @@ function FilterControls({
   </>;
 }
 
+const CORE_POWER_OPTIONS: FilterOption[] = [...new Set(CORE_COMPENDIUM.map((core) => core.bonus))]
+  .sort((a, b) => a - b).map((value) => ({ value: String(value), label: String(value) }));
+const CORE_DAMAGE_OPTIONS: FilterOption[] = [...new Set(CORE_COMPENDIUM.map((core) => core.damageBonus))]
+  .sort((a, b) => a - b).map((value) => ({ value: String(value), label: String(value) }));
+
 function CoreFilterControls({
   state, onChange, onSortChange,
 }: {
@@ -129,15 +135,25 @@ function CoreFilterControls({
   onSortChange: (sort: CoreCompendiumState["sort"]) => void;
 }) {
   return <>
-    <CompendiumFieldPicker label="Core Type" values={state.type === "All" ? [] : [state.type]}
-      options={CORE_TYPE_OPTIONS} mode="single"
-      onChange={(values) => onChange({ type: values[0] ?? "All" })} />
+    <CompendiumFieldPicker label="Core Type" values={state.type} options={CORE_TYPE_OPTIONS}
+      onChange={(type) => onChange({ type })} />
     <CompendiumFieldPicker label="Sort By" values={[state.sort]} options={CORE_SORT_OPTIONS}
       mode="single" clearable={false}
       onChange={(values) => { if (values[0]) onSortChange(values[0] as CoreCompendiumState["sort"]); }} />
-    <CompendiumFieldPicker label="Set" values={state.set === "All" ? [] : [state.set]}
-      options={CORE_SET_OPTIONS} mode="single"
-      onChange={(values) => onChange({ set: values[0] ?? "All" })} />
+    <CompendiumFieldPicker label="Set" values={state.set} options={CORE_SET_OPTIONS}
+      onChange={(set) => onChange({ set })} />
+    <CompendiumFieldPicker label="Effects" values={state.effects} options={CORE_EFFECT_OPTIONS}
+      searchable info="Match any selected effect type. All Core effects have equal weight."
+      onChange={(effects) => onChange({ effects })} />
+    <CompendiumFieldPicker label="B Power" values={state.bonus} options={CORE_POWER_OPTIONS}
+      searchable info="Filter the printed base B-Power value, independent of conditional or Fusion bonuses."
+      onChange={(bonus) => onChange({ bonus })} />
+    <CompendiumFieldPicker label="Damage" values={state.damage} options={CORE_DAMAGE_OPTIONS}
+      searchable info="Filter the printed base Damage value, independent of conditional or Fusion bonuses."
+      onChange={(damage) => onChange({ damage })} />
+    <CompendiumFieldPicker label="Conditional Factions" values={state.faction} options={FACTION_OPTIONS}
+      info="Find BakuCores with a bonus that applies to any selected faction."
+      onChange={(faction) => onChange({ faction })} />
   </>;
 }
 
@@ -302,8 +318,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   }, [closeInspector, sidebarOpen, navigateCore, selected, selectedCore]);
 
   const activeFilterCount = activeCardFilterCount(state) + (state.fusionOnly ? 1 : 0);
-  const activeCoreFilterCount = (["set", "type"] as const)
-    .filter((key) => coreState[key] !== "All").length;
+  const activeCoreFilterCount = (["set", "type", "bonus", "damage", "effects", "faction"] as const)
+    .reduce((total, key) => total + coreState[key].length, 0);
   const isCatalogue = section === "cards" || section === "cores";
   const activeCount = section === "cards" ? activeFilterCount : section === "cores" ? activeCoreFilterCount : 0;
   const density = section === "cores" ? coreState.density : state.density;
@@ -336,8 +352,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     keyword: [],
   }, { resetPage: true });
   const clearCoreFilters = () => navigateCore({
-    set: "All",
-    type: "All",
+    set: [], type: [], bonus: [], damage: [], effects: [], faction: [],
   }, { resetPage: true });
   const selectCard = (card: typeof CARDS[number], trigger?: HTMLElement | null) => {
     inspectorTrigger.current = trigger ?? inspectorTrigger.current;
@@ -463,33 +478,8 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 {corePages <= 1 && <span className={styles.singlePageCount}>{cores.length.toLocaleString()} BakuCores</span>}
               </div>
               {visibleCores.length ? (
-                <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>
-                  {visibleCores.map((core) => {
-                    const displayedCore = coreForSet(core, coreState.set);
-                    const stats = corePreviewStats(core);
-                    const printedSet = displayedCore.set ?? "Battle Brawlers";
-                    return (
-                      <button
-                        className={`${styles.cardTile} ${styles.coreTile} ${selectedCore?.id === core.id ? styles.cardTileSelected : ""}`}
-                        type="button"
-                        aria-pressed={selectedCore?.id === core.id}
-                        key={core.id}
-                        onClick={(event) => selectCore(core, event.currentTarget)}
-                      >
-                        <span className={styles.coreArt}><BakuCoreArt core={displayedCore} alt="" /></span>
-                        <span className={styles.cardCopy}>
-                          <strong>{core.type}</strong>
-                          <span className={styles.coreStatList} aria-label="BakuCore stats">
-                            {stats.map((stat) => <span key={stat}>{stat}</span>)}
-                          </span>
-                          <span className={styles.coreSetLabel} aria-label={`${printedSet}, collector number ${displayedCore.number}`}>
-                            {printedSet === "Armored Alliance" ? "AA" : "BB"} #{displayedCore.number}
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </CardGrid>
+                <CoresGallery cores={visibleCores} selectedSets={coreState.set} density={coreState.density}
+                  selectedId={selectedCore?.id} onSelect={(core, trigger) => selectCore(core, trigger)} />
               ) : (
                 <Surface className={styles.emptyResults} role="status">
                   <span>◇</span><h2>No BakuCores match</h2><p>Adjust the search or clear the active BakuCore filters to return to the full archive.</p>
@@ -505,6 +495,9 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               <CardInspector
                 core={selectedCore}
                 allCores={CORE_COMPENDIUM}
+                preferredCorePrintingId={coreState.set.length === 1
+                  ? selectedCore.printings?.find((printing) => printing.set === coreState.set[0])?.id
+                  : undefined}
                 rules={ruleReferences}
                 rulings={PUBLISHED_RULINGS}
                 tab={coreState.tab}
