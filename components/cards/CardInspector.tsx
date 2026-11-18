@@ -48,6 +48,8 @@ export type InspectorProps = SharedInspectorProps & (
   | {
       core: Core;
       allCores?: readonly Core[];
+      /** Use the matching physical printing when opening from a set-filtered gallery. */
+      preferredCorePrintingId?: string;
       onSelectCore?: (core: Core) => void;
       card?: never;
       allCards?: never;
@@ -291,7 +293,7 @@ function CoreRelated({
         <span><strong>{core.set ?? "Battle Brawlers"} #{core.number}</strong><small>Rules profile</small></span>
       </button>
       {core.printings.map((printing) => {
-        const printingCore = { ...core, set: printing.set, number: printing.number, art: printing.art, hasProvidedScan: true };
+        const printingCore = { ...core, set: printing.set, number: printing.number, art: printing.art };
         return (
           <button
             type="button"
@@ -313,6 +315,7 @@ export function CardInspector(props: InspectorProps) {
   const { rules, rulings, tab = "overview", mode = "modal", onTabChange, onClose, onShare, returnFocusRef, className, collectionEnabled = false, collection = {}, onCollectionChange } = props;
   const card = "card" in props ? props.card : undefined;
   const core = "core" in props ? props.core : undefined;
+  const preferredCorePrintingId = "core" in props ? props.preferredCorePrintingId : undefined;
   const allCards = "card" in props ? props.allCards : null;
   const onSelectCard = "card" in props ? props.onSelectCard : undefined;
   const baseCard = useMemo(() => {
@@ -325,7 +328,7 @@ export function CardInspector(props: InspectorProps) {
   }, [allCards, baseCard]);
   const requestedFusionFace = card?.fusionFace === "b" ? "b" : "a";
   const [fusionFace, setFusionFace] = useState<"a" | "b">(requestedFusionFace);
-  const [activePrintingId, setActivePrintingId] = useState("primary");
+  const [activePrintingId, setActivePrintingId] = useState(preferredCorePrintingId ?? "primary");
   const itemKey = baseCard?.fusionPairId
     ? "fusion-" + baseCard.fusionPairId
     : baseCard?.catalogId ?? core?.catalogId ?? core?.id ?? "item";
@@ -351,8 +354,8 @@ export function CardInspector(props: InspectorProps) {
 
   useEffect(() => {
     setFusionFace(requestedFusionFace);
-    setActivePrintingId("primary");
-  }, [itemKey, requestedFusionFace]);
+    setActivePrintingId(preferredCorePrintingId ?? "primary");
+  }, [itemKey, preferredCorePrintingId, requestedFusionFace]);
 
   const relevantRules = useMemo(
     () => displayedCard ? matchingReferences(displayedCard, rules, 8) : core ? matchingCoreReferences(core, rules, 8) : [],
@@ -365,7 +368,7 @@ export function CardInspector(props: InspectorProps) {
   const relatedCards = useMemo(() => displayedCard ? relatedCompendiumCards(displayedCard, allCards ?? []) : [], [allCards, displayedCard]);
   const activePrinting = core?.printings?.find((printing) => printing.id === activePrintingId);
   const displayedCore = core && activePrinting
-    ? { ...core, set: activePrinting.set, number: activePrinting.number, art: activePrinting.art, hasProvidedScan: true }
+    ? { ...core, set: activePrinting.set, number: activePrinting.number, art: activePrinting.art }
     : core;
   const panelId = `${isCore ? "core" : "card"}-inspector-${itemKey}-${effectiveTab}`;
   const titleId = `${isCore ? "core" : "card"}-inspector-title-${itemKey}`;
