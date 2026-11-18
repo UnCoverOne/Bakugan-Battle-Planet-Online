@@ -35,111 +35,6 @@
 
 
 
-.coreGrid {
-  align-items: stretch;
-}
-
-.coreTile {
-  height: 100%;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-}
-
-.coreTile .coreArt {
-  width: 100%;
-  aspect-ratio: 240 / 209;
-  flex: 0 0 auto;
-  min-height: 0;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  padding: var(--space-3);
-}
-
-.coreArt > span {
-  
-  width: 100%;
-  height: auto;
-  aspect-ratio: 240 / 209;
-  min-width: 0;
-  display: block;
-}
-
-.coreArt > span > img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  object-position: center;
-}
-
-.coreStatList {
-  display: grid;
-  align-content: start;
-  gap: .2rem;
-  line-height: 1.35;
-}
-
-.coreStatList > span {
-  overflow-wrap: anywhere;
-}
-
-.coreSetLabel {
-  display: block;
-  margin-top: auto;
-  padding-top: .45rem;
-}
-
-/* The original BakuCore view is independent of the Cards gallery. */
-.cardGrid {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  padding: 0;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11.5rem), 1fr));
-  gap: var(--space-4);
-}
-.cardGridCompact {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.25rem), 1fr));
-  gap: var(--space-3);
-}
-.cardTile {
-  min-width: 0;
-  padding: 0;
-  overflow: hidden;
-  text-align: left;
-}
-.cardTile:hover, .cardTile:focus-visible, .cardTileSelected { transform: translateY(-2px); }
-.cardCopy {
-  display: grid;
-  gap: var(--space-2);
-  padding: var(--space-4);
-}
-.coreTile .cardCopy {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: .4rem;
-}
-.coreTile .cardCopy > strong {
-  display: block;
-  min-height: 0;
-  line-height: 1.2;
-}
-.cardCopy > strong {
-  display: block;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  line-height: 1.15;
-}
-.cardGridCompact .cardCopy { gap: var(--space-1); padding: var(--space-3); }
-.cardGridCompact .coreTile .cardCopy > strong { min-height: 0; }
-
 .emptyResults {
   min-height: 26rem;
   display: grid;
@@ -164,10 +59,7 @@
   .workspace, .coreWorkspace {
     width: min(calc(100% - (2 * var(--space-4))), var(--content-wide));
   }
-  .cardGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
-  .cardGridCompact { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
-  .cardCopy { padding: var(--space-3); }
-  .cardGridCompact .cardCopy { padding: var(--space-2); }
+
 }
 
 .rulebookFrame {
@@ -213,22 +105,6 @@
   .rulebookFrame {width:min(calc(100% - (2 * var(--space-4))),var(--content-wide))}
   .rulebookFrame :global([data-rulebook-icons] [data-icon-grid]) {grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr))}
 }
-
-
-@media (max-width: 700px) {
-  .coreGrid,
-  .coreGrid.cardGridCompact {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-2);
-  }
-  .coreTile .cardCopy {
-    padding: var(--space-2);
-  }
-  .coreTile .cardCopy > strong {
-    overflow-wrap: anywhere;
-  }
-}
-
 
 
 /* Animate both the sidebar rail and the gallery/reference content together. */
