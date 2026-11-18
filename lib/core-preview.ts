@@ -55,10 +55,29 @@ export function coreEffects(core: Core): CoreEffect[] {
 }
 
 /** Resolve the correct physical printing without creating another playable Core. */
-export const coreForSet = (core: Core, sets: readonly string[] = []): Core => {
+export const coreForSet = (core: Core, selection: readonly string[] | string = []): Core => {
+  // The Deck Builder uses one set selection; the Compendium supports several.
+  const sets = typeof selection === "string" ? (selection === "All" ? [] : [selection]) : selection;
   if (!sets.length || (core.set && sets.includes(core.set))) return core;
   const printing = core.printings?.find((candidate) => sets.includes(candidate.set));
   return printing
     ? { ...core, set: printing.set, number: printing.number, art: printing.art }
     : core;
 };
+
+/** Legacy text presentation remains in active use by the Deck Builder. */
+export const corePreviewStats = (core: Core): string[] => coreEffects(core).map((effect) => {
+  const value = effect.value ?? "";
+  switch (effect.kind) {
+    case "power": return `${value} B`;
+    case "damage": return `${value} D`;
+    case "gear": return `Baku-Gear ${value} Energy`;
+    case "frost": return `${value} FrostStrike`;
+    case "shadow": return "ShadowStrike";
+    case "fusion-power": return `Fusion ${value} B`;
+    case "fusion-damage": return `Fusion ${value} D`;
+    case "fusion-frost": return `Fusion ${value} FrostStrike`;
+    case "conditional-power": return `${effect.factions?.join(" / ")}: ${value} B`;
+    case "conditional-damage": return `${effect.factions?.join(" / ")}: ${value} D`;
+  }
+});
