@@ -25,6 +25,8 @@ export type CompendiumDensity = (typeof COMPENDIUM_DENSITIES)[number];
 export type CardInspectorTab = (typeof CARD_INSPECTOR_TABS)[number];
 
 export type CompendiumState = CardFilterState & {
+  /** Only fused-side Character Cards; available with the Character-only type filter. */
+  fusionOnly: boolean;
   q: string;
   sort: CompendiumSort;
   density: CompendiumDensity;
@@ -35,6 +37,7 @@ export type CompendiumState = CardFilterState & {
 
 export const DEFAULT_COMPENDIUM_STATE: CompendiumState = Object.freeze({
   ...createEmptyCardFilters(),
+  fusionOnly: false,
   q: "",
   sort: "collector",
   density: "gallery",
@@ -55,10 +58,12 @@ const setCodeFor = (card: Pick<GameCard, "catalogId">) => cardSetCode(card);
 export function parseCompendiumState(input: URLSearchParams | string): CompendiumState {
   const params = typeof input === "string" ? new URLSearchParams(input) : input;
   const requestedPage = Number.parseInt(params.get("page") ?? "1", 10);
+  const types = choices(params, "type");
   return {
     q: params.get("q") ?? "",
     set: choices(params, "set"),
-    type: choices(params, "type"),
+    type: types,
+    fusionOnly: types.length === 1 && types[0] === "Character" && params.get("fusions") === "1",
     coreType: choices(params, "coreType"),
     bPower: choices(params, "bPower"),
     damage: choices(params, "damage"),
@@ -86,6 +91,7 @@ export function compendiumSearchParams(state: CompendiumState) {
   setIfChanged("q", state.q, DEFAULT_COMPENDIUM_STATE.q);
   appendChoices("set", state.set);
   appendChoices("type", state.type);
+  if (state.fusionOnly && state.type.length === 1 && state.type[0] === "Character") params.set("fusions", "1");
   appendChoices("coreType", state.coreType);
   appendChoices("bPower", state.bPower);
   appendChoices("damage", state.damage);
@@ -155,19 +161,21 @@ export function filterAndSortCompendiumCards(
   options: { includeFusionBack?: boolean; rollingByCardId?: ReadonlyMap<string, BakuganRollingValues> } = {},
 ) {
   const query = state.q.trim().toLowerCase();
+  const fusionOnly = state.fusionOnly && state.type.length === 1 && state.type[0] === "Character";
   return cards.filter((card) => (
-    // The unfused face is the single Compendium representative. The reverse
-    // face remains available to the shared inspector and gameplay systems.
-    (options.includeFusionBack || card.fusionFace !== "b")
+    // Normally one unfused representative per Fusion Bakugan; Fusion-only
+    // intentionally swaps the gallery to the paired fused-side Character Cards.
+    (fusionOnly ? card.type === "Character" && card.fusionFace === "b"
+      : options.includeFusionBack || card.fusionFace !== "b")
     && cardMatchesFilters(card, state)
     && (!query || searchableText(card).includes(query))
   )).toSorted((left, right) => compareCompendiumCards(left, right, state.sort, options.rollingByCardId));
 }
 
-export function selectedCompendiumCard(cards: readonly GameCard[], identity: string) {
+export function selectedCompendiumCard(cards: readonly GameCard[], identity: string, allowFusionBack = false) {
   if (!identity) return null;
   const selected = cards.find((card) => card.catalogId === identity || card.slug === identity) ?? null;
-  if (!selected?.fusionPairId || selected.fusionFace !== "b") return selected;
+  if (allowFusionBack || !selected?.fusionPairId || selected.fusionFace !== "b") return selected;
   return cards.find((card) => card.fusionPairId === selected.fusionPairId && card.fusionFace === "a") ?? selected;
 }
 
