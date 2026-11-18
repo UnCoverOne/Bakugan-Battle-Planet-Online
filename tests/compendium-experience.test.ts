@@ -12,6 +12,7 @@ import {
   parseCoreCompendiumState,
   parseCompendiumState,
   relatedCompendiumCards,
+  selectedCompendiumCard,
   selectedCompendiumCore,
 } from "../lib/compendium";
 import {
@@ -66,6 +67,7 @@ test("Compendium URL state round-trips filters, density, selection, and inspecto
     q: "dragonoid",
     set: ["BB"],
     type: ["Character"],
+    fusionOnly: false,
     coreType: ["Magic Shield"],
     bPower: [],
     damage: [],
@@ -84,6 +86,79 @@ test("Compendium URL state round-trips filters, density, selection, and inspecto
     parseCompendiumState("sort=unsupported&density=huge&page=-4&tab=unknown"),
     DEFAULT_COMPENDIUM_STATE,
   );
+});
+
+test("Fusions filter round-trips only for Character-only URLs and stays absent by default", () => {
+  const state = parseCompendiumState("type=Character&fusions=1&faction=Aquos&sort=bpower-desc&page=2");
+  assert.equal(state.fusionOnly, true);
+  assert.equal(compendiumSearchParams(state).get("fusions"), "1");
+  assert.deepEqual(parseCompendiumState(compendiumSearchParams(state)), state);
+  assert.equal(parseCompendiumState("type=Character").fusionOnly, false);
+  for (const type of ["", "type=Action", "type=Character&type=Evo"]) {
+    const invalid = parseCompendiumState(`${type}${type ? "&" : ""}fusions=1`);
+    assert.equal(invalid.fusionOnly, false);
+    assert.equal(compendiumSearchParams(invalid).has("fusions"), false);
+  }
+});
+
+test("Fusions filter shows exclusively fused-side Character Cards and respects other facets", () => {
+  const unfused = card({
+    catalogId: "bb-201a", displayName: "Alpha", type: "Character",
+    fusionPairId: "fusion-alpha", fusionFace: "a", bPower: 400, damage: 2,
+  });
+  const fused = card({
+    catalogId: "bb-201b", displayName: "Alpha Fused", type: "Character",
+    fusionPairId: "fusion-alpha", fusionFace: "b",
+    faction: "Aquos", factions: ["Pyrus", "Aquos"], bPower: 1000, damage: 8,
+  });
+  const anotherFused = card({
+    catalogId: "bb-202b", displayName: "Beta Fused", type: "Character",
+    fusionPairId: "fusion-beta", fusionFace: "b", bPower: 600, damage: 5,
+  });
+  const ordinary = card({
+    catalogId: "bb-203", displayName: "Ordinary", type: "Character",
+    bPower: 1000, damage: 8,
+  });
+  const action = card({ catalogId: "bb-204", displayName: "Fusion Action", type: "Action" });
+  const catalogue = [unfused, fused, anotherFused, ordinary, action];
+  const state = parseCompendiumState("type=Character&fusions=1");
+  assert.deepEqual(
+    filterAndSortCompendiumCards(catalogue, state).map(candidate => candidate.catalogId),
+    ["bb-201b", "bb-202b"],
+  );
+  assert.deepEqual(
+    filterAndSortCompendiumCards(catalogue, {
+      ...state, faction: ["Aquos"], bPower: ["1000"], damage: ["8"],
+    }).map(candidate => candidate.catalogId),
+    ["bb-201b"],
+  );
+  assert.deepEqual(
+    filterAndSortCompendiumCards(catalogue, { ...state, fusionOnly: false })
+      .map(candidate => candidate.catalogId),
+    ["bb-201a", "bb-203"],
+  );
+  assert.equal(selectedCompendiumCard(catalogue, fused.catalogId), unfused);
+  assert.equal(selectedCompendiumCard(catalogue, fused.catalogId, true), fused);
+  // Invalid programmatic states must not expose fused faces in the general catalogue.
+  assert.ok(!filterAndSortCompendiumCards(catalogue, { ...state, type: [], fusionOnly: true })
+    .some(candidate => candidate.fusionFace === "b"));
+});
+
+test("Fused-side Character previews inherit their Bakugan rolling stats", async () => {
+  const fusion = BAKUGAN.find(candidate => candidate.fusionCharacter);
+  assert.ok(fusion?.fusionCharacter, "Expected an actual Fusion Bakugan with two faces");
+  assert.equal(bakuganRollingValues(fusion.fusionCharacter)?.rollAccuracy, fusion.rollAccuracy);
+  assert.equal(bakuganRollingValues(fusion.fusionCharacter)?.doubleCoreChance, fusion.doubleCoreChance);
+  const [screen, inspector, rolling] = await Promise.all([
+    read("components/routes/CompendiumScreen.tsx"),
+    read("components/cards/CardInspector.tsx"),
+    read("components/routes/CardsGallery.tsx"),
+  ]);
+  assert.match(screen, /label="Fusions"/);
+  assert.match(screen, /onFusionChange/);
+  assert.match(screen, /fusionOnly: false/);
+  assert.match(inspector, /requestedFusionFace/);
+  assert.match(rolling, /bakuganRollingValues\(card\)/);
 });
 
 test("Compendium query state preserves spaces while filtering ignores edge whitespace", () => {
