@@ -182,7 +182,7 @@ export function CollectionScreen() {
               });
             }}
           />
-          <div className={compendiumStyles.filterDivider} role="separator" />
+          <div className={styles.filterDivider} role="separator" />
           <FilterPicker
             label="Sort"
             values={[selectedCardSort]}
@@ -191,7 +191,7 @@ export function CollectionScreen() {
             mode="single"
             clearable={false}
           />
-          <div className={compendiumStyles.filterDivider} role="separator" />
+          <div className={styles.filterDivider} role="separator" />
           <CardFilterPanel
             filters={cardState}
             facets={secondaryCardFacets}
@@ -208,7 +208,7 @@ export function CollectionScreen() {
             onChange={(values) => navigate({ coreType: values[0] ?? null, corePage: null })}
             mode="single"
           />
-          <div className={compendiumStyles.filterDivider} role="separator" />
+          <div className={styles.filterDivider} role="separator" />
           <FilterPicker
             label="Sort"
             values={[coreState.sort]}
@@ -217,7 +217,7 @@ export function CollectionScreen() {
             mode="single"
             clearable={false}
           />
-          <div className={compendiumStyles.filterDivider} role="separator" />
+          <div className={styles.filterDivider} role="separator" />
           <FilterPicker
             label="Set"
             values={coreState.set}
@@ -227,7 +227,7 @@ export function CollectionScreen() {
           />
         </>
       )}
-      <div className={compendiumStyles.filterDivider} role="separator" />
+      <div className={styles.filterDivider} role="separator" />
       <FilterPicker
         label="Collection sort"
         values={[collectionSort]}
@@ -236,7 +236,7 @@ export function CollectionScreen() {
         mode="single"
         clearable={false}
       />
-      <div className={compendiumStyles.filterDivider} role="separator" />
+      <div className={styles.filterDivider} role="separator" />
       {allCollectionFilters.map((field) => (
         <FilterPicker
           key={field}
@@ -266,7 +266,7 @@ export function CollectionScreen() {
           {renderCollectionFilterControls()}
         </Surface>
         <main className={compendiumStyles.gallery}>
-          {activeTab === "cards" ? <CardGrid className={`${compendiumStyles.cardGrid} ${cardState.density === "compact" ? compendiumStyles.cardGridCompact : ""}`} minCardWidth={cardState.density === "compact" ? "9.25rem" : "11.5rem"}>{(visible as typeof CARDS).map((card) => { const entry = cardEntries.get(card.catalogId)!; return <CollectionCard key={card.catalogId} card={card} entry={entry} selected={selected?.catalogId === card.catalogId} onSelect={selectCard} onQuickChange={(field, delta) => changeCollection(card.catalogId, field, delta)} />; })}</CardGrid> : <CardGrid className={`${compendiumStyles.cardGrid} ${compendiumStyles.coreGrid} ${coreState.density === "compact" ? compendiumStyles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>{(visible as typeof CORE_COMPENDIUM).map((core) => { const entry = collectionEntryForIds(collection, coreCollectionIds(core)); return <CollectionCore key={core.id} core={core} entry={entry} selected={selectedCore?.id === core.id} onSelect={selectCore} onQuickChange={(field, delta) => changeCollection(core.catalogId ?? core.id, field, delta)} />; })}</CardGrid>}
+          {activeTab === "cards" ? <CardGrid className={`${styles.cardGrid} ${cardState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={cardState.density === "compact" ? "9.25rem" : "11.5rem"}>{(visible as typeof CARDS).map((card) => { const entry = cardEntries.get(card.catalogId)!; return <CollectionCard key={card.catalogId} card={card} entry={entry} selected={selected?.catalogId === card.catalogId} onSelect={selectCard} onQuickChange={(field, delta) => changeCollection(card.catalogId, field, delta)} />; })}</CardGrid> : <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>{(visible as typeof CORE_COMPENDIUM).map((core) => { const entry = collectionEntryForIds(collection, coreCollectionIds(core)); return <CollectionCore key={core.id} core={core} entry={entry} selected={selectedCore?.id === core.id} onSelect={selectCore} onQuickChange={(field, delta) => changeCollection(core.catalogId ?? core.id, field, delta)} />; })}</CardGrid>}
           {!visible.length && <Surface className={compendiumStyles.emptyResults} role="status"><span>◇</span><h2>No collection items match</h2><p>Adjust the search or clear the active filters to return to the full archive.</p><ActionButton tone="secondary" onClick={clearFilters}>Clear filters</ActionButton></Surface>}
           <nav className={compendiumStyles.pagination} aria-label="Collection pages"><button disabled={page === 1} onClick={() => setPage(page - 1)}>← Previous</button><span>Page {page} of {pages}</span><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next →</button></nav>
         </main>
@@ -280,12 +280,12 @@ export function CollectionScreen() {
 
 function CollectionCard({ card, entry, selected, onSelect, onQuickChange }: { card: typeof CARDS[number]; entry: { standard: number; foil: number; wishlist: number }; selected: boolean; onSelect: (card: typeof CARDS[number]) => void; onQuickChange: (field: CollectionField, delta: number) => void }) {
   const owned = entry.standard + entry.foil;
-  return <div className={`${styles.collectionTile} ${owned ? "" : styles.unowned} ${selected ? styles.collectionTileSelected : ""}`}><button className={`${compendiumStyles.cardTile} ${selected ? compendiumStyles.cardTileSelected : ""}`} type="button" aria-pressed={selected} onClick={() => onSelect(card)}><span className={compendiumStyles.cardArt}><span className={compendiumStyles.cardArtFrame}><ResponsiveCardImage card={card} presentation="tile" /><BakuganRollingOverlay card={card} /></span></span><span className={compendiumStyles.cardCopy}><span className={compendiumStyles.cardBadges}><StatusChip tone="info">{card.faction}</StatusChip><StatusChip>{cardSetCode(card)}</StatusChip></span><strong>{card.displayName}</strong><small>{card.type} · {card.cost} Energy · {card.rarity}</small></span></button><CollectionFooter label={card.displayName} owned={owned} wishlist={entry.wishlist} standard={entry.standard} onQuickChange={onQuickChange} /></div>;
+  return <div className={`${styles.collectionTile} ${owned ? "" : styles.unowned} ${selected ? styles.collectionTileSelected : ""}`}><button className={`${styles.cardTile} ${selected ? styles.cardTileSelected : ""}`} type="button" aria-pressed={selected} onClick={() => onSelect(card)}><span className={styles.cardArt}><span className={styles.cardArtFrame}><ResponsiveCardImage card={card} presentation="tile" /><BakuganRollingOverlay card={card} /></span></span><span className={styles.cardCopy}><span className={styles.cardBadges}><StatusChip tone="info">{card.faction}</StatusChip><StatusChip>{cardSetCode(card)}</StatusChip></span><strong>{card.displayName}</strong><small>{card.type} · {card.cost} Energy · {card.rarity}</small></span></button><CollectionFooter label={card.displayName} owned={owned} wishlist={entry.wishlist} standard={entry.standard} onQuickChange={onQuickChange} /></div>;
 }
 
 function CollectionCore({ core, entry, selected, onSelect, onQuickChange }: { core: typeof CORE_COMPENDIUM[number]; entry: { standard: number; foil: number; wishlist: number }; selected: boolean; onSelect: (core: typeof CORE_COMPENDIUM[number]) => void; onQuickChange: (field: CollectionField, delta: number) => void }) {
   const owned = entry.standard + entry.foil;
-  return <div className={`${styles.collectionTile} ${owned ? "" : styles.unowned} ${selected ? styles.collectionTileSelected : ""}`}><button className={`${compendiumStyles.cardTile} ${compendiumStyles.coreTile} ${selected ? compendiumStyles.cardTileSelected : ""}`} type="button" aria-pressed={selected} onClick={() => onSelect(core)}><span className={compendiumStyles.coreArt}><BakuCoreArt core={core} alt={`${core.name} front`} /></span><span className={compendiumStyles.cardCopy}><span className={compendiumStyles.cardBadges}><StatusChip tone="info">{core.type}</StatusChip><StatusChip>{core.set === "Armored Alliance" ? "AA" : "BB"}</StatusChip></span><strong>{core.name}</strong><small>{core.set === "Armored Alliance" ? "AA" : "BB"} #{core.number}</small></span></button><CollectionFooter label={core.name} owned={owned} wishlist={entry.wishlist} standard={entry.standard} onQuickChange={onQuickChange} /></div>;
+  return <div className={`${styles.collectionTile} ${owned ? "" : styles.unowned} ${selected ? styles.collectionTileSelected : ""}`}><button className={`${styles.cardTile} ${styles.coreTile} ${selected ? styles.cardTileSelected : ""}`} type="button" aria-pressed={selected} onClick={() => onSelect(core)}><span className={styles.coreArt}><BakuCoreArt core={core} alt={`${core.name} front`} /></span><span className={styles.cardCopy}><span className={styles.cardBadges}><StatusChip tone="info">{core.type}</StatusChip><StatusChip>{core.set === "Armored Alliance" ? "AA" : "BB"}</StatusChip></span><strong>{core.name}</strong><small>{core.set === "Armored Alliance" ? "AA" : "BB"} #{core.number}</small></span></button><CollectionFooter label={core.name} owned={owned} wishlist={entry.wishlist} standard={entry.standard} onQuickChange={onQuickChange} /></div>;
 }
 
 function CollectionFooter({ label, owned, wishlist, standard, onQuickChange }: { label: string; owned: number; wishlist: number; standard: number; onQuickChange: (field: CollectionField, delta: number) => void }) {
