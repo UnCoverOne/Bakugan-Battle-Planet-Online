@@ -323,7 +323,8 @@ export function CardInspector(props: InspectorProps) {
     if (!baseCard?.fusionPairId || !allCards) return null;
     return allCards.find((candidate) => candidate.fusionPairId === baseCard.fusionPairId && candidate.fusionFace === "b") ?? null;
   }, [allCards, baseCard]);
-  const [fusionFace, setFusionFace] = useState<"a" | "b">("a");
+  const requestedFusionFace = card?.fusionFace === "b" ? "b" : "a";
+  const [fusionFace, setFusionFace] = useState<"a" | "b">(requestedFusionFace);
   const [activePrintingId, setActivePrintingId] = useState("primary");
   const itemKey = baseCard?.fusionPairId
     ? "fusion-" + baseCard.fusionPairId
@@ -349,9 +350,9 @@ export function CardInspector(props: InspectorProps) {
     : core ? coreCollectionIds(core) : [];
 
   useEffect(() => {
-    setFusionFace("a");
+    setFusionFace(requestedFusionFace);
     setActivePrintingId("primary");
-  }, [itemKey]);
+  }, [itemKey, requestedFusionFace]);
 
   const relevantRules = useMemo(
     () => displayedCard ? matchingReferences(displayedCard, rules, 8) : core ? matchingCoreReferences(core, rules, 8) : [],
