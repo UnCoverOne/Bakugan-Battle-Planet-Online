@@ -28,6 +28,7 @@ import { compareCardCollectorOrder, CONTROLLED_CATALOGUE } from "../lib/content/
 import { BAKUGAN } from "../lib/data";
 import { CHARACTER_SORTS, NON_CHARACTER_SORTS } from "../lib/catalogue-sorting";
 import { bakuganRollingValues } from "../lib/bakugan-rolling";
+import { coreEffects, coreForSet, CORE_EFFECT_OPTIONS } from "../lib/core-preview";
 
 const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -334,8 +335,12 @@ test("BakuCore compendium state filters, sorts, and selects both sets", () => {
   const state = parseCoreCompendiumState("q=fusion&coreSet=Armored+Alliance&coreType=Fist&coreSort=bonus&coreDensity=compact&corePage=2&core=aa-core-70");
   assert.deepEqual(state, {
     q: "fusion",
-    set: "Armored Alliance",
-    type: "Fist",
+    set: ["Armored Alliance"],
+    type: ["Fist"],
+    bonus: [],
+    damage: [],
+    effects: [],
+    faction: [],
     sort: "bonus",
     density: "compact",
     page: 2,
@@ -353,6 +358,88 @@ test("BakuCore compendium state filters, sorts, and selects both sets", () => {
   assert.equal(selectedCompendiumCore(candidates, "aa-core-70")?.number, 70);
 });
 
+test("BakuCore effect tags cover all ten supported mechanics without ranking them", () => {
+  const all = core({
+    id: "effects-all", number: 90, name: "Effects",
+    bonus: -100, damageBonus: 3, bakuGearCostReduction: 2,
+    frostStrike: 1, shadowStrike: true,
+    fusionBonus: 500, fusionDamageBonus: 4, fusionFrostStrike: 2,
+    conditionalFactions: ["Pyrus", "Darkus"], conditionalBonus: 400, conditionalDamage: 3,
+  });
+  const effects = coreEffects(all);
+  assert.deepEqual(effects.map((effect) => effect.kind), CORE_EFFECT_OPTIONS.map((option) => option.value));
+  assert.ok(effects.every((effect) => effect.label.length > 0));
+  assert.equal(effects.find((effect) => effect.kind === "power")?.value, "-100");
+  assert.deepEqual(effects.find((effect) => effect.kind === "conditional-damage")?.factions, ["Pyrus", "Darkus"]);
+  assert.deepEqual(coreEffects(core({ id: "zero", number: 91, name: "Zero" })), []);
+});
+
+test("Core multi-select fields combine OR within a facet and AND between facets", () => {
+  const candidates = [
+    core({ id: "aa-core-70", number: 70, name: "Fusion Damage", set: "Armored Alliance",
+      type: "Fist", fusionDamageBonus: 5, damageBonus: 0 }),
+    core({ id: "aa-core-74", number: 74, name: "Fusion Power", set: "Armored Alliance",
+      type: "Shield", fusionBonus: 500, bonus: 0 }),
+    core({ id: "core-11", number: 11, name: "Conditional", set: "Battle Brawlers",
+      type: "Fist", bonus: 100, conditionalFactions: ["Pyrus", "Darkus"], conditionalDamage: 3 }),
+    core({ id: "core-37", number: 37, name: "Magic Shield", set: "Battle Brawlers",
+      type: "Magic Shield", bonus: 500 }),
+  ];
+  const state = parseCoreCompendiumState(
+    "coreSet=Armored+Alliance&coreSet=Battle+Brawlers&coreType=Fist&coreType=Shield" +
+    "&coreEffect=fusion-damage&coreEffect=conditional-damage",
+  );
+  assert.deepEqual(state.set, ["Armored Alliance", "Battle Brawlers"]);
+  assert.deepEqual(state.type, ["Fist", "Shield"]);
+  assert.deepEqual(coreCompendiumSearchParams(state).getAll("coreEffect"), ["fusion-damage", "conditional-damage"]);
+  assert.deepEqual(parseCoreCompendiumState(coreCompendiumSearchParams(state)), state);
+  assert.deepEqual(filterAndSortCompendiumCores(candidates, state).map((candidate) => candidate.id),
+    ["core-11", "aa-core-70"]);
+  assert.deepEqual(filterAndSortCompendiumCores(candidates, {
+    ...state, effects: ["conditional-damage"], faction: ["Darkus"], bonus: ["100"], damage: ["0"],
+  }).map((candidate) => candidate.id), ["core-11"]);
+  assert.equal(filterAndSortCompendiumCores(candidates, { ...state, effects: ["fusion-power"], type: ["Fist"] }).length, 0);
+});
+
+test("Core alternate printings follow the chosen set and never duplicate playable identities", () => {
+  const candidate = core({ id: "core-7", number: 7, name: "Reprinted Fist",
+    set: "Battle Brawlers", printings: [
+      { id: "aa-printing-24", set: "Armored Alliance", number: 24, art: "/assets/cores/armored-alliance/aa-24.png" },
+    ],
+  });
+  assert.equal(coreForSet(candidate, []).number, 7);
+  assert.equal(coreForSet(candidate, ["Armored Alliance"]).number, 24);
+  assert.equal(coreForSet(candidate, ["Armored Alliance"]).art, "/assets/cores/armored-alliance/aa-24.png");
+  assert.equal(coreForSet(candidate, ["Battle Brawlers", "Armored Alliance"]).number, 7);
+  assert.deepEqual(filterAndSortCompendiumCores([candidate],
+    { ...DEFAULT_CORE_COMPENDIUM_STATE, set: ["Armored Alliance"] }).map((core) => core.id), ["core-7"]);
+});
+
+test("Core gallery uses a single nonwrapping equal-weight effect row and no fallback overlays", async () => {
+  const [gallery, css, tag, artwork, artworkCss, screen, screenCss] = await Promise.all([
+    read("components/routes/CoresGallery.tsx"),
+    read("components/routes/CoresGallery.module.css"),
+    read("components/routes/CoreEffectTag.tsx"),
+    read("components/bakucore/BakuCoreArt.tsx"),
+    read("components/bakucore/BakuCoreArt.module.css"),
+    read("components/routes/CompendiumScreen.tsx"),
+    read("components/routes/CompendiumScreen.module.css"),
+  ]);
+  assert.match(gallery, /useLayoutEffect/);
+  assert.match(gallery, /ResizeObserver/);
+  assert.match(gallery, /additional effects/);
+  assert.match(gallery, /data-core-meta/);
+  assert.match(css, /grid-template-rows: 20px 24px/);
+  assert.match(css, /white-space: nowrap/);
+  assert.match(css, /aspect-ratio: 240 \/ 209/);
+  assert.match(tag, /CORE_EFFECT_OPTIONS|CoreEffectTag/);
+  assert.doesNotMatch(artwork, /overlayItems|effectFallback|hasProvidedScan/);
+  assert.doesNotMatch(artworkCss, /\.overlay/);
+  assert.match(screen, /<CoresGallery/);
+  assert.doesNotMatch(screen, /corePreviewStats|<CardGrid/);
+  assert.doesNotMatch(screenCss, /\.coreTile|\.coreStatList|\.cardGridCompact/);
+});
+
 test("BakuCore collector ordering groups sets and sorts each set numerically", () => {
   const candidates = [
     core({ id: "aa-core-10", name: "AA 10", number: 10, set: "Armored Alliance" }),
@@ -368,7 +455,7 @@ test("BakuCore collector ordering groups sets and sorts each set numerically", (
     ["core-2", "core-11", "aa-core-2", "aa-core-10"],
   );
   assert.deepEqual(
-    filterAndSortCompendiumCores(candidates, { ...DEFAULT_CORE_COMPENDIUM_STATE, set: "Armored Alliance" })
+    filterAndSortCompendiumCores(candidates, { ...DEFAULT_CORE_COMPENDIUM_STATE, set: ["Armored Alliance"] })
       .map((item) => item.id),
     ["aa-core-2", "core-11", "aa-core-10"],
   );
