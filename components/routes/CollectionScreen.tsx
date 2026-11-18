@@ -72,7 +72,7 @@ export function CollectionScreen() {
   const cardSortOptions = Object.entries(SORT_LABELS).filter(([value]) => (isCharacterOnly ? CHARACTER_SORTS : NON_CHARACTER_SORTS).has(value as typeof cardState.sort));
   const selectedCardSort = cardSortOptions.some(([value]) => value === cardState.sort) ? cardState.sort : "collector";
   const secondaryCardFacets: CardFilterFacet[] = ["set", "faction", ...(!isCharacterOnly ? ["cost", "rarity"] as CardFilterFacet[] : []), ...(includesCharacter ? ["coreType"] as CardFilterFacet[] : []), "keyword"];
-  const activeFilterCount = (activeTab === "cards" ? activeCardFilterCount(cardState) : Number(coreState.type !== "All") + Number(coreState.set !== "All"))
+  const activeFilterCount = (activeTab === "cards" ? activeCardFilterCount(cardState) : coreState.type.length + coreState.set.length + coreState.bonus.length + coreState.damage.length + coreState.effects.length + coreState.faction.length)
     + allCollectionFilters.reduce((total, field) => total + valuesFor(field).length, 0);
 
   const navigate = useCallback((changes: Record<string, string | string[] | null>, path = "/collection") => {
@@ -203,7 +203,7 @@ export function CollectionScreen() {
         <>
           <FilterPicker
             label="Core type"
-            values={coreState.type === "All" ? [] : [coreState.type]}
+            values={coreState.type}
             options={CORE_TYPE_OPTIONS}
             onChange={(values) => navigate({ coreType: values[0] ?? null, corePage: null })}
             mode="single"
@@ -220,7 +220,7 @@ export function CollectionScreen() {
           <div className={compendiumStyles.filterDivider} role="separator" />
           <FilterPicker
             label="Set"
-            values={coreState.set === "All" ? [] : [coreState.set]}
+            values={coreState.set}
             options={CORE_SET_OPTIONS}
             onChange={(values) => navigate({ coreSet: values[0] ?? null, corePage: null })}
             mode="single"
