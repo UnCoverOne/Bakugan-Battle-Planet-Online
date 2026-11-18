@@ -70,41 +70,18 @@ const baseCores = seeds.map(([number, type, bonus, damageBonus, extra = {}]) => 
   name: coreName(type, bonus, damageBonus, extra),
   art: `/assets/cores/full/${number}.webp`,
 }));
-/**
- * Only these Armored Alliance catalogue records have front scans in the supplied archive.
- * Artwork-only reprints are kept below as compendium references so they never become
- * additional playable identities or duplicate runtime effects.
+/** Existing AA art for #1–17 and supplied scans for #73, #75, #76, #78 and #79.
+ * The six outstanding #69–79 fronts use their own AA placeholder assets until
+ * replacement artwork is supplied; never substitute unrelated BB gameplay art.
  */
-export const ARMORED_ALLIANCE_CORE_SCAN_NUMBERS = new Set([2, 7, 15, 16, 17, 73, 75, 76, 78, 79]);
-const armoredAllianceEffectFallbacks: Record<number, string> = {
-  // Missing AA fronts reuse the closest Battle Brawlers artwork; BakuCoreArt
-  // overlays the AA-specific Baku-Gear reduction on top of that artwork.
-  1: "/assets/cores/full/1.webp",
-  3: "/assets/cores/full/3.webp",
-  4: "/assets/cores/full/4.webp",
-  5: "/assets/cores/full/6.webp",
-  6: "/assets/cores/full/19.webp",
-  8: "/assets/cores/full/22.webp",
-  9: "/assets/cores/full/23.webp",
-  10: "/assets/cores/full/24.webp",
-  11: "/assets/cores/full/25.webp",
-  12: "/assets/cores/full/26.webp",
-  13: "/assets/cores/full/37.webp",
-  14: "/assets/cores/full/37.webp",
-  69: "/assets/cores/full/51.webp",
-  70: "/assets/cores/full/47.webp",
-  71: "/assets/cores/full/17.webp",
-  72: "/assets/cores/full/18.webp",
-  74: "/assets/cores/full/37.webp",
-  77: "/assets/cores/full/38.webp",
+const pendingArmoredAllianceFronts = new Set([69, 70, 71, 72, 74, 77]);
+const armoredAllianceArt = (number: number) => {
+  const stem = `/assets/cores/armored-alliance/aa-${String(number).padStart(2, "0")}`;
+  return `${stem}${pendingArmoredAllianceFronts.has(number) ? "-placeholder" : ""}.png`;
 };
-const armoredAllianceArt = (number: number) => ARMORED_ALLIANCE_CORE_SCAN_NUMBERS.has(number)
-  ? `/assets/cores/armored-alliance/aa-${String(number).padStart(2, "0")}.png`
-  : armoredAllianceEffectFallbacks[number] ?? "/assets/cores/full/1.webp";
 const armoredAllianceCores: Core[] = armoredAllianceSeeds.map(([number, type, bonus, damageBonus, extra = {}]) => ({
   id: `aa-core-${number}`, catalogId: `aa-core-${number}`, set: "Armored Alliance" as const, number, type, bonus, damageBonus, ...extra,
   name: coreName(type, bonus, damageBonus, extra),
-  hasProvidedScan: ARMORED_ALLIANCE_CORE_SCAN_NUMBERS.has(number),
   art: armoredAllianceArt(number),
 }));
 
