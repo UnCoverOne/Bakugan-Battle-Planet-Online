@@ -124,6 +124,7 @@
 }
 .effectTag { gap: 3px; }
 .effectValue { flex: none; }
+.fusionSymbol { display: block; flex: none; width: 16px; height: 16px; object-fit: contain; }
 .effectSymbol {
   display: inline-block;
   flex: none;
