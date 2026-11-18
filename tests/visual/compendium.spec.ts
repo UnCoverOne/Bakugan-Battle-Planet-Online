@@ -258,61 +258,65 @@ test("mobile filtering opens an accessible sheet", async ({ page }) => {
   await expect(sheet.getByRole("button", { name: /Show \d+ cards/ })).toBeVisible();
 });
 
-test("BakuCore tab exposes set filters and a shareable inspector", async ({ page }) => {
+test("BakuCore gallery filters by Set and opens the corresponding printing", async ({ page }) => {
   await page.goto("/compendium/cores");
   await waitForCompendium(page);
-  await expect(page.getByText(/\d+ BakuCores/)).toBeVisible();
+  await expect(page.locator('[data-ui="core-grid"]')).toBeVisible();
   await page.getByRole("button", { name: /^Set:/ }).click();
-  const coreSetPicker = page.getByRole("dialog", { name: "Set options" });
-  await coreSetPicker.getByRole("option", { name: /Armored Alliance/ }).click();
-  await expect.poll(() => new URL(page.url()).searchParams.get("coreSet")).toBe("Armored Alliance");
-  const tile = page.locator('[data-ui="card-grid"] > button').first();
+  const picker = page.getByRole("dialog", { name: "Set" });
+  await picker.getByRole("checkbox", { name: /Armored Alliance/ }).click();
+  await picker.getByRole("button", { name: /Apply/ }).click();
+  await expect.poll(() => new URL(page.url()).searchParams.getAll("coreSet")).toEqual(["Armored Alliance"]);
+  const tile = page.locator('[data-ui="core-grid"] > button').first();
+  await expect(tile.locator('[data-core-meta]')).toContainText("AA #");
   await tile.click();
-  const inspector = page.locator('[data-ui="core-inspector"]');
-  await expect(inspector).toBeVisible();
-  const backdrop = page.locator('[data-ui="core-inspector-backdrop"]');
-  await expect(backdrop).toBeVisible();
-  await expect(inspector.getByText("Armored Alliance", { exact: true }).first()).toBeVisible();
-  await expect.poll(() => new URL(page.url()).searchParams.get("core")).toMatch(/^aa-core-/);
-
-  const viewport = page.viewportSize()!;
-  const geometry = await inspector.evaluate((element) => {
-    const rect = element.getBoundingClientRect();
-    return { position: getComputedStyle(element).position, width: rect.width, height: rect.height };
-  });
-  if (viewport.width <= 900) {
-    expect(geometry.position).toBe("relative");
-    expect(Math.abs(geometry.width - viewport.width)).toBeLessThanOrEqual(1);
-    expect(Math.abs(geometry.height - viewport.height)).toBeLessThanOrEqual(1);
-  } else {
-    expect(geometry.position).toBe("relative");
-    expect(geometry.width).toBeGreaterThan(900);
-    expect(geometry.width).toBeLessThanOrEqual(1056);
-  }
+  await expect(page.locator('[data-ui="card-inspector"]')).toBeVisible();
+  await expect.poll(() => new URL(page.url()).searchParams.get("core")).toMatch(/^(aa-core-|core-)/);
 });
 
-
-test("BakuCore previews have one type, individual stats, and one set identifier", async ({ page }) => {
+test("BakuCore detailed previews have uniform single-line effects and artwork-only compact mode", async ({ page }) => {
   await page.goto("/compendium/cores");
   await waitForCompendium(page);
-  const tile = page.locator('[data-ui="card-grid"] > button').first();
-  await expect(tile.locator("strong")).toHaveText("Fist");
-  await expect(tile.locator('[class*="coreStatList"] > span')).toHaveCount(1);
-  await expect(tile.locator('[class*="coreSetLabel"]')).toHaveText("BB #1");
-  await expect(tile).not.toContainText(/Alternate|Fist \+0/);
+  const gallery = page.locator('[data-ui="core-grid"]');
+  const tile = gallery.locator("> button").first();
+  await expect(tile.locator('[data-core-details] strong')).toHaveText("Fist");
+  await expect(tile.locator('[data-core-meta]')).toContainText("BB #1");
+  await expect(tile.locator('[class*="effectTag"]')).toHaveCount(1);
+  const metrics = await tile.locator('[data-core-meta]').evaluate((element) => ({
+    height: element.getBoundingClientRect().height,
+    nowrap: getComputedStyle(element).whiteSpace === "nowrap",
+  }));
+  expect(metrics.height).toBe(24);
+  expect(metrics.nowrap).toBe(true);
 
-  // The set boundary must come after the complete Battle Brawlers run.
+  // The set boundary follows the complete 52-core BB collector run.
   await page.goto("/compendium/cores?corePage=3");
   await waitForCompendium(page);
-  const setLabels = page.locator('[data-ui="card-grid"] > button [class*="coreSetLabel"]');
-  await expect(setLabels.nth(0)).toHaveText("BB #49");
-  await expect(setLabels.nth(3)).toHaveText("BB #52");
-  await expect(setLabels.nth(4)).toHaveText("AA #1");
+  const labels = page.locator('[data-ui="core-grid"] [class*="setTag"]');
+  await expect(labels.nth(0)).toHaveText("BB #49");
+  await expect(labels.nth(3)).toHaveText("BB #52");
+  await expect(labels.nth(4)).toHaveText("AA #1");
 
-  // Alternate artwork remains discoverable by set without exposing a badge.
-  await page.goto("/compendium/cores?coreSet=Armored+Alliance");
+  await page.goto("/compendium/cores?coreDensity=compact");
   await waitForCompendium(page);
-  await expect(page.locator('[data-ui="card-grid"]')).not.toContainText(/Alternate printing/i);
+  await expect(page.locator('[data-ui="core-grid"]')).toHaveAttribute("data-cores-view", "compact");
+  await expect(page.locator('[data-core-details]')).toHaveCount(0);
+});
+
+test("BakuCore effect and numeric filters can be combined and shared", async ({ page }) => {
+  await page.goto("/compendium/cores");
+  await waitForCompendium(page);
+  await page.getByRole("button", { name: /^Effects:/ }).click();
+  const effects = page.getByRole("dialog", { name: "Effects" });
+  await effects.getByRole("checkbox", { name: /Fusion Damage/ }).click();
+  await effects.getByRole("button", { name: /Apply/ }).click();
+  await expect.poll(() => new URL(page.url()).searchParams.getAll("coreEffect")).toEqual(["fusion-damage"]);
+  await expect(page.locator('[data-ui="core-grid"] > button').first()).toHaveAttribute("aria-label", /While fused/);
+  await page.getByRole("button", { name: /^Core Type:/ }).click();
+  const coreTypes = page.getByRole("dialog", { name: "Core Type" });
+  await coreTypes.getByRole("checkbox", { name: /^Fist$/ }).click();
+  await coreTypes.getByRole("button", { name: /Apply/ }).click();
+  await expect.poll(() => new URL(page.url()).searchParams.getAll("coreType")).toEqual(["Fist"]);
 });
 
 test("desktop cards and BakuCore controls live in their filter rails", async ({ page }) => {
@@ -340,11 +344,11 @@ test("desktop cards and BakuCore controls live in their filter rails", async ({ 
 
   await page.goto("/compendium/cores");
   await waitForCompendium(page);
-  const coreRail = page.getByRole("complementary", { name: "BakuCore filters" });
+  const coreRail = page.getByRole("complementary", { name: "Filters & Sort" });
   await expect(coreRail).toBeVisible();
   await expect(coreRail.getByRole("button", { name: /^Set:/ })).toBeVisible();
   await expect(coreRail.getByRole("button", { name: /^Core type:/ })).toBeVisible();
-  await expect(coreRail.getByRole("button", { name: /^Sort:/ })).toBeVisible();
+  await expect(coreRail.getByRole("button", { name: /^Sort By:/ })).toBeVisible();
 });
 
 test("mobile reference contents slide in from the left and collapse after navigation", async ({ page }) => {
