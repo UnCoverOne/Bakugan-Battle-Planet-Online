@@ -317,6 +317,11 @@ test("BakuCore effect and numeric filters can be combined and shared", async ({ 
   await coreTypes.getByRole("checkbox", { name: /^Fist$/ }).click();
   await coreTypes.getByRole("button", { name: /Apply/ }).click();
   await expect.poll(() => new URL(page.url()).searchParams.getAll("coreType")).toEqual(["Fist"]);
+  await page.getByRole("button", { name: /^B Power:/ }).click();
+  const power = page.getByRole("dialog", { name: "B Power" });
+  await power.getByRole("checkbox", { name: "0", exact: true }).click();
+  await power.getByRole("button", { name: /Apply/ }).click();
+  await expect.poll(() => new URL(page.url()).searchParams.getAll("corePower")).toEqual(["0"]);
 });
 
 test("desktop cards and BakuCore controls live in their filter rails", async ({ page }) => {
