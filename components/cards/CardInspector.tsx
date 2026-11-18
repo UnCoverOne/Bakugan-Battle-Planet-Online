@@ -44,6 +44,7 @@ export type InspectorProps = SharedInspectorProps & (
       core?: never;
       allCores?: never;
       onSelectCore?: never;
+      preferredCorePrintingId?: never;
     }
   | {
       core: Core;
