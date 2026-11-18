@@ -160,7 +160,7 @@ export function CollectionScreen() {
   const densityParam = activeTab === "cards" ? "density" : "coreDensity";
   const density = activeTab === "cards" ? cardState.density : coreState.density;
   const setPage = (next: number) => navigate({ [pageParam]: next > 1 ? String(next) : null });
-  const clearFilters = () => navigate({ q: null, set: null, type: null, coreType: null, faction: null, cost: null, rarity: null, keyword: null, coreSet: null, collectionSort: null, collectionStandard: null, collectionFoil: null, collectionWishlist: null, sort: null, coreSort: null, page: null, corePage: null });
+  const clearFilters = () => navigate({ q: null, set: null, type: null, coreType: null, faction: null, cost: null, rarity: null, keyword: null, coreSet: null, corePower: null, coreDamage: null, coreEffect: null, coreFaction: null, collectionSort: null, collectionStandard: null, collectionFoil: null, collectionWishlist: null, sort: null, coreSort: null, page: null, corePage: null });
   const setQuantityFilter = (field: CollectionField, values: string[]) => navigate({ [quantityKey(field)]: values, page: null, corePage: null });
   const renderCollectionFilterControls = () => (
     <>
