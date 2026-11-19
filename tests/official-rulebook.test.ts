@@ -237,7 +237,7 @@ test("continuous Rules reader preserves source anchors, all paragraphs, and cont
   assert.deepEqual(none.errata, []);
 });
 
-test("Rules redesign contains no legacy popups, collapsed clauses, card containers or copy controls", () => {
+test("Rules redesign contains no legacy popups, collapsed clauses, card containers or redundant copy widgets", () => {
   const reader = read("components/routes/OfficialRulebook.tsx");
   const css = read("components/routes/OfficialRulebook.module.css");
   assert.ok(reader.includes("GLOSSARY_TERMS"));
@@ -249,7 +249,11 @@ test("Rules redesign contains no legacy popups, collapsed clauses, card containe
   assert.ok(reader.includes("selectRulebook(query, anchor)"));
   assert.ok(!reader.includes('role="dialog"'));
   assert.ok(!reader.includes("<details"));
-  assert.ok(!reader.includes("Copy link"));
+  assert.match(reader, /function CopyAnchor/);
+  assert.match(reader, /aria-label={`Copy link to \${kind} \${id}`}/);
+  assert.doesNotMatch(reader, /href=\{ruleAnchor\(rule\.id\)\}/);
+  assert.doesNotMatch(reader, /href=\{ruleAnchor\(section\.id\)\}/);
+  assert.doesNotMatch(reader, /href=\{ruleAnchor\(chapter\.id\)\}/);
   assert.ok(!reader.includes("setTerm("));
   for (const selector of [".overlay", ".dialog", ".nested", ".share", ".close", "clip-path"]) {
     assert.ok(!css.includes(selector), "Obsolete Rules style: " + selector);
@@ -259,4 +263,30 @@ test("Rules redesign contains no legacy popups, collapsed clauses, card containe
   assert.ok(css.includes(".rule:target > .ruleLine"));
   assert.ok(css.includes("grid-template-columns: 5.1rem minmax(0, 1fr)"));
   assert.ok(css.includes("data-depth"));
+});
+
+test("Rule numbers copy clean deep links without changing the active hash or query", async () => {
+  const { ruleLinkUrl } = await import("../lib/rulebook-reader");
+  const current = "https://example.com/compendium/rules?search=deck#section-1.2";
+  assert.equal(ruleLinkUrl(current, "1"), "https://example.com/compendium/rules#chapter-1");
+  assert.equal(ruleLinkUrl(current, "1.2"), "https://example.com/compendium/rules#section-1.2");
+  assert.equal(ruleLinkUrl(current, "1.2.1.1"), "https://example.com/compendium/rules#rule-1.2.1.1");
+  assert.equal(current, "https://example.com/compendium/rules?search=deck#section-1.2");
+  assert.equal(ruleLinkUrl("https://example.com/preview/compendium/rules?x=1", "7.3.1"),
+    "https://example.com/preview/compendium/rules#rule-7.3.1");
+});
+
+test("Rule-number copy feedback is accessible, and targeted rules retain their alignment", () => {
+  const reader = read("components/routes/OfficialRulebook.tsx");
+  const css = read("components/routes/OfficialRulebook.module.css");
+  assert.match(reader, /copyText\(ruleLinkUrl\(window\.location\.href, id\)\)/);
+  assert.match(reader, /CopyAnchor className=\{styles\.number\} id=\{rule\.id\} kind="rule"/);
+  assert.match(reader, /CopyAnchor className=\{styles\.sectionNumber\} id=\{section\.id\} kind="section"/);
+  assert.match(reader, /CopyAnchor className=\{styles\.chapterLabel\} id=\{chapter\.id\} kind="chapter"/);
+  assert.match(reader, /role="status" aria-live="polite" aria-atomic="true"/);
+  assert.match(reader, /2200/);
+  assert.match(reader, /href=\{ruleAnchor\(match\[1\]\)\}/);
+  assert.match(css, /\.rule:target > \.ruleLine\s*\{[^}]*background: var\(--bb-panel-inset\);[^}]*\}/);
+  assert.doesNotMatch(css, /box-shadow:\s*inset|\.number::after|content:\s*"↗"/);
+  assert.match(css, /\.copyIcon/);
 });

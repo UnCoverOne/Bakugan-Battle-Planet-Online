@@ -48,6 +48,15 @@ export function ruleAnchor(id: string): string {
   return "#" + (depth === 1 ? "chapter" : depth === 2 ? "section" : "rule") + "-" + id;
 }
 
+// Preserve the actual deployed route, but never copy search parameters that
+// could filter the linked rule out of view. Construct the URL without navigating.
+export function ruleLinkUrl(currentPageUrl: string, id: string): string {
+  const url = new URL(currentPageUrl);
+  url.search = "";
+  url.hash = ruleAnchor(id);
+  return url.href;
+}
+
 export function selectRulebook(query: string, anchor = ""): RulebookSelection {
   const search = query.trim().toLowerCase();
   const hash = /^(chapter|section|rule)-(\d+(?:\.\d+)*)$/.exec(anchor);

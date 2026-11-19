@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { GLOSSARY_TERMS } from "../../lib/glossary";
 import {
-  RULEBOOK_IDS, ruleAnchor, selectRulebook, type VisibleRule,
+  RULEBOOK_IDS, ruleAnchor, ruleLinkUrl, selectRulebook, type VisibleRule,
 } from "../../lib/rulebook-reader";
+import { copyText } from "../application/ui";
 import styles from "./OfficialRulebook.module.css";
 import { CompendiumSidebar } from "./CompendiumSidebar";
 import { ContentsNavigation } from "./ContentsNavigation";
@@ -99,18 +100,44 @@ function inlineReferences(text: string, search: string): ReactNode[] {
   return chunks;
 }
 
-function RuleParagraph({ rule, query }: { rule: VisibleRule; query: string }) {
+type CopyLinkKind = "rule" | "section" | "chapter";
+type CopyLinkHandler = (id: string, kind: CopyLinkKind) => void;
+
+// A number copies its permalink; references inside rule text still navigate.
+function CopyAnchor({ id, kind, className, onCopy, children }: {
+  id: string;
+  kind: CopyLinkKind;
+  className: string;
+  onCopy: CopyLinkHandler;
+  children: ReactNode;
+}) {
+  return <button type="button" className={className}
+    onClick={() => onCopy(id, kind)}
+    aria-label={`Copy link to ${kind} ${id}`} title={`Copy link to ${kind} ${id}`}>
+    {children}
+    <svg className={styles.copyIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="8" y="8" width="12" height="12" rx="2" />
+      <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+    </svg>
+  </button>;
+}
+
+function RuleParagraph({ rule, query, onCopy }: {
+  rule: VisibleRule;
+  query: string;
+  onCopy: CopyLinkHandler;
+}) {
   const depth = rule.id.split(".").length;
   return <li className={styles.rule} id={"rule-" + rule.id} data-depth={depth}>
     <div className={styles.ruleLine}>
-      <a className={styles.number} href={ruleAnchor(rule.id)}
-        aria-label={"Link to rule " + rule.id} title={"Link to rule " + rule.id}>
+      <CopyAnchor className={styles.number} id={rule.id} kind="rule" onCopy={onCopy}>
         {rule.id}
-      </a>
+      </CopyAnchor>
       <div className={styles.ruleText}>{inlineReferences(rule.text, query)}</div>
     </div>
     {rule.children.length > 0 && <ol className={styles.subrules}>
-      {rule.children.map(child => <RuleParagraph key={child.id} rule={child} query={query} />)}
+      {rule.children.map(child => <RuleParagraph key={child.id} rule={child} query={query} onCopy={onCopy} />)}
     </ol>}
   </li>;
 }
@@ -122,6 +149,31 @@ export function OfficialRulebook({ query = "", sidebarOpen, desktopSidebarVisibl
   onSidebarClose: () => void;
 }) {
   const [anchor, setAnchor] = useState("");
+  const [copyMessage, setCopyMessage] = useState("");
+  const copyMessageTimeout = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (copyMessageTimeout.current !== null) window.clearTimeout(copyMessageTimeout.current);
+  }, []);
+
+  const showCopyMessage = (message: string) => {
+    if (copyMessageTimeout.current !== null) window.clearTimeout(copyMessageTimeout.current);
+    setCopyMessage(message);
+    copyMessageTimeout.current = window.setTimeout(() => {
+      setCopyMessage("");
+      copyMessageTimeout.current = null;
+    }, 2200);
+  };
+
+  const handleCopy: CopyLinkHandler = async (id, kind) => {
+    try {
+      await copyText(ruleLinkUrl(window.location.href, id));
+      showCopyMessage(kind[0].toUpperCase() + kind.slice(1) + " link copied");
+    } catch {
+      showCopyMessage("Unable to copy link");
+    }
+  };
+
   useEffect(() => {
     const readHash = () => setAnchor(window.location.hash.slice(1));
     readHash();
@@ -164,7 +216,9 @@ export function OfficialRulebook({ query = "", sidebarOpen, desktopSidebarVisibl
       {selection.chapters.map(chapter => <section className={styles.chapter}
         id={"chapter-" + chapter.id} aria-labelledby={"chapter-title-" + chapter.id} key={chapter.id}>
         <header className={styles.chapterHeader}>
-          <a className={styles.chapterLabel} href={ruleAnchor(chapter.id)}>CHAPTER {chapter.id}</a>
+          <CopyAnchor className={styles.chapterLabel} id={chapter.id} kind="chapter" onCopy={handleCopy}>
+            CHAPTER {chapter.id}
+          </CopyAnchor>
           <h2 id={"chapter-title-" + chapter.id}>{highlightText(chapter.text, query, "chapter-" + chapter.id)}</h2>
         </header>
         {chapter.sections.map(section => <section className={styles.section}
@@ -172,13 +226,14 @@ export function OfficialRulebook({ query = "", sidebarOpen, desktopSidebarVisibl
           aria-labelledby={"section-title-" + section.id}>
           <div className={styles.sectionHeader}>
             <h3 id={"section-title-" + section.id}>
-              <a className={styles.sectionNumber} href={ruleAnchor(section.id)}
-                aria-label={"Link to section " + section.id}>{section.id}</a>
+              <CopyAnchor className={styles.sectionNumber} id={section.id} kind="section" onCopy={handleCopy}>
+                {section.id}
+              </CopyAnchor>
               {" "}{highlightText(section.text, query, "section-" + section.id)}
             </h3>
           </div>
           <ol className={styles.paragraphs}>
-            {section.rules.map(rule => <RuleParagraph key={rule.id} rule={rule} query={query} />)}
+            {section.rules.map(rule => <RuleParagraph key={rule.id} rule={rule} query={query} onCopy={handleCopy} />)}
           </ol>
         </section>)}
       </section>)}
@@ -186,7 +241,7 @@ export function OfficialRulebook({ query = "", sidebarOpen, desktopSidebarVisibl
       {selection.errata.length > 0 && <section className={styles.appendix}
         id="rulebook-errata" aria-labelledby="rulebook-errata-title">
         <header className={styles.chapterHeader}>
-          <a className={styles.chapterLabel} href="#rulebook-errata">APPENDIX</a>
+          <span className={styles.chapterLabel}>APPENDIX</span>
           <h2 id="rulebook-errata-title">{highlightText("Errata", query, "errata-heading")}</h2>
         </header>
         <ul className={styles.errataList} aria-label="Card errata from the official rulebook">
@@ -199,6 +254,9 @@ export function OfficialRulebook({ query = "", sidebarOpen, desktopSidebarVisibl
         <h2>No matching rules</h2>
         <p>Try another search term to find a section or numbered rule.</p>
       </section>}
+      <div className={styles.copyToast} role="status" aria-live="polite" aria-atomic="true">
+        {copyMessage}
+      </div>
     </main>
   </div>;
 }

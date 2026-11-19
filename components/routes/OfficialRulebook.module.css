@@ -25,6 +25,19 @@
   padding: 5px 0 18px;
   border-bottom: 2px solid var(--bb-border-panel);
 }
+.chapterLabel,
+.sectionNumber,
+.number {
+  appearance: none;
+  position: relative;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  cursor: copy;
+}
 .chapterLabel {
   display: inline-block;
   color: var(--bb-focus);
@@ -58,6 +71,9 @@
   font: 700 clamp(1.05rem, 1.5vw, 1.18rem)/1.4 var(--bb-font-interface);
 }
 .sectionNumber {
+  display: inline-block;
+  vertical-align: baseline;
+  font: inherit;
   color: var(--bb-focus);
   text-decoration: none;
   font-variant-numeric: tabular-nums;
@@ -92,15 +108,22 @@
   font: 600 .8rem/1.6 var(--bb-font-interface);
   font-variant-numeric: tabular-nums;
 }
-.number::after {
-  content: "↗";
-  display: inline-block;
-  margin-left: 5px;
+.copyIcon {
+  position: absolute;
+  left: calc(100% + 5px);
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  transform: translateY(-50%);
   opacity: 0;
-  font-size: .8em;
+  pointer-events: none;
 }
-.number:hover::after,
-.number:focus-visible::after { opacity: 1; }
+.chapterLabel:hover .copyIcon,
+.chapterLabel:focus-visible .copyIcon,
+.sectionNumber:hover .copyIcon,
+.sectionNumber:focus-visible .copyIcon,
+.number:hover .copyIcon,
+.number:focus-visible .copyIcon { opacity: .8; }
 .ruleText {
   min-width: 0;
   max-width: 78ch;
@@ -130,8 +153,8 @@
   outline-offset: 5px;
 }
 .rule:target > .ruleLine {
+  /* Paint only: do not modify the numbering gutter or nested indentation. */
   background: var(--bb-panel-inset);
-  box-shadow: inset 3px 0 var(--bb-focus);
 }
 .errataList {
   max-width: 82ch;
@@ -149,6 +172,25 @@
 .noResults { padding: 24px 0; }
 .noResults h2 { margin: 0 0 8px; font-size: 1.25rem; }
 .noResults p { margin: 0; color: var(--bb-muted); }
+.copyToast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 50;
+  max-width: calc(100vw - 24px);
+  transform: translateX(-50%);
+  padding: 10px 14px;
+  border: 1px solid var(--bb-border-hover);
+  border-radius: 6px;
+  background: var(--bb-panel);
+  color: var(--bb-text);
+  box-shadow: 0 6px 22px #0008;
+  font: 600 .82rem/1.35 var(--bb-font-interface);
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.copyToast:empty { display: none; }
 @media (max-width: 900px) {
   .reader { grid-template-columns: minmax(0, 1fr); }
 }
@@ -164,5 +206,5 @@
   .rule[data-depth="6"] > .ruleLine { grid-template-columns: minmax(0, 1fr); gap: 1px; }
 }
 @media (hover: none) {
-  .number::after { display: none; }
+  .copyIcon { opacity: .45; }
 }
