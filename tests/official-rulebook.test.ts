@@ -288,5 +288,7 @@ test("Rule-number copy feedback is accessible, and targeted rules retain their a
   assert.match(reader, /href=\{ruleAnchor\(match\[1\]\)\}/);
   assert.match(css, /\.rule:target > \.ruleLine\s*\{[^}]*background: var\(--bb-panel-inset\);[^}]*\}/);
   assert.doesNotMatch(css, /box-shadow:\s*inset|\.number::after|content:\s*"↗"/);
-  assert.match(css, /\.copyIcon/);
+  assert.doesNotMatch(reader, /<svg|styles\.copyIcon/);
+  assert.doesNotMatch(css, /\.copyIcon|@media \(hover: none\)/);
+  assert.match(css, /\.chapterLabel:hover,[\s\S]*?\.number:hover/);
 });

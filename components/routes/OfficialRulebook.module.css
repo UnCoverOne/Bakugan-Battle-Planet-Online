@@ -29,7 +29,6 @@
 .sectionNumber,
 .number {
   appearance: none;
-  position: relative;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -109,22 +108,6 @@
   font: 600 .8rem/1.6 var(--bb-font-interface);
   font-variant-numeric: tabular-nums;
 }
-.copyIcon {
-  position: absolute;
-  left: calc(100% + 5px);
-  top: 50%;
-  width: 12px;
-  height: 12px;
-  transform: translateY(-50%);
-  opacity: 0;
-  pointer-events: none;
-}
-.chapterLabel:hover .copyIcon,
-.chapterLabel:focus-visible .copyIcon,
-.sectionNumber:hover .copyIcon,
-.sectionNumber:focus-visible .copyIcon,
-.number:hover .copyIcon,
-.number:focus-visible .copyIcon { opacity: .8; }
 .ruleText {
   min-width: 0;
   max-width: 78ch;
@@ -205,7 +188,4 @@
   /* Keep the original full number legible when six-level nesting exceeds the gutter. */
   .rule[data-depth="5"] > .ruleLine,
   .rule[data-depth="6"] > .ruleLine { grid-template-columns: minmax(0, 1fr); gap: 1px; }
-}
-@media (hover: none) {
-  .copyIcon { opacity: .45; }
 }
