@@ -16,12 +16,9 @@ const SYMBOLS = {
 } as const;
 
 function Symbol({ kind }: { kind: keyof typeof SYMBOLS }) {
-  // The supplied Fusion mark has important outline details: preserve the actual PNG.
-  if (kind === "fusion") return <OriginalImage className={styles.fusionSymbol}
-    src={SYMBOLS.fusion} width={16} height={16} alt="" aria-hidden="true" />;
-  const mask = `url("${SYMBOLS[kind]}")`;
-  // SVG masks retain the actual icon silhouette and match the theme's text colour.
-  return <span className={styles.effectSymbol} style={{ maskImage: mask, WebkitMaskImage: mask }} aria-hidden="true" />;
+  // Render each original asset directly so its black, white and coloured details survive.
+  return <OriginalImage className={styles.effectSymbol}
+    src={SYMBOLS[kind]} width={16} height={16} alt="" aria-hidden="true" />;
 }
 
 /** Every mechanic uses the same tag; only the sequence of symbols/values differs. */
@@ -39,7 +36,7 @@ export function CoreEffectTag({ effect }: { effect: CoreEffect }) {
         {effect.factions?.map((faction, index) => (
           <span className={styles.conditionalFaction} key={faction}>
             {index > 0 && <span className={styles.orSeparator}>/</span>}
-            <CardFactionGlyph faction={faction} className={styles.factionSymbol} />
+            <CardFactionGlyph faction={faction} className={styles.factionSymbol} useFactionColor />
           </span>
         ))}
       </span>}
