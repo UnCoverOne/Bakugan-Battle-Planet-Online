@@ -31,7 +31,7 @@ function EffectStrip({ effects }: { effects: readonly CoreEffect[] }) {
     const update = () => {
       const widths = Array.from(measure.children).slice(0, effects.length)
         .map((child) => (child as HTMLElement).getBoundingClientRect().width);
-      const gap = 3;
+      const gap = Number.parseFloat(getComputedStyle(available).columnGap) || 0;
       const width = available.clientWidth;
       const total = widths.reduce((sum, item) => sum + item, 0) + Math.max(0, widths.length - 1) * gap;
       let count = effects.length;
@@ -58,7 +58,7 @@ function EffectStrip({ effects }: { effects: readonly CoreEffect[] }) {
   return <span className={styles.effectStrip} ref={availableRef} aria-label={effects.map((effect) => effect.label).join("; ")}>
     {effects.slice(0, visibleCount).map((effect) => <CoreEffectTag key={effect.kind} effect={effect} />)}
     {hidden.length > 0 && <span className={styles.more} title={hidden.map((effect) => effect.label).join("; ")}
-      aria-label={`${hidden.length} additional effects: ${hidden.map((effect) => effect.label).join("; ")}`}>+${hidden.length}</span>}
+      aria-label={`${hidden.length} additional effects: ${hidden.map((effect) => effect.label).join("; ")}`}>+{hidden.length}</span>}
     <span className={styles.measure} ref={measureRef} aria-hidden="true">
       {effects.map((effect) => <CoreEffectTag key={effect.kind} effect={effect} />)}
       <span className={styles.more} ref={extraRef} />
