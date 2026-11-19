@@ -241,7 +241,7 @@ export function OfficialRulebook({ query = "", sidebarOpen, desktopSidebarVisibl
       {selection.errata.length > 0 && <section className={styles.appendix}
         id="rulebook-errata" aria-labelledby="rulebook-errata-title">
         <header className={styles.chapterHeader}>
-          <span className={styles.chapterLabel}>APPENDIX</span>
+          <span className={styles.appendixLabel}>APPENDIX</span>
           <h2 id="rulebook-errata-title">{highlightText("Errata", query, "errata-heading")}</h2>
         </header>
         <ul className={styles.errataList} aria-label="Card errata from the official rulebook">
