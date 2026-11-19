@@ -98,3 +98,58 @@ test("Rules view retains the anchors that Glossary links target", () => {
   assert.ok(reader.includes("<ContentsNavigation items="));
   assert.ok(!reader.includes("SYMBOL_ENTRIES"));
 });
+
+
+test("Rules retain explanations, searchable nested anchors and errata", () => {
+  const rules = read("components/routes/OfficialRulebook.tsx");
+  const parent = read("components/routes/CompendiumScreen.tsx");
+  assert.match(parent, /<OfficialRulebook query=/);
+  for (const feature of ["rule-", "section-", "chapter-", "Card errata", "onTerm"]) {
+    assert.ok(rules.includes(feature), "Missing rulebook feature: " + feature);
+  }
+  assert.ok(rules.indexOf('id="rulebook-errata"') > rules.indexOf('id={\`chapter-\${i + 1}\`}'));
+  assert.ok(!rules.includes('id="rulebook-introduction"'));
+});
+
+test("existing Compendium toolbar remains the sole search input for reference tabs", () => {
+  const parent = read("components/routes/CompendiumScreen.tsx");
+  const toolbar = read("components/routes/CompendiumToolbar.tsx");
+  const pages = [
+    read("components/routes/GlossaryScreen.tsx"),
+    read("components/routes/OfficialRulebook.tsx"),
+    read("components/routes/RulingsReference.tsx"),
+  ];
+  assert.match(toolbar, /type="search"/);
+  assert.match(parent, /<CompendiumToolbar section=/);
+  for (const page of pages) assert.ok(!page.includes('type="search"'));
+  for (const name of ["OfficialRulebook", "GlossaryScreen", "RulingsReference"]) {
+    assert.ok(parent.includes("<" + name + " query={deferredSearchQuery}"), "Missing shared search: " + name);
+  }
+});
+
+test("player-facing glossary retains gameplay keywords and all extended tag words", () => {
+  const names = new Set(GLOSSARY_TERMS.map(term => term.title));
+  for (const title of [
+    "DoubleStrike", "ShadowStrike", "FrostStrike", "Flip (game action)",
+    "Victor (game action)", "Aurelus Power", "Battle Mastery", "Boost",
+    "Domination", "Empower", "Flex", "Flow", "Fury", "Inspire", "InstaBrawl",
+    "Rally", "Rapid Fire", "Sacrifice", "Scrounge", "Stoke", "Sync",
+    "Trifecta", "Turbo", "Underdog", "Victor",
+  ]) {
+    assert.ok(names.has(title), "Missing glossary term: " + title);
+  }
+});
+
+test("Glossary's fixed categories and shared sidebar do not create secondary navigation", () => {
+  const view = read("components/routes/GlossaryScreen.tsx");
+  const sidebar = read("components/routes/ContentsNavigation.tsx");
+  const frame = read("components/routes/CompendiumScreen.module.css");
+  assert.ok(sidebar.includes("scrollIntoView"));
+  assert.ok(sidebar.includes("history.pushState"));
+  assert.ok(sidebar.includes("aria-current"));
+  assert.ok(view.includes("groups.map(({ name })"));
+  assert.ok(view.includes('id="glossary-icons"'));
+  assert.ok(frame.includes('[id^="glossary-"]'));
+  assert.ok(!view.includes("setCategory("));
+  assert.ok(!view.includes("All terms"));
+});
