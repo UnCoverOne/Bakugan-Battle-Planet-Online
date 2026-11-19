@@ -440,6 +440,27 @@ test("Core gallery uses a single nonwrapping equal-weight effect row and no fall
   assert.doesNotMatch(screenCss, /\.coreTile|\.coreStatList|\.cardGridCompact/);
 });
 
+test("BakuCore effect icons preserve original artwork colours and faction glyph colours", async () => {
+  const [effectTag, galleryCss, factionTag, cardsGallery] = await Promise.all([
+    read("components/routes/CoreEffectTag.tsx"),
+    read("components/routes/CoresGallery.module.css"),
+    read("components/routes/CardFactionTag.tsx"),
+    read("components/routes/CardsGallery.tsx"),
+  ]);
+  assert.match(effectTag, /src=\{SYMBOLS\[kind\]\}/);
+  assert.match(effectTag, /<OriginalImage className=\{styles\.effectSymbol\}/);
+  assert.doesNotMatch(effectTag, /maskImage|WebkitMaskImage|filter:\s*grayscale/);
+  assert.doesNotMatch(galleryCss, /mask-position|mask-size|background-color:\s*currentColor|filter:\s*grayscale/);
+  assert.match(galleryCss, /\.effectSymbol\s*\{[^}]*object-fit:\s*contain/);
+  assert.match(effectTag, /<CardFactionGlyph faction=\{faction\} className=\{styles\.factionSymbol\} useFactionColor\s*\/>/);
+  for (const color of ["#f62230", "#5b9ce9", "#17af57", "#6d6d6d", "#4fdbda", "#fbee37"]) {
+    assert.ok(factionTag.includes(color), `Missing faction colour ${color}`);
+  }
+  assert.match(factionTag, /style=\{useFactionColor \? \{ color: symbol\.background \} : undefined\}/);
+  assert.match(factionTag, /useFactionColor = false/);
+  assert.match(cardsGallery, /<CardFactionTag key=\{faction\} faction=\{faction\}/);
+});
+
 test("BakuCore collector ordering groups sets and sorts each set numerically", () => {
   const candidates = [
     core({ id: "aa-core-10", name: "AA 10", number: 10, set: "Armored Alliance" }),
