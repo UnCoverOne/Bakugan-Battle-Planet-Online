@@ -9,8 +9,9 @@
   color:var(--bb-text); }
 .entries, .iconGrid { display:grid; min-width:0; row-gap:0; }
 .entries { grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:clamp(16px,2.3vw,32px); }
-.iconGrid { grid-template-columns:repeat(auto-fit,minmax(min(100%,205px),1fr));
-  column-gap:clamp(16px,2vw,28px); }
+/* Auto-pack more icon references than ordinary terms, without changing their reading order. */
+.iconGrid { grid-template-columns:repeat(auto-fit,minmax(min(100%,165px),1fr));
+  column-gap:clamp(12px,1.6vw,22px); }
 .entry, .iconEntry { display:flex; flex-direction:column; min-width:0; gap:9px;
   padding:15px 0 17px; border-bottom:1px solid var(--bb-border-row);
   scroll-margin-top:200px; overflow-wrap:break-word; }
@@ -32,6 +33,14 @@
 @media(max-width:900px) { .layout { grid-template-columns:minmax(0,1fr); } }
 @media(max-width:700px) {
   .entries { grid-template-columns:minmax(0,1fr); }
+  /* Two icons on very small phones; three across from approximately 360px viewport.
+     Keep the icon beside its term and the complete definition and link below. */
+  .iconGrid { grid-template-columns:repeat(auto-fit,minmax(min(100%,104px),1fr)); column-gap:8px; }
   .entry, .iconEntry { padding:13px 0 15px; }
-  .iconArtwork { width:42px; height:42px; }
+  .iconEntry { gap:7px; }
+  .iconHeading { gap:5px; }
+  .iconHeading h3 { font-size:.79rem; line-height:1.25; overflow-wrap:anywhere; }
+  .iconEntry p { font-size:.78rem; line-height:1.4; }
+  .iconEntry .ruleLink { font-size:.78rem; gap:3px; }
+  .iconArtwork { width:28px; height:28px; }
 }
