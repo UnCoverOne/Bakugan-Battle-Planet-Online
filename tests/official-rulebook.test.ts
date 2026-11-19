@@ -157,3 +157,36 @@ test("Glossary's fixed categories and shared sidebar do not create secondary nav
   assert.ok(!view.includes("setCategory("));
   assert.ok(!view.includes("All terms"));
 });
+
+
+test("Printed Icon headings stay on one line and every entry has equal four-line definition space", () => {
+  const view = read("components/routes/GlossaryScreen.tsx");
+  const css = read("components/routes/GlossaryScreen.module.css");
+  assert.ok(view.includes('symbol.name === "Damage Rating" ? "Damage" : symbol.name'));
+  assert.ok(view.includes('<h3 title={symbol.name}>'));
+  assert.ok(view.includes('<p title={symbol.description}>'));
+  assert.match(css, /\.iconHeading h3 \{[^}]*white-space:nowrap;[^}]*text-overflow:ellipsis;/);
+  assert.match(css, /\.iconEntry p \{[^}]*-webkit-line-clamp:4;/);
+  assert.match(css, /height:6em; max-height:6em;/);
+  assert.match(css, /height:5\.6em; max-height:5\.6em;/);
+  assert.match(css, /grid-auto-rows:1fr; align-items:stretch;/);
+  assert.match(css, /\.iconEntry \{ height:100%; box-sizing:border-box; \}/);
+  assert.match(css, /border-bottom:1px solid var\(--bb-border-row\)/);
+});
+
+test("mobile Contents selection closes the panel before section scrolling on every reference page", () => {
+  const navigation = read("components/routes/ContentsNavigation.tsx");
+  const sidebar = read("components/routes/CompendiumSidebar.tsx");
+  const views = [
+    read("components/routes/GlossaryScreen.tsx"),
+    read("components/routes/OfficialRulebook.tsx"),
+    read("components/routes/RulingsReference.tsx"),
+  ];
+  for (const view of views) {
+    assert.match(view, /<ContentsNavigation onNavigate=\{sidebarOpen \? onSidebarClose : undefined\}/);
+  }
+  assert.match(navigation, /onNavigate\?\.\(\)/);
+  assert.match(navigation, /if \(onNavigate\) requestAnimationFrame\(scroll\)/);
+  assert.match(navigation, /data-contents-link/);
+  assert.match(sidebar, /a\[href\]:not\(\[data-contents-link\]\)/);
+});

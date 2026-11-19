@@ -96,7 +96,7 @@ export function OfficialRulebook({ query = "", sidebarOpen, desktopSidebarVisibl
   };
   return <div className={styles.reader} data-rulebook-reader data-compendium-reference-layout>
     <CompendiumSidebar as="nav" label="Contents" open={sidebarOpen} desktopVisible={desktopSidebarVisible} onClose={onSidebarClose}>
-      <ContentsNavigation items={[
+      <ContentsNavigation onNavigate={sidebarOpen ? onSidebarClose : undefined} items={[
         ...OFFICIAL_RULEBOOK.map((chapter, i) => ({
           id: `chapter-${i + 1}`, label: `${i + 1}. ${chapter.text}`,
           children: chapter.children.flatMap((section, j) => !filter || matches(section, filter) ? [{

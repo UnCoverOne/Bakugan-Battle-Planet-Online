@@ -45,7 +45,7 @@ export function CompendiumSidebar({ label, open, desktopVisible, onClose, childr
     role={mobile && open ? "dialog" : undefined} aria-modal={mobile && open ? true : undefined}
     onClickCapture={(event) => {
       if (mobile && event.target instanceof Element &&
-        event.target.closest('a[href],button[data-sidebar-select]')) onClose();
+        event.target.closest('a[href]:not([data-contents-link]),button[data-sidebar-select]')) onClose();
     }}>
     <div className={styles.header}><strong>{label}</strong>
       <button type="button" ref={closeRef} aria-label={mobile ? `Close ${label}` : `Collapse ${label} panel`} onClick={onClose}>

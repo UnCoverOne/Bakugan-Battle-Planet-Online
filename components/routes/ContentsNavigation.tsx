@@ -9,7 +9,7 @@ export type ContentsEntry = {
   children?: readonly ContentsEntry[];
 };
 
-export function ContentsNavigation({ items }: { items: readonly ContentsEntry[] }) {
+export function ContentsNavigation({ items, onNavigate }: { items: readonly ContentsEntry[]; onNavigate?: () => void }) {
   const [active, setActive] = useState("");
   const [expanded, setExpanded] = useState<string[]>([]);
   const flat = useMemo(() => items.flatMap(item => [item, ...(item.children ?? [])]), [items]);
@@ -43,14 +43,20 @@ export function ContentsNavigation({ items }: { items: readonly ContentsEntry[] 
     event.preventDefault();
     history.pushState(null, "", `#${id}`);
     setActive(id);
-    // A mobile selection also closes the scroll-locked sidebar; scroll after it unmounts.
-    requestAnimationFrame(() => target.scrollIntoView({
+    // Close the mobile Contents overlay before moving the underlying page.
+    // An extra frame lets React remove the overlay and restore body scrolling.
+    onNavigate?.();
+    const scroll = () => target.scrollIntoView({
       behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
       block: "start",
-    }));
+    });
+    requestAnimationFrame(() => {
+      if (onNavigate) requestAnimationFrame(scroll);
+      else scroll();
+    });
   };
   const link = (item: ContentsEntry, nested = false) =>
-    <a key={item.id} href={`#${item.id}`} className={`${styles.link} ${nested ? styles.nested : ""}`}
+    <a key={item.id} href={`#${item.id}`} data-contents-link className={`${styles.link} ${nested ? styles.nested : ""}`}
       aria-current={active === item.id || (Boolean(item.children?.some(child => child.id === active)) && !expanded.includes(item.id)) ? "location" : undefined}
       onClick={event => navigate(event, item.id)}>{item.label}</a>;
 

@@ -25,7 +25,7 @@ export function GlossaryScreen({ query = "", sidebarOpen, desktopSidebarVisible,
   return <div className={styles.layout} data-compendium-reference-layout>
     <CompendiumSidebar as="nav" label="Contents" open={sidebarOpen}
       desktopVisible={desktopSidebarVisible} onClose={onSidebarClose}>
-      <ContentsNavigation items={[
+      <ContentsNavigation onNavigate={sidebarOpen ? onSidebarClose : undefined} items={[
         ...(icons.length ? [{ id: "glossary-icons", label: "Printed Icons" }] : []),
         ...groups.map(({ name }) => ({ id: `glossary-category-${glossaryKey(name)}`, label: name })),
       ]} />
@@ -39,9 +39,9 @@ export function GlossaryScreen({ query = "", sidebarOpen, desktopSidebarVisible,
             id={`glossary-icon-${glossaryKey(symbol.name)}`}>
             <div className={styles.iconHeading}>
               <OriginalImage className={styles.iconArtwork} src={symbol.asset} alt="" />
-              <h3>{symbol.name}</h3>
+              <h3 title={symbol.name}>{symbol.name === "Damage Rating" ? "Damage" : symbol.name}</h3>
             </div>
-            <p>{symbol.description}</p>
+            <p title={symbol.description}>{symbol.description}</p>
             <RuleLink title={symbol.name} rule={PRINTED_ICON_RULES[symbol.token]} />
           </article>)}
         </div>
