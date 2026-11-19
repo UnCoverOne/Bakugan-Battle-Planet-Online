@@ -163,7 +163,7 @@ test("Printed Icon headings stay on one line and every entry has equal four-line
   const view = read("components/routes/GlossaryScreen.tsx");
   const css = read("components/routes/GlossaryScreen.module.css");
   assert.ok(view.includes('symbol.name === "Damage Rating" ? "Damage" : symbol.name'));
-  assert.ok(view.includes('<h3 title={symbol.name}>'));
+  assert.ok(view.includes('<h3 title={symbol.name} aria-label={symbol.name}>'));
   assert.ok(view.includes('<p title={symbol.description}>'));
   assert.match(css, /\.iconHeading h3 \{[^}]*white-space:nowrap;[^}]*text-overflow:ellipsis;/);
   assert.match(css, /\.iconEntry p \{[^}]*-webkit-line-clamp:4;/);
