@@ -104,7 +104,7 @@ test("Rules view retains the anchors that Glossary links target", () => {
 });
 
 
-test("Rules retain explanations, searchable nested anchors and errata", () => {
+test("Rules retain source anchors, searchable clauses and visible errata", () => {
   const rules = read("components/routes/OfficialRulebook.tsx");
   const parent = read("components/routes/CompendiumScreen.tsx");
   assert.match(parent, /<OfficialRulebook query=/);
@@ -197,7 +197,8 @@ test("continuous Rules reader preserves source anchors, all paragraphs, and cont
   const entire = selectRulebook("");
   assert.equal(entire.chapters.length, 9);
   assert.equal(entire.chapters.reduce((n, chapter) => n + chapter.sections.length, 0), 95);
-  const descendants = (rules: { children: any[] }[]): number =>
+  type TreeNode = { children: TreeNode[] };
+  const descendants = (rules: TreeNode[]): number =>
     rules.reduce((sum, rule) => sum + 1 + descendants(rule.children), 0);
   assert.equal(entire.chapters.reduce((sum, chapter) => sum +
     chapter.sections.reduce((total, section) => total + descendants(section.rules), 0), 0), 333);

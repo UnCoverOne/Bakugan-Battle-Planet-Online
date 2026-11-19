@@ -1,4 +1,4 @@
-/* Redesign: structural rules only; visual styling intentionally removed. */
+/* Shared Compendium layouts, sidebar transitions, and reference anchor offsets. */
 .route {
   min-height: calc(100vh - 76px);
   padding-bottom: var(--space-9);
