@@ -1,120 +1,100 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { OFFICIAL_RULEBOOK } from "../lib/official-rulebook";
+import { SYMBOL_ENTRIES } from "../lib/reference";
+import {
+  filterGlossary, GLOSSARY_TERMS, GLOSSARY_SECTIONS, glossaryRuleHref, PRINTED_ICON_RULES,
+} from "../lib/glossary";
 
-test("official Battle Planet rulebook retains all nine numbered chapters and their sections", () => {
+const read = (path: string) => readFileSync(path, "utf8");
+
+function ruleExists(id: string): boolean {
+  let node = OFFICIAL_RULEBOOK[Number(id.split(".")[0]) - 1];
+  if (!node) return false;
+  for (const part of id.split(".").slice(1)) {
+    node = node.children[Number(part) - 1];
+    if (!node) return false;
+  }
+  return true;
+}
+
+test("official Battle Planet rulebook retains all nine numbered chapters", () => {
   assert.equal(OFFICIAL_RULEBOOK.length, 9);
-  assert.deepEqual(OFFICIAL_RULEBOOK.map((chapter) => chapter.text), [
+  assert.deepEqual(OFFICIAL_RULEBOOK.map(chapter => chapter.text), [
     "Game Concepts", "Parts of a Card", "Card Types", "Zones", "Turn Structure",
     "Playing Cards, Abilities, and Effects", "Additional Rules", "Multiplayer Rules", "Cardless Rules (basic game)",
   ]);
-  assert.equal(OFFICIAL_RULEBOOK[0].children[1].text, "Deck Construction");
-  assert.equal(OFFICIAL_RULEBOOK[0].children[1].children[0].children[0].text,
-    "Cards that have the same name and same ability text but differ in some other way are still considered to be the same card for deck construction.");
   assert.equal(OFFICIAL_RULEBOOK[4].children[11].text, "Team Attack");
 });
 
-test("rulebook integration exposes keyword explanations, anchors, searchable rules and errata", () => {
-  const screen = readFileSync("components/routes/OfficialRulebook.tsx", "utf8");
-  const parent = readFileSync("components/routes/CompendiumScreen.tsx", "utf8");
-  assert.match(parent, /<OfficialRulebook query=/);
-  for (const feature of ["rule-", "section-", "chapter-", "Card errata", "onTerm"]) {
-    assert.ok(screen.includes(feature), `Missing ${feature}`);
+test("all 94 Glossary entries have definitions and working Rules anchors", () => {
+  assert.equal(GLOSSARY_TERMS.length, 94);
+  assert.equal(GLOSSARY_SECTIONS.length, 9);
+  const keys = new Set<string>();
+  for (const term of GLOSSARY_TERMS) {
+    assert.ok(term.description.trim(), "Missing definition: " + term.title);
+    assert.ok(ruleExists(term.rule), "Broken Rules link: " + term.title + " (" + term.rule + ")");
+    assert.ok(!keys.has(term.key), "Duplicate Glossary anchor: " + term.key);
+    keys.add(term.key);
+    assert.match(glossaryRuleHref(term.rule), /^\/compendium\/rules#(?:section|rule)-\d+(?:\.\d+)+$/);
   }
+  assert.ok(GLOSSARY_SECTIONS.includes("Fundamentals"));
+  assert.ok(GLOSSARY_SECTIONS.includes("Keywords & Tag-Words"));
 });
 
-test("Printed Icons remain in Glossary and keep Compendium styling", () => {
-  const reader = readFileSync("components/routes/OfficialRulebook.tsx", "utf8");
-  const glossary = readFileSync("components/routes/GlossaryScreen.tsx", "utf8");
-  const css = readFileSync("components/routes/GlossaryScreen.module.css", "utf8");
+test("all 26 Printed Icons retain original artwork and Rules destinations", () => {
+  assert.equal(SYMBOL_ENTRIES.length, 26);
+  assert.equal(Object.keys(PRINTED_ICON_RULES).length, SYMBOL_ENTRIES.length);
+  for (const symbol of SYMBOL_ENTRIES) {
+    assert.ok(symbol.description.trim(), "Missing icon definition: " + symbol.name);
+    assert.ok(symbol.asset.startsWith("/assets/symbols/"));
+    assert.ok(existsSync("public" + symbol.asset), "Missing artwork: " + symbol.asset);
+    assert.ok(ruleExists(PRINTED_ICON_RULES[symbol.token]), "Broken symbol Rules link: " + symbol.token);
+  }
+  assert.equal(glossaryRuleHref("7.3.1"), "/compendium/rules#rule-7.3.1");
+  assert.equal(glossaryRuleHref("2.9"), "/compendium/rules#section-2.9");
+});
+
+test("global Glossary search filters symbols and terms while retaining categories", () => {
+  const all = filterGlossary("");
+  assert.equal(all.icons.length, SYMBOL_ENTRIES.length);
+  assert.equal(all.groups.reduce((sum, group) => sum + group.items.length, 0), GLOSSARY_TERMS.length);
+  const filtered = filterGlossary(" froststrike ");
+  assert.ok(filtered.icons.some(icon => icon.name === "FrostStrike"));
+  assert.ok(filtered.groups.flatMap(group => group.items).some(term => term.title === "FrostStrike"));
+  assert.ok(filtered.groups.every(group => group.items.length > 0));
+  const none = filterGlossary("glossary_nonexistent_token_987");
+  assert.equal(none.icons.length, 0);
+  assert.equal(none.groups.length, 0);
+});
+
+test("Glossary uses the shared Contents panel, frameless entries, and direct Rules links", () => {
+  const view = read("components/routes/GlossaryScreen.tsx");
+  const css = read("components/routes/GlossaryScreen.module.css");
+  const parentCss = read("components/routes/CompendiumScreen.module.css");
+  const parent = read("components/routes/CompendiumScreen.tsx");
+  const toolbar = read("components/routes/CompendiumToolbar.tsx");
+  assert.match(view, /<ContentsNavigation items=/);
+  assert.match(view, /id: "glossary-icons", label: "Printed Icons"/);
+  assert.match(view, /groups\.map\(\(\{ name, items \}\)/);
+  assert.match(view, /<RuleLink title=\{symbol\.name\}/);
+  assert.match(view, /<RuleLink rule=\{item\.rule\}/);
+  assert.match(view, /<OriginalImage className=\{styles\.iconArtwork\}/);
+  assert.match(parent, /<GlossaryScreen query=\{deferredSearchQuery\}/);
+  assert.match(toolbar, /glossary: "Search terms…"/);
+  assert.doesNotMatch(view, /role="dialog"|Details|Copy link|type="search"/);
+  assert.doesNotMatch(css, /\.modal\b|\.backdrop\b|\.iconCard\b|clip-path|linear-gradient/);
+  assert.doesNotMatch(parentCss, /data-rulebook-icons/);
+  assert.match(css, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(css, /grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,205px\),1fr\)\)/);
+  assert.match(css, /border-bottom:1px solid var\(--bb-border-row\)/);
+});
+
+test("Rules view retains the anchors that Glossary links target", () => {
+  const reader = read("components/routes/OfficialRulebook.tsx");
+  assert.ok(reader.includes("section-"));
+  assert.ok(reader.includes("rule-"));
+  assert.ok(reader.includes("<ContentsNavigation items="));
   assert.ok(!reader.includes("SYMBOL_ENTRIES"));
-  assert.ok(!reader.includes('href="#rulebook-icons"'));
-  assert.ok(!glossary.includes('id="glossary-introduction"'));
-  assert.ok(glossary.indexOf('id="glossary-icons"') >= 0);
-  assert.ok(glossary.indexOf('id="glossary-icons"') < glossary.indexOf('{byCategory.map('));
-  assert.ok(glossary.includes('SYMBOL_ENTRIES.filter((symbol)'));
-  assert.ok(glossary.includes('filteredIcons.map((symbol)'));
-  for (const token of ["--brand-blue-bright", "--text-primary", "--chamfer-panel", ".iconGrid"]) {
-    assert.ok(css.includes(token), `Expected matching styling: ${token}`);
-  }
-});
-
-test("rulebook stays inside centred Compendium reference layout", () => {
-  const screen = readFileSync("components/routes/CompendiumScreen.tsx", "utf8");
-  const reader = readFileSync("components/routes/OfficialRulebook.tsx", "utf8");
-  const layout = readFileSync("components/routes/CompendiumScreen.module.css", "utf8");
-  assert.match(screen, /className=\{styles\.rulebookFrame\}><OfficialRulebook/);
-  assert.match(reader, /data-rulebook-reader/);
-  assert.match(layout, /\.rulebookFrame\s*\{/);
-  assert.match(layout, /grid-template-columns:\s*minmax\(12rem,\s*13\.75rem\) minmax\(0,\s*1fr\)/);
-});
-
-test("glossary has its own Compendium tab and deep-linkable thematic reference", () => {
-  const route = readFileSync("lib/compendium-navigation.ts", "utf8");
-  const compendium = readFileSync("components/routes/CompendiumScreen.tsx", "utf8");
-  const glossary = readFileSync("components/routes/GlossaryScreen.tsx", "utf8");
-  const css = readFileSync("components/routes/GlossaryScreen.module.css", "utf8");
-  const rules = readFileSync("components/routes/OfficialRulebook.tsx", "utf8");
-  assert.match(route, /glossary: "\/compendium\/glossary"/);
-  assert.match(compendium, /<GlossaryScreen query=/);
-  assert.match(compendium, />GLOSSARY<\/button>/);
-  assert.ok(!rules.includes('id="rulebook-glossary"'));
-  for (const feature of ["OFFICIAL_RULEBOOK", "GLOSSARY_ENTRIES", "glossary-category-", "glossary-", "/compendium/rules#section-", 'role="dialog"']) assert.ok(glossary.includes(feature), feature);
-  for (const token of ["--content-wide", "--brand-blue-bright", "--chamfer-panel"]) {
-    const frame = readFileSync("components/routes/CompendiumScreen.module.css", "utf8");
-    assert.ok((css + frame).includes(token), token);
-  }
-});
-
-test("Rules navigation has no glossary link or introduction, and errata follows all chapters", () => {
-  const screen = readFileSync("components/routes/OfficialRulebook.tsx", "utf8");
-  assert.ok(!screen.includes('id="rulebook-introduction"'));
-  assert.ok(!screen.includes('<a href="/compendium/glossary"'));
-  assert.ok(screen.indexOf('id="rulebook-errata"') > screen.indexOf('id={`chapter-${i + 1}`}'));
-  assert.ok(screen.includes('href="#rulebook-errata"'));
-});
-
-test("one global archive search powers every Compendium tab", () => {
-  const parent = readFileSync("components/routes/CompendiumScreen.tsx","utf8");
-  const rules = readFileSync("components/routes/OfficialRulebook.tsx","utf8");
-  const glossary = readFileSync("components/routes/GlossaryScreen.tsx","utf8");
-  const rulings = readFileSync("components/routes/RulingsReference.tsx","utf8");
-  assert.equal(parent.split('label="Search the archive"').length - 1, 1);
-  for (const component of [rules,glossary,rulings]) {
-    assert.ok(!component.includes('type="search"'));
-  }
-  for (const tag of ["OfficialRulebook","GlossaryScreen","RulingsReference"]) {
-    assert.match(parent, new RegExp("<" + tag + " query=\\{deferredSearchQuery\\}"));
-  }
-});
-
-test("glossary hides Copy Link and keeps lone entries in uniform grid columns", () => {
-  const view = readFileSync("components/routes/GlossaryScreen.tsx", "utf8");
-  const css = readFileSync("components/routes/GlossaryScreen.module.css", "utf8");
-  assert.ok(!view.includes("Copy link"));
-  assert.match(css, /\.entries\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(min\(100%,280px\),1fr\)\)/);
-});
-
-test("glossary curates previews without shortening Details and excludes retired terms", () => {
-  const view = readFileSync("components/routes/GlossaryScreen.tsx", "utf8");
-  assert.ok(view.includes('entry.title === "Costs" ? "Cost"'));
-  assert.ok(view.includes("excludedTitles.has(entry.title)"));
-  assert.ok(view.includes("keepComplete.has(entry.title)"));
-  assert.ok(view.includes("item.preview"));
-  assert.ok(view.includes("selected.definition"));
-  assert.ok(view.includes('"B-Power","Bakugan","Legal Text"'));
-});
-
-test("glossary includes combat keywords, all tag-words and gameplay terms", () => {
-  const view = readFileSync("components/routes/GlossaryScreen.tsx", "utf8");
-  const extras = readFileSync("lib/extended-glossary.ts", "utf8");
-  assert.ok(view.includes('[[1, "Gameplay Terms"], [2, "Keyword Abilities"], [3, "Tag-Word Abilities"]]'));
-  assert.ok(view.includes("rule.children[0]?.text"));
-  assert.ok(view.includes('title + " (game action)"'));
-  assert.ok(view.includes("EXTENDED_TAG_WORDS.forEach"));
-  for (const keyword of ["Victor","InstaBrawl","Battle Mastery","Aurelus Power","Underdog","Boost","Sync","Empower","Rapid Fire","Trifecta","Rally","Flex","Scrounge","Inspire","Stoke"]) {
-    assert.ok(extras.includes('"title": "' + keyword + '"'), keyword);
-  }
-  assert.ok(view.includes("selected.definition"));
 });
