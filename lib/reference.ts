@@ -34,6 +34,9 @@ export const GLOSSARY_ENTRIES: ReferenceEntry[] = [
   { slug: "set-indicator", title: "Set Indicator", category: "Card metadata", body: "The mark identifying the printed card set, located at the bottom right of the card.", source: "Glossary.pdf", sourceSection: "2.6 Set Indicator", reviewedAt: REFERENCE_REVIEWED_AT },
 ];
 
+// Printed-icon definitions are concise player-facing explanations.
+// Later-set mechanics (Scan, Dual Baku-Gear) are documented at bakugan.wiki/wiki/Scan
+// and bakugan.wiki/wiki/Dual_Baku-Gear; the 2019 Rules may only offer general context.
 export const SYMBOL_ENTRIES = [
   { token: "[B]", name: "B-Power", asset: "/assets/symbols/b-power.svg", description: "Bakugan power." },
   { token: "[Damage Rating]", name: "Damage Rating", asset: "/assets/symbols/damage.svg", description: "Damage dealt by an attack." },
@@ -41,26 +44,26 @@ export const SYMBOL_ENTRIES = [
   { token: "[DoubleStrike]", name: "DoubleStrike", asset: "/assets/symbols/double-strike.svg", description: "Adds the attacking Bakugan's Damage Rating again." },
   { token: "[FrostStrike]", name: "FrostStrike", asset: "/assets/symbols/frost-strike.svg", description: "Increases Flip-card costs during damage." },
   { token: "[ShadowStrike]", name: "ShadowStrike", asset: "/assets/symbols/shadow-strike.svg", description: "Prevents the attack's Damage Rating from being reduced." },
-  { token: "[BakuGear]", name: "Baku-Gear", asset: "/assets/symbols/baku-gear.svg", description: "Baku-Gear symbol used on gear-related card and BakuCore effects." },
-  { token: "[Fusion]", name: "Fusion", asset: "/assets/symbols/fusion.png", description: "Fusion symbol used on Fusion Bakugan cards and related effects." },
+  { token: "[BakuGear]", name: "Baku-Gear", asset: "/assets/symbols/baku-gear.svg", description: "Identifies a Baku-Gear effect or the use of a Baku-Gear card." },
+  { token: "[Fusion]", name: "Fusion", asset: "/assets/symbols/fusion.png", description: "Identifies a Fusion Bakugan or a Fusion-related effect." },
   { token: "[Victor]", name: "Victor", asset: "/assets/symbols/victor.svg", description: "Marks an effect related to winning a Brawl." },
   { token: "[Roll]", name: "Roll", asset: "/assets/symbols/roll.svg", description: "Indicates rolling a Bakugan." },
-  { token: "[DoubleCore]", name: "Double Core", asset: "/assets/symbols/double-core.svg", description: "Indicates two BakuCores." },
-  { token: "[AddCore]", name: "Add Core", asset: "/assets/symbols/add-core.svg", description: "Symbol for adding a BakuCore." },
-  { token: "[Stop]", name: "Stop", asset: "/assets/symbols/stop.svg", description: "Stop symbol." },
-  { token: "[DrawCard]", name: "Draw a Card", asset: "/assets/symbols/draw-card.svg", description: "Symbol for drawing a card." },
-  { token: "[DoubleGear]", name: "Double Gear", asset: "/assets/symbols/double-gear.svg", description: "Double Gear symbol." },
-  { token: "[RemoveCore]", name: "Remove Core", asset: "/assets/symbols/remove-core.svg", description: "Symbol for removing a BakuCore." },
-  { token: "[Scan]", name: "Scan", asset: "/assets/symbols/scan.svg", description: "Scan symbol." },
-  { token: "[StealCore]", name: "Steal Core", asset: "/assets/symbols/steal-core.svg", description: "Symbol for stealing a BakuCore." },
+  { token: "[DoubleCore]", name: "Double Core", asset: "/assets/symbols/double-core.svg", description: "Represents two BakuCores in a printed effect." },
+  { token: "[AddCore]", name: "Add Core", asset: "/assets/symbols/add-core.svg", description: "Adds a BakuCore to the specified Bakugan or area." },
+  { token: "[Stop]", name: "Stop", asset: "/assets/symbols/stop.svg", description: "Ends the remaining damage from the current damage source." },
+  { token: "[DrawCard]", name: "Draw a Card", asset: "/assets/symbols/draw-card.svg", description: "Draws the indicated number of cards from the deck." },
+  { token: "[DoubleGear]", name: "Double Gear", asset: "/assets/symbols/double-gear.svg", description: "Allows a Baku-Gear card to be equipped as a second Baku-Gear." },
+  { token: "[RemoveCore]", name: "Remove Core", asset: "/assets/symbols/remove-core.svg", description: "Removes a BakuCore from the specified Bakugan." },
+  { token: "[Scan]", name: "Scan", asset: "/assets/symbols/scan.svg", description: "Look at the top card of your deck, then leave it there or put it on the bottom." },
+  { token: "[StealCore]", name: "Steal Core", asset: "/assets/symbols/steal-core.svg", description: "Takes a BakuCore from an opponent's Bakugan." },
   { token: "[Reroll]", name: "Reroll", asset: "/assets/symbols/reroll.svg", description: "Indicates rolling a Bakugan again." },
-  { token: "[TeamAttack]", name: "Team Attack", asset: "/assets/symbols/team-attack.svg", description: "Team Attack symbol." },
-  { token: "[Aquos]", name: "Aquos", asset: "/assets/symbols/factions/aquos.png", description: "Aquos faction." },
-  { token: "[Aurelus]", name: "Aurelus", asset: "/assets/symbols/factions/aurelus.png", description: "Aurelus faction." },
-  { token: "[Darkus]", name: "Darkus", asset: "/assets/symbols/factions/darkus.png", description: "Darkus faction." },
-  { token: "[Haos]", name: "Haos", asset: "/assets/symbols/factions/haos.png", description: "Haos faction." },
-  { token: "[Pyrus]", name: "Pyrus", asset: "/assets/symbols/factions/pyrus.png", description: "Pyrus faction." },
-  { token: "[Ventus]", name: "Ventus", asset: "/assets/symbols/factions/ventus.png", description: "Ventus faction." },
+  { token: "[TeamAttack]", name: "Team Attack", asset: "/assets/symbols/team-attack.svg", description: "Identifies an effect associated with a Team Attack." },
+  { token: "[Aquos]", name: "Aquos", asset: "/assets/symbols/factions/aquos.png", description: "Identifies the Aquos faction on a card." },
+  { token: "[Aurelus]", name: "Aurelus", asset: "/assets/symbols/factions/aurelus.png", description: "Identifies the Aurelus faction on a card." },
+  { token: "[Darkus]", name: "Darkus", asset: "/assets/symbols/factions/darkus.png", description: "Identifies the Darkus faction on a card." },
+  { token: "[Haos]", name: "Haos", asset: "/assets/symbols/factions/haos.png", description: "Identifies the Haos faction on a card." },
+  { token: "[Pyrus]", name: "Pyrus", asset: "/assets/symbols/factions/pyrus.png", description: "Identifies the Pyrus faction on a card." },
+  { token: "[Ventus]", name: "Ventus", asset: "/assets/symbols/factions/ventus.png", description: "Identifies the Ventus faction on a card." },
 ];
 
 export const PUBLISHED_RULINGS: ReferenceEntry[] = [
