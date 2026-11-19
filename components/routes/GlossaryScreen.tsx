@@ -39,7 +39,7 @@ export function GlossaryScreen({ query = "", sidebarOpen, desktopSidebarVisible,
             id={`glossary-icon-${glossaryKey(symbol.name)}`}>
             <div className={styles.iconHeading}>
               <OriginalImage className={styles.iconArtwork} src={symbol.asset} alt="" />
-              <h3 title={symbol.name}>{symbol.name === "Damage Rating" ? "Damage" : symbol.name}</h3>
+              <h3 title={symbol.name} aria-label={symbol.name}>{symbol.name === "Damage Rating" ? "Damage" : symbol.name}</h3>
             </div>
             <p title={symbol.description}>{symbol.description}</p>
             <RuleLink title={symbol.name} rule={PRINTED_ICON_RULES[symbol.token]} />
