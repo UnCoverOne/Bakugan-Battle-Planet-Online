@@ -83,27 +83,8 @@
   max-width: 100%;
   width: 100%;
 }
-.rulebookFrame :global([data-rulebook-icons]) {
-  width: 100%;
-  max-width: 100%;
-  margin: 0 0 var(--space-4);
-  min-width: 0;
-
-}
-.rulebookFrame :global([data-rulebook-icons] [data-icon-grid]) {
-  display: grid;
-  grid-template-columns: repeat(auto-fill,minmax(min(100%,205px),1fr));
-  width: 100%;
-  gap: .75rem;
-}
-.rulebookFrame :global([data-rulebook-icons] [data-icon-card]) {
-
-  min-width: 0;
-  text-align: center;
-}
 @media(max-width:700px) {
   .rulebookFrame {width:min(calc(100% - (2 * var(--space-4))),var(--content-wide))}
-  .rulebookFrame :global([data-rulebook-icons] [data-icon-grid]) {grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr))}
 }
 
 
