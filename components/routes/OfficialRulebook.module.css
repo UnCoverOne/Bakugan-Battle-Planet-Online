@@ -1,37 +1,62 @@
-/* Redesign: structural rules only; visual styling intentionally removed. */
-
-.reader{width:min(calc(100% - (2 * var(--space-5))),var(--content-wide));margin:0 auto;display:grid;grid-template-columns:15rem minmax(0,1fr);gap:var(--space-4);align-items:start;color:var(--text-primary)}
-
-.crossref:hover{text-decoration:underline}
-.main{min-width:0}.chapter,.appendix{margin-bottom:var(--space-4);padding:var(--space-5);border:1px solid rgba(91,196,226,.24);clip-path:polygon(var(--chamfer-panel) 0,100% 0,100% calc(100% - var(--chamfer-panel)),calc(100% - var(--chamfer-panel)) 100%,0 100%,0 var(--chamfer-panel))}
-.errata{padding:var(--space-3);border:1px solid rgba(91,196,226,.24);background:rgba(4,23,31,.65)}
-.errata summary{cursor:pointer;font-weight:800}
-.errata li{margin:.5rem 0;line-height:1.55;color:var(--text-secondary)}
-.chapter>h2{margin:0 0 var(--space-4);font-size:1.45rem;color:var(--brand-blue-bright)}
-.section{padding:var(--space-5) 0;border-top:1px solid rgba(91,196,226,.2);scroll-margin-top:10rem}
-.section h3{margin:0 0 var(--space-3);font-size:1.1rem;line-height:1.45;color:var(--text-primary)}
-.share{margin-left:var(--space-2);border:0;color:var(--brand-blue-bright);font-weight:800;cursor:pointer;text-transform:uppercase}
-.paragraphs,.nested ol{list-style:none;margin:0;padding:0}
-.rule{margin:.65rem 0;line-height:1.7;scroll-margin-top:10rem;color:var(--text-secondary)}
-.rule:target{outline-offset:4px}
-.ruleCopy,.nested>summary{display:flex;align-items:baseline;gap:var(--space-3)}
-.number{flex-shrink:0;min-width:4.4rem;font-size:var(--type-meta);font-variant-numeric:tabular-nums}
-.nested>summary{cursor:pointer}
-.nested ol{margin:.5rem 0 .6rem var(--space-3);padding-left:var(--space-4);border-left:1px solid rgba(91,196,226,.22)}
-.term,.crossref{padding:0;border:0;color:var(--brand-blue-bright);text-decoration:underline dotted;cursor:pointer}
-.crossref{text-decoration-style:solid}
-.appendix h2{margin:0 0 var(--space-3);color:var(--text-primary)}
-.appendix>button,.dialog>button:not(.close){min-height:2.75rem;padding:var(--space-2) var(--space-4);background:rgba(4,23,31,.86);font-weight:800;cursor:pointer}
-.appendix>button:hover,.dialog>button:not(.close):hover{border-color:var(--brand-blue-bright)}
-.appendix dl>div{padding:var(--space-3) 0;border-bottom:1px solid rgba(91,196,226,.2)}
-.appendix dt{color:var(--brand-blue-bright)}
-.appendix dd{margin:.25rem 0 0;color:var(--text-secondary);line-height:1.65}
-.overlay{position:fixed;inset:0;z-index:1100;display:grid;place-items:center;padding:var(--space-4);backdrop-filter:blur(10px)}
-.dialog{position:relative;width:min(440px,100%);padding:var(--space-6);border:1px solid rgba(91,196,226,.4);color:var(--text-primary);clip-path:polygon(var(--chamfer-panel) 0,100% 0,100% calc(100% - var(--chamfer-panel)),calc(100% - var(--chamfer-panel)) 100%,0 100%,0 var(--chamfer-panel))}
-.dialog h2{margin:.6rem 0;color:var(--text-primary)}
-.dialog small{font-weight:800}
-.dialog p{line-height:1.7}
-.close{position:absolute;right:var(--space-4);top:var(--space-2);border:0;color:var(--text-primary);cursor:pointer}
-@media(max-width:900px){.reader{grid-template-columns:1fr}.main{min-width:0}}
-@media(max-width:700px){.reader{width:min(calc(100% - (2 * var(--space-4))),var(--content-wide))}.chapter,.appendix{padding:var(--space-4)}.nested ol{padding-left:var(--space-2);margin-left:var(--space-1)}.number{min-width:3.4rem}}
-@media(prefers-reduced-motion:reduce){.overlay{backdrop-filter:none}}
+/* Continuous, frameless rulebook. Align numbering and preserve every clause. */
+.reader { display:grid; grid-template-columns:15rem minmax(0,1fr); gap:var(--space-4);
+  width:100%; min-width:0; align-items:start; color:var(--bb-text); }
+.main { min-width:0; width:100%; }
+.chapter,.appendix,.empty { max-width:min(100%,89ch); min-width:0; scroll-margin-top:200px; }
+.chapter { margin:0 0 3rem; }
+.chapterHeading { padding:0 0 1.1rem; margin:0 0 1.6rem; border-bottom:2px solid var(--bb-border); }
+.chapterNumber { display:inline-block; margin:0 0 .45rem; color:var(--bb-focus);
+  font:700 .78rem/1.3 var(--bb-font-interface); letter-spacing:.08em; text-decoration:none; }
+.chapterHeading h2 { margin:0; color:var(--bb-text);
+  font:700 clamp(1.55rem,2.5vw,2.1rem)/1.2 var(--bb-font-display); }
+.section { min-width:0; scroll-margin-top:200px; padding:1.5rem 0 .15rem;
+  margin-top:1.5rem; border-top:1px solid var(--bb-border-divider); }
+.chapterHeading + .section { padding-top:0; margin-top:0; border-top:0; }
+.section h3 { display:flex; gap:.65rem; align-items:baseline; margin:0 0 1rem;
+  font:700 1.16rem/1.4 var(--bb-font-interface); color:var(--bb-text); }
+.sectionNumber { flex:none; color:var(--bb-focus); font-variant-numeric:tabular-nums; text-decoration:none; }
+.ruleList { margin:0; padding:0; list-style:none; }
+.rule { margin:0 0 .75rem; scroll-margin-top:200px; }
+.ruleRow { display:grid; grid-template-columns:5.65rem minmax(0,1fr);
+  gap:.65rem; align-items:start; }
+.number { display:inline-block; width:fit-content; max-width:100%; padding-top:.13rem;
+  color:var(--bb-focus); font:600 .77rem/1.65 var(--bb-font-interface);
+  font-variant-numeric:tabular-nums; text-decoration:none; overflow-wrap:anywhere; }
+.number:hover,.sectionNumber:hover,.chapterNumber:hover,
+.glossaryLink:hover,.crossref:hover { text-decoration:underline; text-underline-offset:3px; }
+.ruleCopy { min-width:0; color:var(--bb-text-soft); font:400 .97rem/1.7 var(--bb-font-content);
+  overflow-wrap:anywhere; }
+.ruleList .ruleList { margin:.65rem 0 .25rem .9rem; padding-left:.8rem;
+  border-left:1px solid var(--bb-border-row); }
+.ruleList .ruleList .number { color:var(--bb-muted); }
+.rule:target > .ruleRow,.section:target > h3,
+.chapter:target > .chapterHeading,.appendix:target > h2 {
+  background:var(--bb-panel-inset); outline:2px solid var(--bb-focus); outline-offset:3px; }
+.glossaryLink { color:var(--bb-link); text-decoration:underline dotted; text-underline-offset:3px; }
+.crossref { color:var(--bb-link); text-decoration:underline; text-underline-offset:3px; }
+.highlight { color:var(--bb-white); background:var(--bb-selection); padding:0 .06em; }
+.searchStatus { max-width:89ch; margin:0 0 1.3rem; padding-bottom:.7rem;
+  color:var(--bb-muted); font:500 .85rem/1.5 var(--bb-font-interface);
+  border-bottom:1px solid var(--bb-border-row); }
+.searchStatus strong { color:var(--bb-text); }
+.appendix { margin:2rem 0 0; padding:1.4rem 0 0; border-top:2px solid var(--bb-border); }
+.appendix h2 { margin:0 0 .45rem; font:700 1.55rem/1.3 var(--bb-font-display); }
+.errataIntro { color:var(--bb-muted); margin:0 0 1rem;
+  font:400 .9rem/1.5 var(--bb-font-content); }
+.errataList { list-style:none; margin:0; padding:0; }
+.errataList li { margin:0; padding:.8rem 0; border-bottom:1px solid var(--bb-border-row);
+  color:var(--bb-text-soft); font:400 .95rem/1.65 var(--bb-font-content); }
+.empty { padding:2rem 0; }
+.empty h2 { margin:0 0 .55rem; font-size:1.2rem; }
+.empty p { margin:0; color:var(--bb-muted); }
+@media(max-width:900px) { .reader { grid-template-columns:minmax(0,1fr); } }
+@media(max-width:700px) {
+  .chapter { margin-bottom:2.2rem; }
+  .chapterHeading { margin-bottom:1.25rem; }
+  .section { margin-top:1.15rem; padding-top:1.2rem; }
+  .section h3 { gap:.5rem; font-size:1.05rem; }
+  .ruleRow { grid-template-columns:4.5rem minmax(0,1fr); gap:.4rem; }
+  .number { font-size:.71rem; }
+  .ruleCopy { font-size:.94rem; line-height:1.65; }
+  .ruleList .ruleList { margin-left:.35rem; padding-left:.4rem; }
+}
