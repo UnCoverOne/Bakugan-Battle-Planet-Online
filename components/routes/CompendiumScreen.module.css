@@ -68,21 +68,6 @@
   margin: var(--space-4) auto 0;
   min-width: 0;
 }
-.rulebookFrame :global([data-rulebook-reader]) {
-  display: grid;
-  grid-template-columns: 15rem minmax(0, 1fr);
-  align-items: start;
-  gap: var(--space-4);
-  width: 100%;
-  max-width: 100%;
-  margin-inline: 0;
-  min-width: 0;
-}
-.rulebookFrame :global([data-rulebook-reader] > main) {
-  min-width: 0;
-  max-width: 100%;
-  width: 100%;
-}
 @media(max-width:700px) {
   .rulebookFrame {width:min(calc(100% - (2 * var(--space-4))),var(--content-wide))}
 }
