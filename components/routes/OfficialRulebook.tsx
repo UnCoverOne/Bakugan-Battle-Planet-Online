@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { GLOSSARY_TERMS } from "../../lib/glossary";
 import {
-  rulebookAnchor, selectRulebook, type VisibleRule,
+  RULEBOOK_IDS, ruleAnchor, selectRulebook, type VisibleRule,
 } from "../../lib/rulebook-reader";
 import styles from "./OfficialRulebook.module.css";
 import { CompendiumSidebar } from "./CompendiumSidebar";
@@ -35,7 +35,6 @@ const termsPattern = new RegExp(
     .map(escapePattern).join("|") + ")\\b", "gi",
 );
 const referencePattern = /\b(?:see\s+)?(?:rule|section)\s+(\d+(?:\.\d+)*)/gi;
-const ruleAnchor = (id: string) => "#" + rulebookAnchor(id);
 
 function highlightText(text: string, search: string, key: string): ReactNode {
   const needle = search.trim().toLowerCase();
@@ -86,7 +85,7 @@ function inlineReferences(text: string, search: string): ReactNode[] {
   let match: RegExpExecArray | null;
   while ((match = references.exec(text))) {
     addTerms(text.slice(start, match.index), "pre-" + start);
-    if (rulebookAnchor(match[1])) {
+    if (RULEBOOK_IDS.has(match[1])) {
       chunks.push(<a key={"reference-" + match.index} className={styles.crossref}
         href={ruleAnchor(match[1])}>
         {highlightText(match[0], search, "reference-" + match.index)}
@@ -196,7 +195,7 @@ export function OfficialRulebook({ query = "", sidebarOpen, desktopSidebarVisibl
         </ul>
       </section>}
 
-      {selection.chapters.length === 0 && selection.errata.length === 0 && <section className={styles.noResults} role="status">
+      {!selection.hasResults && <section className={styles.noResults} role="status">
         <h2>No matching rules</h2>
         <p>Try another search term to find a section or numbered rule.</p>
       </section>}

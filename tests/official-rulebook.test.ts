@@ -197,6 +197,11 @@ test("continuous Rules reader preserves source anchors, all paragraphs, and cont
   const entire = selectRulebook("");
   assert.equal(entire.chapters.length, 9);
   assert.equal(entire.chapters.reduce((n, chapter) => n + chapter.sections.length, 0), 95);
+  const descendants = (rules: { children: any[] }[]): number =>
+    rules.reduce((sum, rule) => sum + 1 + descendants(rule.children), 0);
+  assert.equal(entire.chapters.reduce((sum, chapter) => sum +
+    chapter.sections.reduce((total, section) => total + descendants(section.rules), 0), 0), 333);
+  assert.equal(RULEBOOK_IDS.size, 437);
   assert.equal(entire.errata.length, RULEBOOK_ERRATA.length);
   assert.equal(entire.hasResults, true);
   assert.ok(RULEBOOK_IDS.has("1.2.1.1"));

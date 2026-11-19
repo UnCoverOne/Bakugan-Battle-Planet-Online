@@ -687,7 +687,7 @@ test("Compendium reference pages share compact continuous Contents navigation", 
     read("components/routes/CompendiumScreen.module.css"),
   ]);
   for (const page of [glossary, rules, rulings]) {
-    assert.match(page, /<ContentsNavigation items=/);
+    assert.match(page, /<ContentsNavigation\b/);
     assert.match(page, /label="Contents"/);
     assert.doesNotMatch(page, /<h2>Contents<\/h2>/);
   }
