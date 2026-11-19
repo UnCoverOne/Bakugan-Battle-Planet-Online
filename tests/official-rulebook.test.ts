@@ -99,7 +99,7 @@ test("Rules view retains the anchors that Glossary links target", () => {
   const reader = read("components/routes/OfficialRulebook.tsx");
   assert.ok(reader.includes("section-"));
   assert.ok(reader.includes("rule-"));
-  assert.ok(reader.includes("<ContentsNavigation items="));
+  assert.ok(reader.includes("<ContentsNavigation onNavigate="));
   assert.ok(!reader.includes("SYMBOL_ENTRIES"));
 });
 
@@ -108,10 +108,10 @@ test("Rules retain explanations, searchable nested anchors and errata", () => {
   const rules = read("components/routes/OfficialRulebook.tsx");
   const parent = read("components/routes/CompendiumScreen.tsx");
   assert.match(parent, /<OfficialRulebook query=/);
-  for (const feature of ["rule-", "section-", "chapter-", "Card errata", "onTerm"]) {
+  for (const feature of ["rule-", "section-", "chapter-", "Card errata", "inlineReferences"]) {
     assert.ok(rules.includes(feature), "Missing rulebook feature: " + feature);
   }
-  assert.ok(rules.indexOf('id="rulebook-errata"') > rules.indexOf('id={\`chapter-\${i + 1}\`}'));
+  assert.ok(rules.indexOf('id="rulebook-errata"') > rules.indexOf('id={"chapter-" + chapter.id}'));
   assert.ok(!rules.includes('id="rulebook-introduction"'));
 });
 
@@ -189,4 +189,68 @@ test("mobile Contents selection closes the panel before section scrolling on eve
   assert.match(navigation, /if \(onNavigate\) requestAnimationFrame\(scroll\)/);
   assert.match(navigation, /data-contents-link/);
   assert.match(sidebar, /a\[href\]:not\(\[data-contents-link\]\)/);
+});
+
+
+test("continuous Rules reader preserves source anchors, all paragraphs, and contextual search", async () => {
+  const { RULEBOOK_IDS, RULEBOOK_ERRATA, ruleAnchor, selectRulebook } = await import("../lib/rulebook-reader");
+  const entire = selectRulebook("");
+  assert.equal(entire.chapters.length, 9);
+  assert.equal(entire.chapters.reduce((n, chapter) => n + chapter.sections.length, 0), 95);
+  assert.equal(entire.errata.length, RULEBOOK_ERRATA.length);
+  assert.equal(entire.hasResults, true);
+  assert.ok(RULEBOOK_IDS.has("1.2.1.1"));
+  assert.equal(ruleAnchor("1"), "#chapter-1");
+  assert.equal(ruleAnchor("1.2"), "#section-1.2");
+  assert.equal(ruleAnchor("1.2.1.1"), "#rule-1.2.1.1");
+
+  const chapter = selectRulebook("Game Concepts");
+  assert.equal(chapter.chapters.length, 1);
+  assert.equal(chapter.chapters[0].sections.length, OFFICIAL_RULEBOOK[0].children.length);
+  const section = selectRulebook("Deck Construction");
+  assert.equal(section.chapters.length, 1);
+  assert.deepEqual(section.chapters[0].sections.map(item => item.id), ["1.2"]);
+  assert.equal(section.chapters[0].sections[0].rules.length, OFFICIAL_RULEBOOK[0].children[1].children.length);
+  assert.deepEqual(selectRulebook("1.2").chapters[0].sections.map(item => item.id), ["1.2"]);
+
+  const clause = selectRulebook("same ability text");
+  assert.deepEqual(clause.chapters[0].sections.map(item => item.id), ["1.2"]);
+  assert.equal(clause.chapters[0].sections[0].rules[0].id, "1.2.1");
+  assert.equal(clause.chapters[0].sections[0].rules[0].children[0].id, "1.2.1.1");
+  const exact = selectRulebook("1.2.1.1");
+  assert.equal(exact.chapters[0].sections[0].rules[0].children[0].id, "1.2.1.1");
+  const pinned = selectRulebook("nonmatching_9876", "rule-1.2.1.1");
+  assert.equal(pinned.chapters[0].sections[0].rules[0].children[0].id, "1.2.1.1");
+
+  const errata = selectRulebook("Errata");
+  assert.equal(errata.chapters.length, 0);
+  assert.equal(errata.errata.length, RULEBOOK_ERRATA.length);
+  const none = selectRulebook("nonmatching_9876");
+  assert.equal(none.hasResults, false);
+  assert.deepEqual(none.chapters, []);
+  assert.deepEqual(none.errata, []);
+});
+
+test("Rules redesign contains no legacy popups, collapsed clauses, card containers or copy controls", () => {
+  const reader = read("components/routes/OfficialRulebook.tsx");
+  const css = read("components/routes/OfficialRulebook.module.css");
+  assert.ok(reader.includes("GLOSSARY_TERMS"));
+  assert.ok(reader.includes('href={"/compendium/glossary#glossary-" + term.key}'));
+  assert.ok(reader.includes("RULEBOOK_IDS.has(match[1])"));
+  assert.ok(reader.includes("inlineReferences"));
+  assert.ok(reader.includes("onNavigate={sidebarOpen ? onSidebarClose : undefined}"));
+  assert.ok(reader.includes("selection.errata.map"));
+  assert.ok(reader.includes("selectRulebook(query, anchor)"));
+  assert.ok(!reader.includes('role="dialog"'));
+  assert.ok(!reader.includes("<details"));
+  assert.ok(!reader.includes("Copy link"));
+  assert.ok(!reader.includes("setTerm("));
+  for (const selector of [".overlay", ".dialog", ".nested", ".share", ".close", "clip-path"]) {
+    assert.ok(!css.includes(selector), "Obsolete Rules style: " + selector);
+  }
+  assert.ok(css.includes("var(--bb-border-divider)"));
+  assert.ok(css.includes("var(--bb-focus)"));
+  assert.ok(css.includes(".rule:target > .ruleLine"));
+  assert.ok(css.includes("grid-template-columns: 5.1rem minmax(0, 1fr)"));
+  assert.ok(css.includes("data-depth"));
 });

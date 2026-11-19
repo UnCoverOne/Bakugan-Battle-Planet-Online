@@ -191,7 +191,7 @@ export function OfficialRulebook({ query = "", sidebarOpen, desktopSidebarVisibl
           <h2 id="rulebook-errata-title">{highlightText("Errata", query, "errata-heading")}</h2>
         </header>
         <ul className={styles.errataList} aria-label="Card errata from the official rulebook">
-          {selection.errata.map((correction, index) =>
+          {selection.errata.map(correction =>
             <li key={correction}>{inlineReferences(correction, query)}</li>)}
         </ul>
       </section>}

@@ -702,7 +702,7 @@ test("Compendium reference pages share compact continuous Contents navigation", 
   assert.doesNotMatch(glossary, /All terms|setCategory\(/);
   assert.doesNotMatch(rulings, /All rulings|setCategory\(/);
   assert.match(rulings, /id=\{sectionId\(name\)\}/);
-  assert.match(rules, /children: chapter\.children\.flatMap/);
+  assert.match(rules, /children: chapter\.sections\.map/);
   assert.match(rules, /id: "rulebook-errata", label: "Errata"/);
   for (const css of [glossaryCss, rulesCss, rulingsChrome]) {
     assert.doesNotMatch(css, /\.contents\{position:sticky|\.rail\{position:sticky/);
