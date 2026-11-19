@@ -440,6 +440,24 @@ test("Core gallery uses a single nonwrapping equal-weight effect row and no fall
   assert.doesNotMatch(screenCss, /\.coreTile|\.coreStatList|\.cardGridCompact/);
 });
 
+test("BakuCore gallery widths, mobile columns and overflow labels follow the compact design", async () => {
+  const [gallery, css, cardsCss] = await Promise.all([
+    read("components/routes/CoresGallery.tsx"),
+    read("components/routes/CoresGallery.module.css"),
+    read("components/routes/CardsGallery.module.css"),
+  ]);
+  assert.match(css, /minmax\(min\(100%, 10\.5rem\), 1fr\)/);
+  assert.match(css, /minmax\(min\(100%, 8rem\), 1fr\)/);
+  assert.match(css, /@media \(min-width: 560px\) and \(max-width: 700px\)/);
+  assert.match(css, /\.gallery:not\(\.compact\) \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\); \}/);
+  assert.match(css, /@media \(max-width: 350px\)/);
+  assert.match(gallery, /}>\+\{hidden\.length\}<\/span>/);
+  assert.doesNotMatch(gallery, /}>\+\$\{hidden\.length\}<\/span>/);
+  assert.match(gallery, /getComputedStyle\(available\)\.columnGap/);
+  assert.match(cardsCss, /minmax\(min\(100%, 13rem\), 1fr\)/);
+  assert.match(cardsCss, /minmax\(min\(100%, 9rem\), 1fr\)/);
+});
+
 test("BakuCore effect icons preserve original artwork colours and faction glyph colours", async () => {
   const [effectTag, galleryCss, factionTag, cardsGallery] = await Promise.all([
     read("components/routes/CoreEffectTag.tsx"),
