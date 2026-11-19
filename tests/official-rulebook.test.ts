@@ -88,7 +88,7 @@ test("Glossary uses the shared Contents panel, frameless entries, and direct Rul
   assert.doesNotMatch(parentCss, /data-rulebook-icons/);
   assert.match(css, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(css, /grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,165px\),1fr\)\)/);
-  assert.match(css, /@media\\(max-width:700px\\)/);
+  assert.match(css, /@media\(max-width:700px\)/);
   assert.match(css, /grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,104px\),1fr\)\)/);
   assert.match(css, /\.iconHeading h3 \{ font-size:\.79rem/);
   assert.match(css, /\.iconArtwork \{ width:28px; height:28px; \}/);

@@ -56,7 +56,7 @@ export function ContentsNavigation({ items, onNavigate }: { items: readonly Cont
     });
   };
   const link = (item: ContentsEntry, nested = false) =>
-    <a key={item.id} href={`#${item.id}`} data-contents-link className={`${styles.link} ${nested ? styles.nested : ""}`}
+    <a key={item.id} href={`#${item.id}`} data-contents-link="" className={`${styles.link} ${nested ? styles.nested : ""}`}
       aria-current={active === item.id || (Boolean(item.children?.some(child => child.id === active)) && !expanded.includes(item.id)) ? "location" : undefined}
       onClick={event => navigate(event, item.id)}>{item.label}</a>;
 
