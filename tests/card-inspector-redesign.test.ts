@@ -175,3 +175,25 @@ test("Inspector metadata matches the existing gallery tags, without a redundant 
   assert.ok(!css.includes(".enlarge"));
   assert.ok(!view.includes("StatusChip"));
 });
+
+
+test("Faction tags use the approved brighter palette and sharp white symbols across gallery and Inspector", () => {
+  const tag = file("components/routes/CardFactionTag.tsx");
+  const galleryCss = file("components/routes/CardsGallery.module.css");
+  const inspector = file("components/cards/CardInspector.tsx");
+  const palette = {
+    Pyrus: "#c52a38",
+    Aquos: "#3379bf",
+    Ventus: "#1b9352",
+    Darkus: "#625f6b",
+    Haos: "#148f96",
+    Aurelus: "#b87c0c",
+  };
+  for (const [faction, hex] of Object.entries(palette)) {
+    assert.match(tag, new RegExp(faction + ': \\{\\s*background: "' + hex + '"'));
+  }
+  assert.doesNotMatch(galleryCss, /drop-shadow/);
+  assert.ok(galleryCss.includes("color: #f7f9fc"));
+  assert.ok(inspector.includes('import { CardFactionTag } from "../routes/CardFactionTag";'));
+  assert.ok(inspector.includes('import galleryStyles from "../routes/CardsGallery.module.css";'));
+});
