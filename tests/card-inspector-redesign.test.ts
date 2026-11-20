@@ -144,3 +144,14 @@ test("Inspector artwork, responsive tabs, printings, zoom and focus controls use
     assert.doesNotMatch(route, /rules=\{ruleReferences\}|rulings=\{PUBLISHED_RULINGS\}/);
   }
 });
+
+
+test("Artwork keyboard navigation and stacked modal scroll lock remain accessible", () => {
+  const view = file("components/cards/CardInspector.tsx");
+  const modal = file("components/cards/InspectorModal.tsx");
+  assert.match(view, /onKeyDown=\\{onArtworkKeyDown\\}/);
+  assert.match(view, /navigatePrinting\\(event.key === "ArrowRight" \\? 1 : -1\\)/);
+  assert.match(modal, /openDialogCount \\+= 1/);
+  assert.match(modal, /if \\(openDialogCount === 0\\) document.body.style.overflow = originalBodyOverflow/);
+  assert.match(modal, /if \\(!panel.contains\\(document.activeElement\\)\\)/);
+});

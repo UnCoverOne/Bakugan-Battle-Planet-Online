@@ -4,6 +4,11 @@ import { createPortal } from "react-dom";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import styles from "./InspectorModal.module.css";
 
+// Both the Inspector and its artwork zoom can be open simultaneously. A shared
+// lock prevents closing the upper dialog from re-enabling background scrolling.
+let openDialogCount = 0;
+let originalBodyOverflow = "";
+
 type InspectorModalProps = {
   children: ReactNode;
   dataUi: string;
@@ -38,7 +43,8 @@ export function InspectorModal({
     const activeElement = document.activeElement;
     const returnFocus = returnFocusRef?.current
       ?? (activeElement instanceof HTMLElement ? activeElement : null);
-    const previousOverflow = document.body.style.overflow;
+    if (openDialogCount === 0) originalBodyOverflow = document.body.style.overflow;
+    openDialogCount += 1;
     document.body.style.overflow = "hidden";
     const focusableSelector = [
       "button:not([disabled])",
@@ -74,7 +80,10 @@ export function InspectorModal({
       }
       const first = candidates[0];
       const last = candidates[candidates.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      if (!panel.contains(document.activeElement)) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -86,7 +95,8 @@ export function InspectorModal({
     return () => {
       window.cancelAnimationFrame(frame);
       window.removeEventListener("keydown", onKeyDown, true);
-      document.body.style.overflow = previousOverflow;
+      openDialogCount = Math.max(0, openDialogCount - 1);
+      if (openDialogCount === 0) document.body.style.overflow = originalBodyOverflow;
       if (returnFocus?.isConnected) window.requestAnimationFrame(() => returnFocus.focus());
     };
   }, [mounted, returnFocusRef, dataUi]);

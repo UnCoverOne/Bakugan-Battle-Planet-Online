@@ -302,6 +302,11 @@ export function CardInspector(props: InspectorProps) {
     if (suppressClick.current) { suppressClick.current = false; return; }
     openZoom(event.currentTarget);
   };
+  const onArtworkKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (!hasMultiple || (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
+    event.preventDefault();
+    navigatePrinting(event.key === "ArrowRight" ? 1 : -1);
+  };
   const onTabsKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
     const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
@@ -348,6 +353,7 @@ export function CardInspector(props: InspectorProps) {
             aria-label="Previous printing">‹</button>}
           <div className={styles.artStack}>
             <button type="button" className={styles.artButton} onClick={onImageClick}
+              onKeyDown={onArtworkKeyDown}
               onTouchStart={onImageTouchStart} onTouchEnd={onImageTouchEnd}
               aria-label={"Enlarge artwork: " + label}>
               {displayedCard && <ResponsiveCardImage card={displayedCard}
