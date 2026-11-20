@@ -27,9 +27,9 @@ test("selected cards preserve result state and use the modal inspector", async (
   await waitForCompendium(page);
   const inspector = page.locator('[data-ui="card-inspector"]');
   await expect(inspector).toBeVisible();
-  await expect(inspector.getByRole("tab")).toHaveCount(4);
-  await inspector.getByRole("tab", { name: "Rules" }).click();
-  await expect.poll(() => new URL(page.url()).searchParams.get("tab")).toBe("rules");
+  await expect(inspector.getByRole("tab")).toHaveCount(2);
+  await inspector.getByRole("tab", { name: "References" }).click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("tab")).toBe("references");
   const url = new URL(page.url());
   expect(url.searchParams.get("faction")).toBe("Pyrus");
   expect(url.searchParams.get("sort")).toBe("name-asc");

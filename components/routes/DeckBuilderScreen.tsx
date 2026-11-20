@@ -16,7 +16,6 @@ import { BAKUGAN, CARD_BY_ID, CARDS, CORES, validateDeck, type DeckRecord } from
 import type { DeckValidationResult } from "../../lib/deck-validation";
 import type { Core, GameCard } from "../../lib/game";
 import type { CardInspectorTab } from "../../lib/compendium";
-import { PUBLISHED_RULINGS } from "../../lib/reference";
 import { DECK_LIMIT } from "../../lib/deck-transfer";
 import { invalidateResponse } from "../../lib/response-cache";
 import { cardSearchText, frequencyMap } from "../../lib/catalogue-index";
@@ -35,7 +34,6 @@ import styles from "./DeckRoutes.module.css";
 import { MotionValue } from "../design-system/MotionValue";
 import { builderScope, builderBase, readBuilderDraft, writeBuilderDraft, setActiveBuilder, clearBuilderDraft, shouldConfirmBuilderExit, type BuilderDraft } from "../../lib/builder-session";
 import { useCompetitiveRules, clone, blankDraft, DeckState } from "./DeckRouteShared";
-import { BUILDER_RULE_REFERENCES } from "./DeckInspectorReferences";
 
 type BuilderView = "gallery" | "deck";
 
@@ -151,6 +149,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   const [activeMenu, setActiveMenu] = useState<BuilderMenu | null>(null);
   const [inspection, setInspection] = useState<BuilderInspection | null>(null);
   const [inspectorTab, setInspectorTab] = useState<CardInspectorTab>("overview");
+  const [inspectorPrinting, setInspectorPrinting] = useState("");
   const [saveState, setSaveState] = useState<"saved" | "dirty" | "error">("saved");
   const [saveName, setSaveName] = useState(() => restoredText("saveName", deck.name));
   const [saveDescription, setSaveDescription] = useState(() => restoredText("saveDescription", deck.description ?? ""));
@@ -448,9 +447,14 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   };
   const inspectCard = (card: GameCard) => {
     setInspectorTab("overview");
+    setInspectorPrinting("");
     setInspection({ kind: "card", card });
   };
-  const inspectCore = (coreId: string) => setInspection({ kind: "core", coreId });
+  const inspectCore = (coreId: string) => {
+    setInspectorTab("overview");
+    setInspectorPrinting("");
+    setInspection({ kind: "core", coreId });
+  };
   const adjustGalleryItem = (item: BuilderGalleryItem, amount: number) => {
     if (item.kind === "card") adjustCard(item.id, amount);
     if (item.kind === "character" && ((amount > 0 && !item.count) || (amount < 0 && item.count))) toggleCharacter(item.id);
@@ -1006,16 +1010,16 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
           <CardInspector
             card={inspection.card}
             allCards={CARDS}
-            rules={BUILDER_RULE_REFERENCES}
-            rulings={PUBLISHED_RULINGS}
             tab={inspectorTab}
+            printingId={inspectorPrinting}
+            onPrintingChange={setInspectorPrinting}
             mode="embedded"
             onTabChange={setInspectorTab}
             onSelectCard={inspectCard}
             onClose={() => setInspection(null)}
             onShare={() => {
               const origin = globalThis.location?.origin ?? "";
-              void copyText(`${origin}/compendium?card=${encodeURIComponent(inspection.card.catalogId)}`).then(() => notify("Card link copied."));
+              void copyText(`${origin}/compendium?card=${encodeURIComponent(inspection.card.catalogId)}${inspectorPrinting ? `&printing=${encodeURIComponent(inspectorPrinting)}` : ""}`).then(() => notify("Card link copied."));
             }}
           />
         </div>
@@ -1029,15 +1033,15 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
               <CardInspector
                 core={core}
                 allCores={CORES}
-                rules={BUILDER_RULE_REFERENCES}
-                rulings={PUBLISHED_RULINGS}
                 tab={inspectorTab}
+                printingId={inspectorPrinting}
+                onPrintingChange={setInspectorPrinting}
                 mode="embedded"
                 onTabChange={setInspectorTab}
                 onClose={() => setInspection(null)}
                 onShare={() => {
                   const origin = globalThis.location?.origin ?? "";
-                  void copyText(`${origin}/compendium/cores?core=${encodeURIComponent(core.catalogId ?? core.id)}`).then(() => notify("BakuCore link copied."));
+                  void copyText(`${origin}/compendium/cores?core=${encodeURIComponent(core.catalogId ?? core.id)}${inspectorPrinting ? `&printing=${encodeURIComponent(inspectorPrinting)}` : ""}`).then(() => notify("BakuCore link copied."));
                 }}
               />
             );

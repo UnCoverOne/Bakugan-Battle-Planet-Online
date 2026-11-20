@@ -9,7 +9,6 @@ import { BAKUGAN, CARDS, CORES, validateDeck, type DeckRecord } from "../../lib/
 import type { DeckValidationResult } from "../../lib/deck-validation";
 import type { GameCard } from "../../lib/game";
 import type { CardInspectorTab } from "../../lib/compendium";
-import { PUBLISHED_RULINGS } from "../../lib/reference";
 import { deckTextList, encodeDeckCode } from "../../lib/deck-transfer";
 import { deckEnergyCurve, deckExportFilename, groupedDeckCards } from "../../lib/deck-presentation";
 import { deckSetName } from "../../lib/deck-set";
@@ -22,7 +21,6 @@ import { DeckCreatorIdentity } from "../profile/DeckCreatorIdentity";
 import styles from "./DeckRoutes.module.css";
 import { DeckState } from "./DeckRouteShared";
 import { CharacterFan, DeckFactionTags } from "./DeckLibraryPresentation";
-import { BUILDER_RULE_REFERENCES } from "./DeckInspectorReferences";
 
 export function DeckDetailPresentation({
   deck,
@@ -57,10 +55,12 @@ export function DeckDetailPresentation({
   ].filter((section) => section.cards.length);
   const [inspection, setInspection] = useState<GameCard | null>(null);
   const [inspectorTab, setInspectorTab] = useState<CardInspectorTab>("overview");
+  const [inspectorPrinting, setInspectorPrinting] = useState("");
   const inspectorTrigger = useRef<HTMLElement | null>(null);
   const inspectCard = (card: GameCard, trigger?: HTMLElement | null) => {
     inspectorTrigger.current = trigger ?? inspectorTrigger.current;
     setInspectorTab("overview");
+    setInspectorPrinting("");
     setInspection(card);
   };
   return (
@@ -177,13 +177,14 @@ export function DeckDetailPresentation({
         <CardInspector
           card={inspection}
           allCards={CARDS}
-          rules={BUILDER_RULE_REFERENCES}
-          rulings={PUBLISHED_RULINGS}
           tab={inspectorTab}
+          printingId={inspectorPrinting}
+          onPrintingChange={setInspectorPrinting}
+          onSelectCard={inspectCard}
           onTabChange={setInspectorTab}
           onClose={() => setInspection(null)}
           returnFocusRef={inspectorTrigger}
-          onShare={() => void copyText(`${globalThis.location?.origin ?? ""}/compendium?card=${encodeURIComponent(inspection.catalogId)}`).then(() => notify("Card link copied."))}
+          onShare={() => void copyText(`${globalThis.location?.origin ?? ""}/compendium?card=${encodeURIComponent(inspection.catalogId)}${inspectorPrinting ? `&printing=${encodeURIComponent(inspectorPrinting)}` : ""}`).then(() => notify("Card link copied."))}
         />
       )}
     </div>

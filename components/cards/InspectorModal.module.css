@@ -1,4 +1,4 @@
-/* Redesign: structural rules only; visual styling intentionally removed. */
+/* Shared focus-trapped Inspector dialog and high-resolution artwork overlay. */
 .backdrop {
   position: fixed;
   z-index: 1200;
@@ -6,10 +6,9 @@
   display: grid;
   place-items: center;
   padding: var(--space-5);
-
-
+  background: rgba(0, 5, 8, .82);
 }
-
+.backdrop:has([data-ui="inspector-art-zoom"]) { z-index: 1400; }
 .panel {
   position: relative;
   min-width: 0;
@@ -19,17 +18,11 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  border: 1px solid var(--bb-border-hover);
+  background: var(--bb-panel-deep);
+  box-shadow: 0 20px 55px #0008;
 }
-
 @media (max-width: 900px) {
-  .backdrop {
-    padding: 0;
-  }
-
-  .panel {
-    width: 100vw;
-    height: 100dvh;
-    max-height: none;
-
-  }
+  .backdrop { padding: 0; }
+  .panel { width: 100vw; height: 100dvh; max-height: none; border: 0; }
 }

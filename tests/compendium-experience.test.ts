@@ -11,7 +11,6 @@ import {
   filterAndSortCompendiumCards,
   parseCoreCompendiumState,
   parseCompendiumState,
-  relatedCompendiumCards,
   selectedCompendiumCard,
   selectedCompendiumCore,
 } from "../lib/compendium";
@@ -63,7 +62,7 @@ const core = (overrides: Partial<Core> & Pick<Core, "id" | "number" | "name">): 
 
 
 test("Compendium URL state round-trips filters, density, selection, and inspector tab", () => {
-  const state = parseCompendiumState("q=dragonoid&set=BB&type=Character&coreType=Magic+Shield&faction=Pyrus&cost=2&rarity=Rare&keyword=Victor&sort=name-desc&density=compact&page=3&card=bb-1&tab=rulings");
+  const state = parseCompendiumState("q=dragonoid&set=BB&type=Character&coreType=Magic+Shield&faction=Pyrus&cost=2&rarity=Rare&keyword=Victor&sort=name-desc&density=compact&page=3&card=bb-1&printing=bb-7&tab=rulings");
   assert.deepEqual(state, {
     q: "dragonoid",
     set: ["BB"],
@@ -80,7 +79,8 @@ test("Compendium URL state round-trips filters, density, selection, and inspecto
     density: "compact",
     page: 3,
     card: "bb-1",
-    tab: "rulings",
+    printing: "bb-7",
+    tab: "references",
   });
   assert.deepEqual(parseCompendiumState(compendiumSearchParams(state)), state);
   assert.deepEqual(
@@ -158,7 +158,7 @@ test("Fused-side Character previews inherit their Bakugan rolling stats", async 
   assert.match(screen, /label="Fusions"/);
   assert.match(screen, /onFusionChange/);
   assert.match(screen, /fusionOnly: false/);
-  assert.match(inspector, /requestedFusionFace/);
+  assert.match(inspector, /inspectorFusionFace/);
   assert.match(rolling, /bakuganRollingValues\(card\)/);
 });
 
@@ -322,13 +322,6 @@ test("EX participates in set filtering and collector release order", () => {
       .map((candidate) => candidate.catalogId),
     ["bb-1", "br-1", "aa-1", "ex-1", "ex-2"],
   );
-});
-
-test("related cards connect evolutions and alternate identities", () => {
-  const base = card({ catalogId: "bb-1", displayName: "Dragonoid", name: "Dragonoid", type: "Character" });
-  const evo = card({ catalogId: "bb-2", displayName: "Hyper Dragonoid", name: "Hyper Dragonoid", type: "Evo", evolvesFrom: "Dragonoid" });
-  const unrelated = card({ catalogId: "bb-3", displayName: "Dan Kouzo", type: "Hero" });
-  assert.deepEqual(relatedCompendiumCards(base, [base, evo, unrelated]).map((candidate) => candidate.catalogId), ["bb-2"]);
 });
 
 test("BakuCore compendium state filters, sorts, and selects both sets", () => {
@@ -636,7 +629,7 @@ test("Bakugan rolling probabilities remain in other galleries and the inspector"
   }
   assert.match(inspector, /<dt>Roll Accuracy<\/dt>/);
   assert.match(inspector, /<dt>Double Core Chance<\/dt>/);
-  assert.match(inspector, /<BakuganRollingOverlay card=\{card\}/);
+  assert.doesNotMatch(inspector, /<BakuganRollingOverlay card=\{card\}/);
   assert.match(inspector, /kind="rollAccuracy" value=\{rolling\.rollAccuracy\} plain/);
   assert.match(inspector, /kind="doubleCoreChance" value=\{rolling\.doubleCoreChance\} plain/);
   assert.match(administrator, /<BakuganRollingStat kind="rollAccuracy"/);

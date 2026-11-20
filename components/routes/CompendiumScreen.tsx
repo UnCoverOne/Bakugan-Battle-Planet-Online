@@ -24,9 +24,8 @@ import {
   type CoreCompendiumState,
   type CompendiumState,
 } from "../../lib/compendium";
-import { CARDS, CORE_COMPENDIUM, RULE_ENTRIES } from "../../lib/data";
+import { CARDS, CORE_COMPENDIUM } from "../../lib/data";
 import { updateCollection, type CollectionField } from "../../lib/collection";
-import { GLOSSARY_ENTRIES, PUBLISHED_RULINGS, REFERENCE_REVIEWED_AT } from "../../lib/reference";
 import { useAppFields } from "../application/AppProvider";
 import { copyText } from "../application/ui";
 import { ActionButton, Surface } from "../design-system/primitives";
@@ -52,24 +51,12 @@ import { CompendiumSidebar } from "./CompendiumSidebar";
 
 const SEARCH_URL_DEBOUNCE_MS = 450;
 
-const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const CORE_SORT_OPTIONS: FilterOption[] = Object.entries(CORE_SORT_LABELS)
   .map(([value, label]) => ({ value, label }));
 const FUSION_OPTIONS: FilterOption[] = [{ value: "fused", label: "Fused side only" }];
 
 type FilterKey = CardFilterFacet;
 type StatePatch = Partial<CompendiumState>;
-
-const ruleReferences = [
-  ...RULE_ENTRIES.map((entry) => ({
-    ...entry,
-    slug: slug(entry.title),
-    source: "Digital adaptation reference",
-    sourceSection: entry.category,
-    reviewedAt: REFERENCE_REVIEWED_AT,
-  })),
-  ...GLOSSARY_ENTRIES,
-];
 
 function FilterControls({
   state, filterOptions, onChange, onFusionChange, onSortChange,
@@ -255,7 +242,7 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   };
 
   const closeInspector = useCallback(() => {
-    navigate({ card: "", tab: "overview" });
+    navigate({ card: "", printing: "", tab: "overview" });
   }, [navigate]);
 
   useEffect(() => {
@@ -356,11 +343,11 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
   }, { resetPage: true });
   const selectCard = (card: typeof CARDS[number], trigger?: HTMLElement | null) => {
     inspectorTrigger.current = trigger ?? inspectorTrigger.current;
-    navigate({ card: card.slug ?? card.catalogId, tab: "overview" }, { push: true });
+    navigate({ card: card.slug ?? card.catalogId, printing: "", tab: "overview" }, { push: true });
   };
   const selectCore = (core: typeof CORE_COMPENDIUM[number], trigger?: HTMLElement | null) => {
     inspectorTrigger.current = trigger ?? inspectorTrigger.current;
-    navigateCore({ core: core.catalogId ?? core.id }, { push: true });
+    navigateCore({ core: core.catalogId ?? core.id, printing: "", tab: "overview" }, { push: true });
   };
   const copyCurrentLink = async (label: string) => {
     const path = section === "cores"
@@ -447,9 +434,9 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
               <CardInspector
                 card={selected}
                 allCards={CARDS}
-                rules={ruleReferences}
-                rulings={PUBLISHED_RULINGS}
                 tab={state.tab}
+                printingId={state.printing}
+                onPrintingChange={(printing) => navigate({ printing }, { push: true })}
                 onTabChange={(tab: CardInspectorTab) => navigate({ tab }, { push: true })}
                 onSelectCard={(card) => selectCard(card)}
                 onClose={closeInspector}
@@ -502,11 +489,11 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
                 preferredCorePrintingId={coreState.set.length === 1
                   ? selectedCore.printings?.find((printing) => printing.set === coreState.set[0])?.id
                   : undefined}
-                rules={ruleReferences}
-                rulings={PUBLISHED_RULINGS}
                 tab={coreState.tab}
+                printingId={coreState.printing}
+                onPrintingChange={(printing) => navigateCore({ printing }, { push: true })}
                 onTabChange={(tab) => navigateCore({ tab }, { push: true })}
-                onClose={() => navigateCore({ core: "", tab: "overview" })}
+                onClose={() => navigateCore({ core: "", printing: "", tab: "overview" })}
                 returnFocusRef={inspectorTrigger}
                 onShare={() => void copyCurrentLink(selectedCore.name)}
                 collectionEnabled={Boolean(authUser)}

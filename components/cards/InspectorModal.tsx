@@ -55,6 +55,10 @@ export function InspectorModal({
       (first ?? panel)?.focus();
     });
     const onKeyDown = (event: KeyboardEvent) => {
+      // An enlarged card image opens a second dialog above the Inspector.
+      // Only the topmost dialog may handle Escape or trap the Tab key.
+      if (dataUi !== "inspector-art-zoom" &&
+          document.querySelector('[data-ui="inspector-art-zoom"]')) return;
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
@@ -85,7 +89,7 @@ export function InspectorModal({
       document.body.style.overflow = previousOverflow;
       if (returnFocus?.isConnected) window.requestAnimationFrame(() => returnFocus.focus());
     };
-  }, [mounted, returnFocusRef]);
+  }, [mounted, returnFocusRef, dataUi]);
 
   if (!mounted) return null;
   return createPortal(

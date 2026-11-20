@@ -19,11 +19,19 @@ export const COMPENDIUM_SORTS = [
 ] as const;
 
 export const COMPENDIUM_DENSITIES = ["gallery", "compact"] as const;
-export const CARD_INSPECTOR_TABS = ["overview", "rules", "rulings", "related", "collection"] as const;
+export const CARD_INSPECTOR_TABS = ["overview", "references", "collection"] as const;
 
 export type CompendiumSort = (typeof COMPENDIUM_SORTS)[number];
 export type CompendiumDensity = (typeof COMPENDIUM_DENSITIES)[number];
 export type CardInspectorTab = (typeof CARD_INSPECTOR_TABS)[number];
+
+// Preserve deep links from the former five-tab Inspector.
+export const parseInspectorTab = (value: string | null, fallback: CardInspectorTab = "overview"): CardInspectorTab => {
+  if (value === "rules" || value === "rulings") return "references";
+  if (value === "related") return "overview";
+  return value && (CARD_INSPECTOR_TABS as readonly string[]).includes(value)
+    ? value as CardInspectorTab : fallback;
+};
 
 export type CompendiumState = CardFilterState & {
   /** Only fused-side Character Cards; available with the Character-only type filter. */
@@ -33,6 +41,7 @@ export type CompendiumState = CardFilterState & {
   density: CompendiumDensity;
   page: number;
   card: string;
+  printing: string;
   tab: CardInspectorTab;
 };
 
@@ -44,6 +53,7 @@ export const DEFAULT_COMPENDIUM_STATE: CompendiumState = Object.freeze({
   density: "gallery",
   page: 1,
   card: "",
+  printing: "",
   tab: "overview",
 });
 
@@ -75,7 +85,8 @@ export function parseCompendiumState(input: URLSearchParams | string): Compendiu
     density: oneOf(params.get("density"), COMPENDIUM_DENSITIES, DEFAULT_COMPENDIUM_STATE.density),
     page: Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1,
     card: params.get("card")?.trim() ?? "",
-    tab: oneOf(params.get("tab"), CARD_INSPECTOR_TABS, DEFAULT_COMPENDIUM_STATE.tab),
+    printing: params.get("printing")?.trim() ?? "",
+    tab: parseInspectorTab(params.get("tab"), DEFAULT_COMPENDIUM_STATE.tab),
   };
 }
 
@@ -104,6 +115,7 @@ export function compendiumSearchParams(state: CompendiumState) {
   if (state.page > 1) params.set("page", String(state.page));
   if (state.card) {
     params.set("card", state.card);
+    if (state.printing) params.set("printing", state.printing);
     setIfChanged("tab", state.tab, DEFAULT_COMPENDIUM_STATE.tab);
   }
   return params;
@@ -179,20 +191,6 @@ export function selectedCompendiumCard(cards: readonly GameCard[], identity: str
   return cards.find((card) => card.fusionPairId === selected.fusionPairId && card.fusionFace === "a") ?? selected;
 }
 
-export function relatedCompendiumCards(card: GameCard, cards: readonly GameCard[]) {
-  const names = new Set([card.name, card.displayName, card.evolvesFrom].filter(Boolean).map((value) => value!.toLowerCase()));
-  return cards.filter((candidate) => {
-    if (candidate.catalogId === card.catalogId) return false;
-    if (candidate.fusionPairId && candidate.fusionPairId === card.fusionPairId) return false;
-    const candidateNames = [candidate.name, candidate.displayName, candidate.evolvesFrom]
-      .filter(Boolean)
-      .map((value) => value!.toLowerCase());
-    return candidateNames.some((value) => names.has(value))
-      || Boolean(card.evolvesFrom && candidate.displayName.toLowerCase().includes(card.evolvesFrom.toLowerCase()))
-      || Boolean(candidate.evolvesFrom && card.displayName.toLowerCase().includes(candidate.evolvesFrom.toLowerCase()));
-  }).slice(0, 12);
-}
-
 export const CORE_COMPENDIUM_PAGE_SIZE = 24;
 export const CORE_COMPENDIUM_SORTS = ["collector", "type", "bonus", "bonus-asc", "damage", "damage-asc"] as const;
 export const CORE_COMPENDIUM_DENSITIES = ["gallery", "compact"] as const;
@@ -212,6 +210,7 @@ export type CoreCompendiumState = {
   density: CoreCompendiumDensity;
   page: number;
   core: string;
+  printing: string;
   tab: CardInspectorTab;
 };
 
@@ -227,6 +226,7 @@ export const DEFAULT_CORE_COMPENDIUM_STATE: CoreCompendiumState = Object.freeze(
   density: "gallery",
   page: 1,
   core: "",
+  printing: "",
   tab: "overview",
 });
 
@@ -245,7 +245,8 @@ export function parseCoreCompendiumState(input: URLSearchParams | string): CoreC
     density: oneOf(params.get("coreDensity"), CORE_COMPENDIUM_DENSITIES, DEFAULT_CORE_COMPENDIUM_STATE.density),
     page: Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1,
     core: params.get("core")?.trim() ?? "",
-    tab: oneOf(params.get("tab"), CARD_INSPECTOR_TABS, DEFAULT_CORE_COMPENDIUM_STATE.tab),
+    printing: params.get("printing")?.trim() ?? "",
+    tab: parseInspectorTab(params.get("tab"), DEFAULT_CORE_COMPENDIUM_STATE.tab),
   };
 }
 
@@ -266,6 +267,7 @@ export function coreCompendiumSearchParams(state: CoreCompendiumState) {
   if (state.page > 1) params.set("corePage", String(state.page));
   if (state.core) {
     params.set("core", state.core);
+    if (state.printing) params.set("printing", state.printing);
     if (state.tab !== DEFAULT_CORE_COMPENDIUM_STATE.tab) params.set("tab", state.tab);
   }
   return params;

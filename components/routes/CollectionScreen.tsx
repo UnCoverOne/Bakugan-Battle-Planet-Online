@@ -9,13 +9,12 @@ import { CardInspector } from "../cards/CardInspector";
 import { CardGrid, Field, RouteHero, StatusChip, Surface, Tabs, ActionButton } from "../design-system/primitives";
 import { CardFilterPanel } from "../filters/CardFilterPanel";
 import { FilterPicker } from "../filters/FilterPicker";
-import { CARDS, CORE_COMPENDIUM, RULE_ENTRIES } from "../../lib/data";
+import { CARDS, CORE_COMPENDIUM } from "../../lib/data";
 import { cardSetCode } from "../../lib/content/catalogue";
 import { activeCardFilterCount, CORE_SET_OPTIONS, CORE_TYPE_OPTIONS, createCardFilterOptionCatalogue, type CardFilterFacet } from "../../lib/card-filters";
 import { SORT_LABELS, CHARACTER_SORTS, NON_CHARACTER_SORTS, CORE_SORT_LABELS } from "../../lib/catalogue-sorting";
-import { CORE_COMPENDIUM_SORTS, filterAndSortCompendiumCards, filterAndSortCompendiumCores, parseCompendiumState, parseCoreCompendiumState, selectedCompendiumCard, selectedCompendiumCore, type CardInspectorTab } from "../../lib/compendium";
+import { CORE_COMPENDIUM_SORTS, filterAndSortCompendiumCards, filterAndSortCompendiumCores, parseCompendiumState, parseCoreCompendiumState, selectedCompendiumCard, selectedCompendiumCore, parseInspectorTab, type CardInspectorTab } from "../../lib/compendium";
 import { collectionEntryForIds, coreCollectionIds, COLLECTION_QUANTITY_OPTIONS, COLLECTION_SORT_OPTIONS, type CollectionField } from "../../lib/collection";
-import { PUBLISHED_RULINGS, GLOSSARY_ENTRIES, REFERENCE_REVIEWED_AT, type ReferenceEntry } from "../../lib/reference";
 import { updateCollection } from "../../lib/collection";
 import { useAppFields } from "../application/AppProvider";
 import compendiumStyles from "./CompendiumScreen.module.css";
@@ -27,7 +26,6 @@ import { collectionIdentityIndex } from "../../lib/catalogue-index";
 const quantityKey = (field: CollectionField) => `collection${field[0].toUpperCase()}${field.slice(1)}`;
 const quantityLabel = (field: CollectionField) => field[0].toUpperCase() + field.slice(1);
 const allCollectionFilters = ["standard", "foil", "wishlist"] as const;
-const ruleReferences: ReferenceEntry[] = RULE_ENTRIES.map((entry) => ({ ...entry, slug: entry.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"), source: "Digital adaptation reference", sourceSection: entry.category, reviewedAt: REFERENCE_REVIEWED_AT }));
 const coreArchiveSortOptions = CORE_COMPENDIUM_SORTS.map((value) => ({ value, label: CORE_SORT_LABELS[value] }));
 
 function countMatches(count: number, values: readonly string[]) {
@@ -42,13 +40,7 @@ export function CollectionScreen() {
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const activeTab = searchParams.get("collectionTab") === "cores" ? "cores" : "cards";
   const requestedInspectorTab = searchParams.get("tab");
-  const inspectorTab: CardInspectorTab = requestedInspectorTab === "overview"
-    || requestedInspectorTab === "rules"
-    || requestedInspectorTab === "rulings"
-    || requestedInspectorTab === "related"
-    || requestedInspectorTab === "collection"
-    ? requestedInspectorTab
-    : "collection";
+  const inspectorTab: CardInspectorTab = parseInspectorTab(requestedInspectorTab, "collection");
   const urlQuery = searchParams.get("q") ?? "";
   const [query, setQuery] = useState(urlQuery);
   const deferredQuery = useDeferredValue(query);
@@ -153,9 +145,13 @@ export function CollectionScreen() {
   }
 
   const selectedCard = selected ?? undefined;
-  const closeInspector = () => navigate({ card: null, core: null, tab: null });
-  const selectCard = (card: typeof CARDS[number]) => { inspectorTrigger.current = document.activeElement as HTMLElement; navigate({ collectionTab: "cards", card: card.slug ?? card.catalogId, core: null, tab: "collection" }); };
-  const selectCore = (core: typeof CORE_COMPENDIUM[number]) => { inspectorTrigger.current = document.activeElement as HTMLElement; navigate({ collectionTab: "cores", core: core.catalogId ?? core.id, card: null, tab: "collection" }); };
+  const closeInspector = () => navigate({ card: null, core: null, printing: null, tab: null });
+  const selectCard = (card: typeof CARDS[number]) => { inspectorTrigger.current = document.activeElement as HTMLElement; navigate({ collectionTab: "cards", card: card.slug ?? card.catalogId, core: null, printing: null, tab: "collection" }); };
+  const selectCore = (core: typeof CORE_COMPENDIUM[number]) => { inspectorTrigger.current = document.activeElement as HTMLElement; navigate({ collectionTab: "cores", core: core.catalogId ?? core.id, card: null, printing: null, tab: "collection" }); };
+  const selectRelatedCard = (card: typeof CARDS[number]) => navigate({
+    collectionTab: "cards", card: card.slug ?? card.catalogId, core: null,
+    printing: null, tab: "overview",
+  });
   const pageParam = activeTab === "cards" ? "page" : "corePage";
   const densityParam = activeTab === "cards" ? "density" : "coreDensity";
   const density = activeTab === "cards" ? cardState.density : coreState.density;
@@ -270,8 +266,8 @@ export function CollectionScreen() {
           {!visible.length && <Surface className={compendiumStyles.emptyResults} role="status"><span>◇</span><h2>No collection items match</h2><p>Adjust the search or clear the active filters to return to the full archive.</p><ActionButton tone="secondary" onClick={clearFilters}>Clear filters</ActionButton></Surface>}
           <nav className={compendiumStyles.pagination} aria-label="Collection pages"><button disabled={page === 1} onClick={() => setPage(page - 1)}>← Previous</button><span>Page {page} of {pages}</span><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next →</button></nav>
         </main>
-        {selectedCard && <CardInspector card={selectedCard} allCards={CARDS} rules={[...ruleReferences, ...GLOSSARY_ENTRIES]} rulings={PUBLISHED_RULINGS} tab={inspectorTab} collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={(tab) => navigate({ tab })} onClose={closeInspector} returnFocusRef={inspectorTrigger} />}
-        {selectedCore && <CardInspector core={selectedCore} allCores={CORE_COMPENDIUM} rules={[...ruleReferences, ...GLOSSARY_ENTRIES]} rulings={PUBLISHED_RULINGS} tab={inspectorTab} collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={(tab) => navigate({ tab })} onClose={closeInspector} returnFocusRef={inspectorTrigger} />}
+        {selectedCard && <CardInspector card={selectedCard} allCards={CARDS} tab={inspectorTab} printingId={searchParams.get("printing") ?? ""} onPrintingChange={(printing) => navigate({ printing })} onSelectCard={selectRelatedCard} collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={(tab) => navigate({ tab })} onClose={closeInspector} returnFocusRef={inspectorTrigger} />}
+        {selectedCore && <CardInspector core={selectedCore} allCores={CORE_COMPENDIUM} tab={inspectorTab} printingId={searchParams.get("printing") ?? ""} onPrintingChange={(printing) => navigate({ printing })} preferredCorePrintingId={coreState.set.length === 1 ? selectedCore.printings?.find(p => p.set === coreState.set[0])?.id : undefined} collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={(tab) => navigate({ tab })} onClose={closeInspector} returnFocusRef={inspectorTrigger} />}
       </div>
       {filterSheetOpen && <div data-ui="filter-backdrop" className={compendiumStyles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}><Surface as="aside" data-motion-surface="filter-sheet" className={compendiumStyles.filterSheet} role="dialog" aria-modal="true" aria-label="Collection filters"><div className={compendiumStyles.filterHeading}><h2>Filters &amp; sort</h2><button type="button" onClick={() => setFilterSheetOpen(false)}>Close</button></div>{renderCollectionFilterControls()}<div className={compendiumStyles.sheetDensity}><strong>Display</strong><Tabs label="Collection gallery density"><button type="button" className={density === "gallery" ? "active" : ""} onClick={() => navigate({ [densityParam]: "gallery" })}>Gallery</button><button type="button" className={density === "compact" ? "active" : ""} onClick={() => navigate({ [densityParam]: "compact" })}>Compact</button></Tabs></div><ActionButton onClick={() => setFilterSheetOpen(false)}>Show {results.length} items</ActionButton></Surface></div>}
     </div>
