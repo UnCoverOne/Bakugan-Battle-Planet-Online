@@ -1,0 +1,1009 @@
+{
+  "schemaVersion": 1,
+  "generatedOn": "2026-11-20",
+  "status": "DRAFT – PAIRING CANDIDATES, NOT INDEPENDENTLY VERIFIED",
+  "matchingPolicy": "Match name, full factions, and Fusion face; choose same-set regular Character when possible, otherwise nearest earlier-set regular Character; never merge unrelated same-name printings.",
+  "epicCharacterCount": 89,
+  "pairedCandidates": 54,
+  "unpairedRecords": 35,
+  "pairs": [
+    {
+      "epicCharacterId": "ff-215",
+      "epicSet": "FF",
+      "epicName": "Aquos Auxillataur",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-158",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-158"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-216",
+      "epicSet": "FF",
+      "epicName": "Aquos Howlkor",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-165",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-165"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-217",
+      "epicSet": "FF",
+      "epicName": "Aquos Howlkor Ultra",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-166",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-166"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-218",
+      "epicSet": "FF",
+      "epicName": "Aquos Nillious",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-170",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-170"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-219",
+      "epicSet": "FF",
+      "epicName": "Aquos Nillious Ultra",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-171",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-171"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-220",
+      "epicSet": "FF",
+      "epicName": "Aurelus Auxillataur",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-179",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-179"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-221",
+      "epicSet": "FF",
+      "epicName": "Aurelus Dragonoid",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-181",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-181"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-222",
+      "epicSet": "FF",
+      "epicName": "Aurelus Howlkor Ultra",
+      "epicFusionFace": null,
+      "regularCharacterId": "ff-164",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "ff-164"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-223",
+      "epicSet": "FF",
+      "epicName": "Aurelus Nillious Ultra",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-187",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-187"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-224",
+      "epicSet": "FF",
+      "epicName": "Darkus Pegatrix",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-205",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-205"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-225",
+      "epicSet": "FF",
+      "epicName": "Darkus Gillator Ultra",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-208",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-208"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-226",
+      "epicSet": "FF",
+      "epicName": "Darkus Tretorous Ultra",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-210",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-210"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-227",
+      "epicSet": "FF",
+      "epicName": "Darkus Trox Ultra",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-212",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-212"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-228",
+      "epicSet": "FF",
+      "epicName": "Haos Pegatrix Ultra",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-226",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-226"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-229",
+      "epicSet": "FF",
+      "epicName": "Haos Sairus Ultra",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-227",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-227"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-230",
+      "epicSet": "FF",
+      "epicName": "Haos Maxodon",
+      "epicFusionFace": null,
+      "regularCharacterId": "ff-179",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "ff-179"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-231",
+      "epicSet": "FF",
+      "epicName": "Haos Pharol",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-228",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-228"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-232",
+      "epicSet": "FF",
+      "epicName": "Pyrus Howlkor",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-237",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-237"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-233",
+      "epicSet": "FF",
+      "epicName": "Pyrus Nillious Ultra",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-242",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-242"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-234",
+      "epicSet": "FF",
+      "epicName": "Pyrus Ryerazu",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-245",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-245"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-235",
+      "epicSet": "FF",
+      "epicName": "Pyrus Pharol",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-247",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-247"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-236",
+      "epicSet": "FF",
+      "epicName": "Ventus Cycloid",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-256",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-256"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-237",
+      "epicSet": "FF",
+      "epicName": "Ventus Hydorous",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-260",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-260"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-238",
+      "epicSet": "FF",
+      "epicName": "Ventus Nillious",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-261",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-261"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-239",
+      "epicSet": "FF",
+      "epicName": "Ventus Pegatrix",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-263",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-263"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-240",
+      "epicSet": "FF",
+      "epicName": "Ventus Pharol",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-268",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-268"
+      ]
+    },
+    {
+      "epicCharacterId": "ff-241",
+      "epicSet": "FF",
+      "epicName": "Ventus Tretorous Ultra",
+      "epicFusionFace": null,
+      "regularCharacterId": "av-269",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "av-269"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-223a",
+      "epicSet": "SV",
+      "epicName": "Aquos Hydorous & Trhyno",
+      "epicFusionFace": "a",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-223b",
+      "epicSet": "SV",
+      "epicName": "Aquos Hydorous & Trhyno",
+      "epicFusionFace": "b",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-224a",
+      "epicSet": "SV",
+      "epicName": "Aquos Hydorous & Trhyno Ultra",
+      "epicFusionFace": "a",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-224b",
+      "epicSet": "SV",
+      "epicName": "Aquos Hydorous & Trhyno Ultra",
+      "epicFusionFace": "b",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-226a",
+      "epicSet": "SV",
+      "epicName": "Darkus Howlkor & Ramparian",
+      "epicFusionFace": "a",
+      "regularCharacterId": "ff-171a",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "ff-171a"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-226b",
+      "epicSet": "SV",
+      "epicName": "Darkus Howlkor x Ramparian",
+      "epicFusionFace": "b",
+      "regularCharacterId": "ff-171b",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "ff-171b"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-227a",
+      "epicSet": "SV",
+      "epicName": "Darkus Howlkor & Serpenteze",
+      "epicFusionFace": "a",
+      "regularCharacterId": "ff-172a",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "ff-172a"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-227b",
+      "epicSet": "SV",
+      "epicName": "Darkus Howlkor x Serpenteze",
+      "epicFusionFace": "b",
+      "regularCharacterId": "ff-172b",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "ff-172b"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-228a",
+      "epicSet": "SV",
+      "epicName": "Darkus Howlkor & Serpenteze Ultra",
+      "epicFusionFace": "a",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-228b",
+      "epicSet": "SV",
+      "epicName": "Darkus Howlkor & Serpenteze Ultra",
+      "epicFusionFace": "b",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-229",
+      "epicSet": "SV",
+      "epicName": "Haos Barbetra",
+      "epicFusionFace": null,
+      "regularCharacterId": "ff-177",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "ff-177"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-231a",
+      "epicSet": "SV",
+      "epicName": "Haos Pegatrix & Gillator",
+      "epicFusionFace": "a",
+      "regularCharacterId": "ff-182a",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "ff-182a"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-231b",
+      "epicSet": "SV",
+      "epicName": "Haos Pegatrix & Gillator",
+      "epicFusionFace": "b",
+      "regularCharacterId": "ff-182b",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "ff-182b"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-232a",
+      "epicSet": "SV",
+      "epicName": "Haos Pegatrix & Goreene",
+      "epicFusionFace": "a",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-232b",
+      "epicSet": "SV",
+      "epicName": "Haos Pegatrix & Goreene",
+      "epicFusionFace": "b",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-233a",
+      "epicSet": "SV",
+      "epicName": "Haos Pegatrix & Goreene Ultra",
+      "epicFusionFace": "a",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-233b",
+      "epicSet": "SV",
+      "epicName": "Haos Pegatrix & Goreene Ultra",
+      "epicFusionFace": "b",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-234a",
+      "epicSet": "SV",
+      "epicName": "Haos Trox & Nobilious Ultra",
+      "epicFusionFace": "a",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-234b",
+      "epicSet": "SV",
+      "epicName": "Haos Trox x Nobilious Ultra",
+      "epicFusionFace": "b",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-236a",
+      "epicSet": "SV",
+      "epicName": "Pyrus Dragonoid & Auxillataur Ultra",
+      "epicFusionFace": "a",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-236b",
+      "epicSet": "SV",
+      "epicName": "Pyrus Dragonoid & Auxillataur Ultra",
+      "epicFusionFace": "b",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-238a",
+      "epicSet": "SV",
+      "epicName": "Pyrus Pegatrix & Goreene Ultra",
+      "epicFusionFace": "a",
+      "regularCharacterId": "ff-194a",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "ff-194a"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-238b",
+      "epicSet": "SV",
+      "epicName": "Pyrus Pegatrix x Goreene Ultra",
+      "epicFusionFace": "b",
+      "regularCharacterId": "ff-194b",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "ff-194b"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-239a",
+      "epicSet": "SV",
+      "epicName": "Pyrus Trox & Nobilious Ultra",
+      "epicFusionFace": "a",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-239b",
+      "epicSet": "SV",
+      "epicName": "Pyrus Trox x Nobilious Ultra",
+      "epicFusionFace": "b",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-240a",
+      "epicSet": "SV",
+      "epicName": "Ventus Fangzor & Mantonoid",
+      "epicFusionFace": "a",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-240b",
+      "epicSet": "SV",
+      "epicName": "Ventus Fangzor & Mantonoid",
+      "epicFusionFace": "b",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-241a",
+      "epicSet": "SV",
+      "epicName": "Ventus Trox & Nobilious",
+      "epicFusionFace": "a",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-241b",
+      "epicSet": "SV",
+      "epicName": "Ventus Trox & Nobilious",
+      "epicFusionFace": "b",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-242a",
+      "epicSet": "SV",
+      "epicName": "Ventus Trox & Nobilious Ultra",
+      "epicFusionFace": "a",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-242b",
+      "epicSet": "SV",
+      "epicName": "Ventus Trox & Nobilious Ultra",
+      "epicFusionFace": "b",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-243a",
+      "epicSet": "SV",
+      "epicName": "Ventus Trox & Sairus",
+      "epicFusionFace": "a",
+      "regularCharacterId": "ff-204a",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "ff-204a"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-243b",
+      "epicSet": "SV",
+      "epicName": "Ventus Trox x Sairus",
+      "epicFusionFace": "b",
+      "regularCharacterId": "ff-204b",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "nearest_earlier_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "ff-204b"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-244a",
+      "epicSet": "SV",
+      "epicName": "Aquos Garganoid & Webam",
+      "epicFusionFace": "a",
+      "regularCharacterId": "sv-153a",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "sv-153a"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-244b",
+      "epicSet": "SV",
+      "epicName": "Aquos Garganoid x Webam",
+      "epicFusionFace": "b",
+      "regularCharacterId": "sv-153b",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "sv-153b"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-245a",
+      "epicSet": "SV",
+      "epicName": "Aquos Trox & Nobilious Ultra",
+      "epicFusionFace": "a",
+      "regularCharacterId": "sv-158a",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "sv-158a"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-245b",
+      "epicSet": "SV",
+      "epicName": "Aquos Trox x Nobilious Ultra",
+      "epicFusionFace": "b",
+      "regularCharacterId": "sv-158b",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "sv-158b"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-246a",
+      "epicSet": "SV",
+      "epicName": "Aquos Sabra & Pyravian Ultra",
+      "epicFusionFace": "a",
+      "regularCharacterId": "sv-159a",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "sv-159a"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-246b",
+      "epicSet": "SV",
+      "epicName": "Aquos Sabra x Pyravian Ultra",
+      "epicFusionFace": "b",
+      "regularCharacterId": "sv-159b",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "sv-159b"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-247a",
+      "epicSet": "SV",
+      "epicName": "Darkus Maxotaur & Zentaur",
+      "epicFusionFace": "a",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-247b",
+      "epicSet": "SV",
+      "epicName": "Darkus Maxotaur & Zentaur",
+      "epicFusionFace": "b",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-248a",
+      "epicSet": "SV",
+      "epicName": "Darkus Nillious & Eenoch",
+      "epicFusionFace": "a",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-248b",
+      "epicSet": "SV",
+      "epicName": "Darkus Nillious & Eenoch",
+      "epicFusionFace": "b",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-249a",
+      "epicSet": "SV",
+      "epicName": "Darkus Sabra & Pyravian Ultra",
+      "epicFusionFace": "a",
+      "regularCharacterId": "sv-169a",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "sv-169a"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-249b",
+      "epicSet": "SV",
+      "epicName": "Darkus Sabra x Pyravian Ultra",
+      "epicFusionFace": "b",
+      "regularCharacterId": "sv-169b",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "sv-169b"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-250a",
+      "epicSet": "SV",
+      "epicName": "Haos Hydorous & Batrix",
+      "epicFusionFace": "a",
+      "regularCharacterId": "sv-174a",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "sv-174a"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-250b",
+      "epicSet": "SV",
+      "epicName": "Haos Hydorous x Batrix",
+      "epicFusionFace": "b",
+      "regularCharacterId": "sv-174b",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "sv-174b"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-251a",
+      "epicSet": "SV",
+      "epicName": "Haos Cloptor & Apollyon",
+      "epicFusionFace": "a",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-251b",
+      "epicSet": "SV",
+      "epicName": "Haos Cloptor & Apollyon",
+      "epicFusionFace": "b",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-252a",
+      "epicSet": "SV",
+      "epicName": "Haos Howlkor & Serpenteze Ultra",
+      "epicFusionFace": "a",
+      "regularCharacterId": "sv-182a",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "sv-182a"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-252b",
+      "epicSet": "SV",
+      "epicName": "Haos Howlkor X Serpenteze Ultra",
+      "epicFusionFace": "b",
+      "regularCharacterId": "sv-182b",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "sv-182b"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-253",
+      "epicSet": "SV",
+      "epicName": "Haos Gillator Ultra",
+      "epicFusionFace": null,
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-254a",
+      "epicSet": "SV",
+      "epicName": "Pyrus Hydranoid & Krakelios",
+      "epicFusionFace": "a",
+      "regularCharacterId": "sv-190a",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "sv-190a"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-254b",
+      "epicSet": "SV",
+      "epicName": "Pyrus Hydranoid X Krakelios",
+      "epicFusionFace": "b",
+      "regularCharacterId": "sv-190b",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "sv-190b"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-257a",
+      "epicSet": "SV",
+      "epicName": "Ventus Hydorous & Trhyno Ultra",
+      "epicFusionFace": "a",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-257b",
+      "epicSet": "SV",
+      "epicName": "Ventus Hydorous & Trhyno Ultra",
+      "epicFusionFace": "b",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-258a",
+      "epicSet": "SV",
+      "epicName": "Aurelus Dragonoid & Tretorous",
+      "epicFusionFace": "a",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-258b",
+      "epicSet": "SV",
+      "epicName": "Aurelus Dragonoid & Tretorous",
+      "epicFusionFace": "b",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-259a",
+      "epicSet": "SV",
+      "epicName": "Aurelus Pegatrix & Goreene Ultra",
+      "epicFusionFace": "a",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-259b",
+      "epicSet": "SV",
+      "epicName": "Aurelus Pegatrix & Goreene Ultra",
+      "epicFusionFace": "b",
+      "regularCharacterId": null,
+      "status": "needs_review",
+      "resolutionBasis": "no_unique_regular_counterpart",
+      "candidateRegularCharacterIds": []
+    },
+    {
+      "epicCharacterId": "sv-260a",
+      "epicSet": "SV",
+      "epicName": "Aurelus Pharol & Gillator Ultra",
+      "epicFusionFace": "a",
+      "regularCharacterId": "sv-220a",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "sv-220a"
+      ]
+    },
+    {
+      "epicCharacterId": "sv-260b",
+      "epicSet": "SV",
+      "epicName": "Pyrus Pharol x Gillator Ultra",
+      "epicFusionFace": "b",
+      "regularCharacterId": "sv-220b",
+      "status": "catalogue_pair_candidate",
+      "resolutionBasis": "same_set_faction_name_fusion_identity",
+      "candidateRegularCharacterIds": [
+        "sv-220b"
+      ]
+    }
+  ]
+}
