@@ -1,4 +1,4 @@
-import { CARDS } from "../data";
+import { evoCharacterTargets } from "../evo-relationships";
 import type { CardChoices, CoreType, GameCard } from "../game";
 import type { AbilityDefinition, CardPlayDefinition, ChoiceSpec, CostEffect, RuleAction, RuleCondition, RuleInstruction, RulesCardId } from "./model";
 import { conditionFor, durationFor, parseAtomicEffects, ruleCardId } from "./catalogue-primitives";
@@ -1287,20 +1287,10 @@ function costModifiersFor(card: GameCard): CostEffect[] {
 }
 
 function evoIdentities(card: GameCard): RulesCardId[] {
-  if (card.type !== "Evo" || !card.evolvesFrom) return [];
-  const normalize = (value: string) => value
-    .replace(/\s*\(Battle Brawlers\)\s*$/i, "")
-    .replace(/^(Aquos|Pyrus|Darkus|Haos|Ventus|Aurelus)\s+/i, "")
-    .replace(/\bSerpeteze\b/gi, "Serpenteze")
-    .replace(/\s+/g, " ").trim().toLowerCase();
-  const inferred = normalize((card.displayName || card.name).replace(/^(Diamond|Hyper|Titan|Maximus)\s+/i, ""));
-  const declared = normalize(card.evolvesFrom ?? "");
-  const setPrefix = ruleCardId(card).split("-")[0];
-  const candidates = CARDS.filter((candidate) => candidate.type === "Character"
-    && [declared, inferred].includes(normalize(candidate.displayName || candidate.name))
-    && (card.factions?.length ? card.factions.includes(candidate.faction) : candidate.faction === card.faction));
-  const sameSet = candidates.filter((candidate) => ruleCardId(candidate).startsWith(`${setPrefix}-`));
-  return (sameSet.length ? sameSet : candidates).slice(0, 1).map((candidate) => ruleCardId(candidate));
+  if (card.type !== "Evo") return [];
+  // Explicit version-level relationships, including ordinary/Epic alternatives
+  // and fused Character faces. Cancelled Evos yield no legal target.
+  return [...evoCharacterTargets(ruleCardId(card))] as RulesCardId[];
 }
 
 export function playDefinitionForCard(card: GameCard): CardPlayDefinition {

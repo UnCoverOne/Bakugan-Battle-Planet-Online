@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { CARDS } from "../lib/data";
+import { evoCharacterTargets, evolutionIdsForCharacter, isCancelledEvo } from "../lib/evo-relationships";
+import runtimeTargets from "../content/evo-character-targets.json";
 
 type Relationship = {
   evoId: string;
@@ -167,4 +169,29 @@ test("Cancelled Evo is a documented terminal no-target state, never a fallback t
   assert.deepEqual(cancelled.epicCharacterTargetIds, []);
   assert.deepEqual(cancelled.candidateCharacterIds, []);
   assert.equal(audit.relationships.filter(entry => entry.status === "needs_review").length, 0);
+});
+
+test("Active Evo registry exactly matches every audited target and cancelled state", () => {
+  const runtime = runtimeTargets as Record<string, {
+    targetCharacterIds: string[];
+    requiresFusedFace: boolean;
+    cancelled: boolean;
+  }>;
+  assert.equal(Object.keys(runtime).length, 336);
+  for (const entry of audit.relationships) {
+    const target = runtime[entry.evoId];
+    assert.ok(target, entry.evoId);
+    assert.deepEqual(target.targetCharacterIds, entry.targetCharacterIds, entry.evoId);
+    assert.deepEqual(evoCharacterTargets(entry.evoId), entry.targetCharacterIds, entry.evoId);
+    assert.equal(target.requiresFusedFace, entry.requiresFusedFace, entry.evoId);
+    assert.equal(target.cancelled, entry.status === "cancelled_no_target", entry.evoId);
+    assert.equal(isCancelledEvo(entry.evoId), entry.status === "cancelled_no_target", entry.evoId);
+    for (const characterId of entry.targetCharacterIds) {
+      assert.ok(evolutionIdsForCharacter(characterId).includes(entry.evoId),
+        entry.evoId + " must appear in the reverse index for " + characterId);
+    }
+  }
+  assert.deepEqual(evoCharacterTargets("unmapped-evo"), []);
+  assert.equal(isCancelledEvo("unmapped-evo"), false);
+  assert.deepEqual(evolutionIdsForCharacter("unmapped-character"), []);
 });

@@ -21,5 +21,9 @@ export function characterIdentity(bakugan: Pick<Bakugan, "character">): Characte
 
 export function canonicalEvoTargetAllowed(definition: RuleDefinition, bakugan: Bakugan | null | undefined) {
   if (!bakugan || definition.cardType !== "Evo") return false;
-  return definition.play.evolvesFrom.includes(characterIdentity(bakugan));
+  // A Fusion Evo identifies the fused Character face (b), not the unfused
+  // Character printed on the other side. Never allow that target before Fusion.
+  const activeFace = bakugan.fused ? bakugan.fusionCharacter : bakugan.character;
+  if (!activeFace) return false;
+  return definition.play.evolvesFrom.includes(cardDefinitionId(activeFace));
 }

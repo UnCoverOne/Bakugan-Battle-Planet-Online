@@ -1,5 +1,6 @@
 import type { Core, GameCard } from "./game";
 import { compareCardCollectorOrder } from "./content/catalogue";
+import { evoCharacterTargets, evolutionIdsForCharacter } from "./evo-relationships";
 import { DEVELOPER_RULINGS, type RulingRecord } from "./developer-rulings";
 import { RULEBOOK_IDS, ruleAnchor } from "./rulebook-reader";
 
@@ -37,34 +38,24 @@ export function inspectorFusionFace(card: GameCard, cards: readonly GameCard[], 
   ) ?? card;
 }
 
-function matchesBase(evo: GameCard, candidate: GameCard) {
-  if (evo.type !== "Evo" || candidate.type !== "Character" || candidate.fusionFace === "b" || !evo.evolvesFrom) return false;
-  if (!evo.factions.some(faction => candidate.factions.includes(faction))) return false;
-  const baseName = normalize(evo.evolvesFrom);
-  return normalize(candidate.displayName) === baseName ||
-    normalize(candidate.name) === baseName ||
-    candidate.factions.some(faction => normalize(candidate.name) === normalize(faction + " " + baseName));
-}
-
-function uniqueProfiles(cards: GameCard[]) {
-  const seen = new Set<string>();
-  return cards.filter(card => {
-    const key = [identity(card), card.type, card.factions.join("/"), card.bPower, card.damage].join("|");
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
+/**
+ * Inspector links are exact, bidirectional registry relationships. Never join
+ * cards just because their factions and printed names happen to match.
+ */
 export function inspectorEvolutionBases(evo: GameCard, cards: readonly GameCard[]) {
-  return uniqueProfiles(cards.filter(candidate => matchesBase(evo, candidate)).toSorted(compareCardCollectorOrder));
+  if (evo.type !== "Evo") return [];
+  const targetIds = new Set(evoCharacterTargets(evo.catalogId));
+  return cards.filter(candidate =>
+    candidate.type === "Character" && targetIds.has(candidate.catalogId)
+  ).toSorted(compareCardCollectorOrder);
 }
 
 export function inspectorEvolutionChildren(base: GameCard, cards: readonly GameCard[]) {
   if (base.type !== "Character") return [];
-  return uniqueProfiles(cards.filter(evo =>
-    evo.type === "Evo" && matchesBase(evo, base)
-  ).toSorted(compareCardCollectorOrder));
+  const evoIds = new Set(evolutionIdsForCharacter(base.catalogId));
+  return cards.filter(candidate =>
+    candidate.type === "Evo" && evoIds.has(candidate.catalogId)
+  ).toSorted(compareCardCollectorOrder);
 }
 
 export type InspectorRuleLink = { id: string; title: string; href: string };

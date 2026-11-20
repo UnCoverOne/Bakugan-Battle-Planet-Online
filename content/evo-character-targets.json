@@ -1,0 +1,2376 @@
+{
+  "aa-77": {
+    "targetCharacterIds": [
+      "aa-163"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-78": {
+    "targetCharacterIds": [
+      "br-179"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-79": {
+    "targetCharacterIds": [
+      "br-166"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-80": {
+    "targetCharacterIds": [
+      "br-167"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-81": {
+    "targetCharacterIds": [
+      "aa-162"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-82": {
+    "targetCharacterIds": [
+      "br-174"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-83": {
+    "targetCharacterIds": [
+      "aa-166"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-84": {
+    "targetCharacterIds": [
+      "br-176"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-85": {
+    "targetCharacterIds": [
+      "br-177"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-86": {
+    "targetCharacterIds": [
+      "br-168"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-87": {
+    "targetCharacterIds": [
+      "br-171"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-88": {
+    "targetCharacterIds": [
+      "aa-167"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-89": {
+    "targetCharacterIds": [
+      "br-180"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-90": {
+    "targetCharacterIds": [
+      "br-189"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-91": {
+    "targetCharacterIds": [
+      "aa-171"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-92": {
+    "targetCharacterIds": [
+      "br-186"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-93": {
+    "targetCharacterIds": [
+      "br-188"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-94": {
+    "targetCharacterIds": [
+      "aa-175"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-95": {
+    "targetCharacterIds": [
+      "br-191"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-96": {
+    "targetCharacterIds": [
+      "br-192"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-97": {
+    "targetCharacterIds": [
+      "aa-171"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-98": {
+    "targetCharacterIds": [
+      "br-181"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-99": {
+    "targetCharacterIds": [
+      "aa-172"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-100": {
+    "targetCharacterIds": [
+      "br-184"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-101": {
+    "targetCharacterIds": [
+      "br-187"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-102": {
+    "targetCharacterIds": [
+      "br-193"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-103": {
+    "targetCharacterIds": [
+      "aa-178"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-104": {
+    "targetCharacterIds": [
+      "aa-183"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-105": {
+    "targetCharacterIds": [
+      "br-205"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-106": {
+    "targetCharacterIds": [
+      "br-194"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-107": {
+    "targetCharacterIds": [
+      "aa-181"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-108": {
+    "targetCharacterIds": [
+      "br-200"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-109": {
+    "targetCharacterIds": [
+      "br-206"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-110": {
+    "targetCharacterIds": [
+      "br-207"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-111": {
+    "targetCharacterIds": [
+      "aa-184"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-112": {
+    "targetCharacterIds": [
+      "aa-186"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-113": {
+    "targetCharacterIds": [
+      "br-208"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-114": {
+    "targetCharacterIds": [
+      "br-209"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-115": {
+    "targetCharacterIds": [
+      "br-201"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-116": {
+    "targetCharacterIds": [
+      "bb-322"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-117": {
+    "targetCharacterIds": [
+      "br-197"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-118": {
+    "targetCharacterIds": [
+      "br-199"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-119": {
+    "targetCharacterIds": [
+      "br-203"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-120": {
+    "targetCharacterIds": [
+      "aa-188"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-121": {
+    "targetCharacterIds": [
+      "br-210"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-122": {
+    "targetCharacterIds": [
+      "aa-191"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-123": {
+    "targetCharacterIds": [
+      "br-211"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-124": {
+    "targetCharacterIds": [
+      "aa-193"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-125": {
+    "targetCharacterIds": [
+      "br-212"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-126": {
+    "targetCharacterIds": [
+      "br-216"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-127": {
+    "targetCharacterIds": [
+      "br-218"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-128": {
+    "targetCharacterIds": [
+      "br-219"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-129": {
+    "targetCharacterIds": [
+      "br-213"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-130": {
+    "targetCharacterIds": [
+      "br-214"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-131": {
+    "targetCharacterIds": [
+      "br-217"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-132": {
+    "targetCharacterIds": [
+      "aa-196"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-133": {
+    "targetCharacterIds": [
+      "br-220"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-134": {
+    "targetCharacterIds": [
+      "aa-197"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-135": {
+    "targetCharacterIds": [
+      "aa-201"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-136": {
+    "targetCharacterIds": [
+      "br-225"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-137": {
+    "targetCharacterIds": [
+      "br-226"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-138": {
+    "targetCharacterIds": [
+      "br-229"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-139": {
+    "targetCharacterIds": [
+      "aa-203"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-140": {
+    "targetCharacterIds": [
+      "br-231"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-141": {
+    "targetCharacterIds": [
+      "br-234"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-142": {
+    "targetCharacterIds": [
+      "br-235"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-143": {
+    "targetCharacterIds": [
+      "aa-209"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-144": {
+    "targetCharacterIds": [
+      "br-222"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-145": {
+    "targetCharacterIds": [
+      "br-223"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-146": {
+    "targetCharacterIds": [
+      "br-227"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-147": {
+    "targetCharacterIds": [
+      "aa-202"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-148": {
+    "targetCharacterIds": [
+      "aa-204"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-149": {
+    "targetCharacterIds": [
+      "br-236"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-150": {
+    "targetCharacterIds": [
+      "br-237"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-151": {
+    "targetCharacterIds": [
+      "aa-210"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-152": {
+    "targetCharacterIds": [
+      "br-239"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-153": {
+    "targetCharacterIds": [
+      "br-240"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-154": {
+    "targetCharacterIds": [
+      "aa-215"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-155": {
+    "targetCharacterIds": [
+      "br-242"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-156": {
+    "targetCharacterIds": [
+      "br-238"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-157": {
+    "targetCharacterIds": [
+      "aa-211"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-158": {
+    "targetCharacterIds": [
+      "br-241"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-159": {
+    "targetCharacterIds": [
+      "aa-219"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-160": {
+    "targetCharacterIds": [
+      "br-245"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "aa-161": {
+    "targetCharacterIds": [
+      "aa-220"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-117": {
+    "targetCharacterIds": [
+      "av-160"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-118": {
+    "targetCharacterIds": [
+      "av-166",
+      "ff-217"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-119": {
+    "targetCharacterIds": [
+      "av-171",
+      "ff-219"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-120": {
+    "targetCharacterIds": [
+      "av-177"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-121": {
+    "targetCharacterIds": [
+      "av-170",
+      "ff-218"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-122": {
+    "targetCharacterIds": [
+      "av-179",
+      "ff-220"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-123": {
+    "targetCharacterIds": [
+      "av-190"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-124": {
+    "targetCharacterIds": [
+      "av-182"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-125": {
+    "targetCharacterIds": [
+      "av-187",
+      "ff-223"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-126": {
+    "targetCharacterIds": [
+      "av-184"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-127": {
+    "targetCharacterIds": [
+      "av-190"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-128": {
+    "targetCharacterIds": [
+      "av-196"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-129": {
+    "targetCharacterIds": [
+      "av-198"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-130": {
+    "targetCharacterIds": [
+      "av-203"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-131": {
+    "targetCharacterIds": [
+      "av-205",
+      "ff-224"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-132": {
+    "targetCharacterIds": [
+      "av-194"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-133": {
+    "targetCharacterIds": [
+      "av-201"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-134": {
+    "targetCharacterIds": [
+      "av-212",
+      "ff-227"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-135": {
+    "targetCharacterIds": [
+      "av-203"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-136": {
+    "targetCharacterIds": [
+      "av-209"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-137": {
+    "targetCharacterIds": [
+      "av-226",
+      "ff-228"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-138": {
+    "targetCharacterIds": [
+      "av-226",
+      "ff-228"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-139": {
+    "targetCharacterIds": [
+      "av-228",
+      "ff-231"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-140": {
+    "targetCharacterIds": [
+      "av-225"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-141": {
+    "targetCharacterIds": [
+      "av-231"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-142": {
+    "targetCharacterIds": [
+      "av-233"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-143": {
+    "targetCharacterIds": [
+      "av-235"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-144": {
+    "targetCharacterIds": [
+      "av-246"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-145": {
+    "targetCharacterIds": [
+      "av-240"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-146": {
+    "targetCharacterIds": [
+      "av-242",
+      "ff-233"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-147": {
+    "targetCharacterIds": [
+      "av-244"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-148": {
+    "targetCharacterIds": [
+      "av-234"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-149": {
+    "targetCharacterIds": [
+      "av-241"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-150": {
+    "targetCharacterIds": [
+      "av-249"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-151": {
+    "targetCharacterIds": [
+      "av-271"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-152": {
+    "targetCharacterIds": [
+      "av-258"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-153": {
+    "targetCharacterIds": [
+      "av-268",
+      "ff-240"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-154": {
+    "targetCharacterIds": [
+      "av-270"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-155": {
+    "targetCharacterIds": [
+      "av-254"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-156": {
+    "targetCharacterIds": [
+      "av-263",
+      "ff-239"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "av-157": {
+    "targetCharacterIds": [
+      "av-259"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-216": {
+    "targetCharacterIds": [
+      "bb-287"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-217": {
+    "targetCharacterIds": [
+      "bb-288"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-218": {
+    "targetCharacterIds": [
+      "bb-293"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-219": {
+    "targetCharacterIds": [
+      "bb-292"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-220": {
+    "targetCharacterIds": [
+      "bb-284"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-221": {
+    "targetCharacterIds": [
+      "bb-287"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-222": {
+    "targetCharacterIds": [
+      "bb-288"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-223": {
+    "targetCharacterIds": [
+      "bb-290"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-224": {
+    "targetCharacterIds": [
+      "bb-294"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-225": {
+    "targetCharacterIds": [
+      "bb-295"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-226": {
+    "targetCharacterIds": [
+      "bb-288"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-227": {
+    "targetCharacterIds": [
+      "bb-283"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-228": {
+    "targetCharacterIds": [
+      "bb-285"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-229": {
+    "targetCharacterIds": [
+      "bb-298"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-230": {
+    "targetCharacterIds": [
+      "bb-302"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-231": {
+    "targetCharacterIds": [
+      "bb-306"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-232": {
+    "targetCharacterIds": [
+      "bb-307"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-233": {
+    "targetCharacterIds": [
+      "bb-308"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-234": {
+    "targetCharacterIds": [
+      "bb-301"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-235": {
+    "targetCharacterIds": [
+      "bb-299"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-236": {
+    "targetCharacterIds": [
+      "bb-303"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-237": {
+    "targetCharacterIds": [
+      "bb-315"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-238": {
+    "targetCharacterIds": [
+      "bb-321"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-239": {
+    "targetCharacterIds": [
+      "bb-312"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-240": {
+    "targetCharacterIds": [
+      "bb-313"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-241": {
+    "targetCharacterIds": [
+      "bb-318"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-242": {
+    "targetCharacterIds": [
+      "bb-319"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-243": {
+    "targetCharacterIds": [
+      "bb-325"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-244": {
+    "targetCharacterIds": [
+      "bb-321"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-245": {
+    "targetCharacterIds": [
+      "bb-317"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-246": {
+    "targetCharacterIds": [
+      "bb-320"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-247": {
+    "targetCharacterIds": [
+      "bb-321"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-248": {
+    "targetCharacterIds": [
+      "bb-330"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-249": {
+    "targetCharacterIds": [
+      "bb-339"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-250": {
+    "targetCharacterIds": [
+      "bb-328"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-251": {
+    "targetCharacterIds": [
+      "bb-329"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-252": {
+    "targetCharacterIds": [
+      "bb-337"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-253": {
+    "targetCharacterIds": [
+      "bb-333"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-254": {
+    "targetCharacterIds": [
+      "bb-341"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-255": {
+    "targetCharacterIds": [
+      "bb-333"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-256": {
+    "targetCharacterIds": [
+      "bb-331"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-257": {
+    "targetCharacterIds": [
+      "bb-337"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-258": {
+    "targetCharacterIds": [
+      "bb-339"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-259": {
+    "targetCharacterIds": [
+      "bb-343"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-260": {
+    "targetCharacterIds": [
+      "bb-344"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-261": {
+    "targetCharacterIds": [
+      "bb-350"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-262": {
+    "targetCharacterIds": [
+      "bb-351"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-263": {
+    "targetCharacterIds": [
+      "bb-354"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-264": {
+    "targetCharacterIds": [
+      "bb-356"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-265": {
+    "targetCharacterIds": [
+      "bb-343"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-266": {
+    "targetCharacterIds": [
+      "bb-353"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-267": {
+    "targetCharacterIds": [
+      "bb-355"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-268": {
+    "targetCharacterIds": [
+      "bb-344"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-269": {
+    "targetCharacterIds": [
+      "bb-351"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-270": {
+    "targetCharacterIds": [
+      "bb-343"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-271": {
+    "targetCharacterIds": [
+      "bb-367"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-272": {
+    "targetCharacterIds": [
+      "bb-372"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-273": {
+    "targetCharacterIds": [
+      "bb-373"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-274": {
+    "targetCharacterIds": [
+      "bb-359"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-275": {
+    "targetCharacterIds": [
+      "bb-360"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-276": {
+    "targetCharacterIds": [
+      "bb-368"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-277": {
+    "targetCharacterIds": [
+      "bb-369"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-278": {
+    "targetCharacterIds": [
+      "bb-366"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-279": {
+    "targetCharacterIds": [
+      "bb-364"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-280": {
+    "targetCharacterIds": [
+      "bb-367"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "bb-281": {
+    "targetCharacterIds": [
+      "bb-372"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-85": {
+    "targetCharacterIds": [
+      "br-171"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-86": {
+    "targetCharacterIds": [
+      "br-172"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-87": {
+    "targetCharacterIds": [
+      "bb-293"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-88": {
+    "targetCharacterIds": [
+      "br-169"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-89": {
+    "targetCharacterIds": [
+      "bb-289"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-90": {
+    "targetCharacterIds": [
+      "br-173"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-91": {
+    "targetCharacterIds": [
+      "bb-293"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-92": {
+    "targetCharacterIds": [
+      "bb-297"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-93": {
+    "targetCharacterIds": [
+      "bb-296"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-94": {
+    "targetCharacterIds": [
+      "br-178"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-95": {
+    "targetCharacterIds": [
+      "bb-282"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-96": {
+    "targetCharacterIds": [
+      "bb-291"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-97": {
+    "targetCharacterIds": [
+      "br-175"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-98": {
+    "targetCharacterIds": [
+      "bb-304"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-99": {
+    "targetCharacterIds": [
+      "bb-305"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-100": {
+    "targetCharacterIds": [
+      "bb-374"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-101": {
+    "targetCharacterIds": [
+      "br-190"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-102": {
+    "targetCharacterIds": [
+      "bb-300"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-103": {
+    "targetCharacterIds": [
+      "bb-309"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-104": {
+    "targetCharacterIds": [
+      "br-182"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-105": {
+    "targetCharacterIds": [
+      "br-183"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-106": {
+    "targetCharacterIds": [
+      "br-185"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-107": {
+    "targetCharacterIds": [
+      "bb-310"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-108": {
+    "targetCharacterIds": [
+      "br-203"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-109": {
+    "targetCharacterIds": [
+      "bb-311"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-110": {
+    "targetCharacterIds": [
+      "br-196"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-111": {
+    "targetCharacterIds": [
+      "bb-314"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-112": {
+    "targetCharacterIds": [
+      "br-197"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-113": {
+    "targetCharacterIds": [
+      "bb-322"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-114": {
+    "targetCharacterIds": [
+      "bb-323"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-115": {
+    "targetCharacterIds": [
+      "br-204"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-116": {
+    "targetCharacterIds": [
+      "bb-315"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-117": {
+    "targetCharacterIds": [
+      "br-195"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-118": {
+    "targetCharacterIds": [
+      "br-202"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-119": {
+    "targetCharacterIds": [
+      "bb-324"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-120": {
+    "targetCharacterIds": [
+      "bb-326"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-121": {
+    "targetCharacterIds": [
+      "br-210"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-122": {
+    "targetCharacterIds": [
+      "br-211"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-123": {
+    "targetCharacterIds": [
+      "br-215"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-124": {
+    "targetCharacterIds": [
+      "bb-327"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-125": {
+    "targetCharacterIds": [
+      "bb-332"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-126": {
+    "targetCharacterIds": [
+      "br-215"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-127": {
+    "targetCharacterIds": [
+      "bb-340"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-128": {
+    "targetCharacterIds": [
+      "bb-335"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-129": {
+    "targetCharacterIds": [
+      "bb-336"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-130": {
+    "targetCharacterIds": [
+      "bb-330"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-131": {
+    "targetCharacterIds": [
+      "bb-286"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-132": {
+    "targetCharacterIds": [
+      "bb-334"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-133": {
+    "targetCharacterIds": [
+      "bb-338"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-134": {
+    "targetCharacterIds": [
+      "bb-342"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-135": {
+    "targetCharacterIds": [
+      "br-222"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-136": {
+    "targetCharacterIds": [
+      "bb-352"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-137": {
+    "targetCharacterIds": [
+      "bb-357"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-138": {
+    "targetCharacterIds": [
+      "bb-357"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-139": {
+    "targetCharacterIds": [
+      "bb-345"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-140": {
+    "targetCharacterIds": [
+      "bb-346"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-141": {
+    "targetCharacterIds": [
+      "bb-347"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-142": {
+    "targetCharacterIds": [
+      "br-224"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-143": {
+    "targetCharacterIds": [
+      "br-228"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-144": {
+    "targetCharacterIds": [
+      "br-230"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-145": {
+    "targetCharacterIds": [
+      "br-232"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-146": {
+    "targetCharacterIds": [
+      "br-233"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-147": {
+    "targetCharacterIds": [
+      "bb-348"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-148": {
+    "targetCharacterIds": [
+      "br-232"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-149": {
+    "targetCharacterIds": [
+      "bb-349"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-150": {
+    "targetCharacterIds": [
+      "bb-365"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-151": {
+    "targetCharacterIds": [
+      "br-243"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-152": {
+    "targetCharacterIds": [
+      "br-246"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-153": {
+    "targetCharacterIds": [
+      "bb-362"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-154": {
+    "targetCharacterIds": [
+      "bb-316"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-155": {
+    "targetCharacterIds": [
+      "bb-370"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-156": {
+    "targetCharacterIds": [
+      "bb-371"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-157": {
+    "targetCharacterIds": [
+      "bb-373"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-158": {
+    "targetCharacterIds": [
+      "bb-363"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-159": {
+    "targetCharacterIds": [
+      "bb-358"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-160": {
+    "targetCharacterIds": [
+      "br-246"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-161": {
+    "targetCharacterIds": [
+      "bb-361"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-162": {
+    "targetCharacterIds": [
+      "bb-362"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-163": {
+    "targetCharacterIds": [
+      "bb-371"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-164": {
+    "targetCharacterIds": [
+      "bb-373"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "br-165": {
+    "targetCharacterIds": [
+      "br-244"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ex-2": {
+    "targetCharacterIds": [
+      "ex-1"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-124": {
+    "targetCharacterIds": [
+      "av-167"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-125": {
+    "targetCharacterIds": [
+      "ff-152b"
+    ],
+    "requiresFusedFace": true,
+    "cancelled": false
+  },
+  "ff-126": {
+    "targetCharacterIds": [
+      "av-175"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-127": {
+    "targetCharacterIds": [
+      "av-162"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-128": {
+    "targetCharacterIds": [
+      "av-188"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-129": {
+    "targetCharacterIds": [
+      "ff-164",
+      "ff-222"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-130": {
+    "targetCharacterIds": [
+      "ff-160"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-131": {
+    "targetCharacterIds": [
+      "av-199"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-132": {
+    "targetCharacterIds": [
+      "av-204"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-133": {
+    "targetCharacterIds": [
+      "av-210",
+      "ff-226"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-134": {
+    "targetCharacterIds": [
+      "av-197"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-135": {
+    "targetCharacterIds": [
+      "av-208",
+      "ff-225"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-136": {
+    "targetCharacterIds": [
+      "av-207"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-137": {
+    "targetCharacterIds": [
+      "av-225"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-138": {
+    "targetCharacterIds": [
+      "av-216"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-139": {
+    "targetCharacterIds": [
+      "ff-177",
+      "sv-229"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-140": {
+    "targetCharacterIds": [
+      "av-224"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-141": {
+    "targetCharacterIds": [
+      "ff-191b"
+    ],
+    "requiresFusedFace": true,
+    "cancelled": false
+  },
+  "ff-142": {
+    "targetCharacterIds": [
+      "av-234"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-143": {
+    "targetCharacterIds": [
+      "av-236"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-144": {
+    "targetCharacterIds": [
+      "av-250"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-145": {
+    "targetCharacterIds": [
+      "av-270"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-146": {
+    "targetCharacterIds": [
+      "ff-204b",
+      "sv-243b"
+    ],
+    "requiresFusedFace": true,
+    "cancelled": false
+  },
+  "ff-147": {
+    "targetCharacterIds": [
+      "av-264"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-148": {
+    "targetCharacterIds": [
+      "ff-196"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ff-149": {
+    "targetCharacterIds": [
+      "av-257"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ps1-1": {
+    "targetCharacterIds": [
+      "av-165",
+      "ff-216"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ps1-2": {
+    "targetCharacterIds": [
+      "av-170",
+      "ff-218"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ps1-3": {
+    "targetCharacterIds": [
+      "av-176"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ps1-4": {
+    "targetCharacterIds": [
+      "av-195"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ps1-5": {
+    "targetCharacterIds": [
+      "av-200"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ps1-6": {
+    "targetCharacterIds": [
+      "av-209"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ps1-7": {
+    "targetCharacterIds": [
+      "av-214"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ps1-8": {
+    "targetCharacterIds": [
+      "av-223"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ps1-9": {
+    "targetCharacterIds": [
+      "av-225"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ps1-10": {
+    "targetCharacterIds": [
+      "av-230"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ps1-11": {
+    "targetCharacterIds": [
+      "av-243"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ps1-12": {
+    "targetCharacterIds": [
+      "av-247",
+      "ff-235"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ps1-13": {
+    "targetCharacterIds": [
+      "av-249"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ps1-14": {
+    "targetCharacterIds": [
+      "av-252"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ps1-15": {
+    "targetCharacterIds": [
+      "av-254"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "ps1-16": {
+    "targetCharacterIds": [
+      "av-268",
+      "ff-240"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "sv-131": {
+    "targetCharacterIds": [
+      "ff-157"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "sv-132": {
+    "targetCharacterIds": [
+      "ff-159"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "sv-133": {
+    "targetCharacterIds": [
+      "av-178"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "sv-134": {
+    "targetCharacterIds": [
+      "av-196"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "sv-135": {
+    "targetCharacterIds": [
+      "ff-171b",
+      "sv-226b"
+    ],
+    "requiresFusedFace": true,
+    "cancelled": false
+  },
+  "sv-136": {
+    "targetCharacterIds": [
+      "sv-168b"
+    ],
+    "requiresFusedFace": true,
+    "cancelled": false
+  },
+  "sv-137": {
+    "targetCharacterIds": [
+      "sv-253"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "sv-138": {
+    "targetCharacterIds": [
+      "ff-184b"
+    ],
+    "requiresFusedFace": true,
+    "cancelled": false
+  },
+  "sv-139": {
+    "targetCharacterIds": [
+      "sv-220b",
+      "sv-260b"
+    ],
+    "requiresFusedFace": true,
+    "cancelled": false
+  },
+  "sv-140": {
+    "targetCharacterIds": [
+      "sv-197"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "sv-141": {
+    "targetCharacterIds": [
+      "av-234"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "sv-142": {
+    "targetCharacterIds": [
+      "sv-199"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "sv-143": {
+    "targetCharacterIds": [
+      "av-264"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "sv-144": {
+    "targetCharacterIds": [
+      "av-265"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "sv-145": {
+    "targetCharacterIds": [
+      "ff-196"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "sv-146": {
+    "targetCharacterIds": [
+      "sv-206b"
+    ],
+    "requiresFusedFace": true,
+    "cancelled": false
+  },
+  "sv-147": {
+    "targetCharacterIds": [
+      "ff-203b"
+    ],
+    "requiresFusedFace": true,
+    "cancelled": false
+  },
+  "sv-148": {
+    "targetCharacterIds": [
+      "sv-222"
+    ],
+    "requiresFusedFace": false,
+    "cancelled": false
+  },
+  "sv-149": {
+    "targetCharacterIds": [
+      "sv-220b"
+    ],
+    "requiresFusedFace": true,
+    "cancelled": false
+  },
+  "sv-261": {
+    "targetCharacterIds": [],
+    "requiresFusedFace": true,
+    "cancelled": true
+  }
+}

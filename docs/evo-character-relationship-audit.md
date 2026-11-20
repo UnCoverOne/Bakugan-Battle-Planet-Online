@@ -1,10 +1,12 @@
 # Evo-to-Character relationship audit
 
-**Status: DRAFT — user-confirmed exceptions incorporated; catalogue-inferred entries still require source review.** Updated 20 November 2026.
+**Status: ACTIVE IN COMPENDIUM AND GAMEPLAY — user-confirmed exceptions incorporated; catalogue-inferred entries still require source review.** Updated 20 November 2026.
 
 ## Deliverables
 
 - [Complete mapping (JSON)](../content/evo-character-relationships.audit.json), all 336 entries
+- [Generated runtime registry](../content/evo-character-targets.json), compact Character IDs used by the game and Inspector
+- [Shared registry API](../lib/evo-relationships.ts), including a reverse index for Character → Evo links
 - [Reviewable mapping (CSV)](../content/evo-character-relationships.audit.csv), all 336 entries
 - [Epic Character equivalence audit](../content/epic-character-equivalences.audit.json), 89 Epic records
 - [Catalogue relationship validation tests](../tests/evo-character-relationship-audit.test.ts)
@@ -56,4 +58,12 @@ Examples: `av-118` targets `av-166` and Epic `ff-217`; `ff-133` targets `av-210`
 - `status: "mapped_candidate"`: one or more proposed legal Character IDs in `targetCharacterIds`.
 - `status: "cancelled_no_target"`: no legal Character target; never fallback to other same-name cards.
 
-**This commit changes audit data, documentation and regression tests only.** `lib/rules/catalogue-structure.ts` and `lib/card-inspector-data.ts` retain their old inference logic. The 335 other mappings and existing catalogue errors still require careful source validation and eventual integration before the game and Inspector can be regarded as corrected.
+## Runtime integration
+
+The Compendium Inspector now reads exact Evo→Character and Character→Evo links from `lib/evo-relationships.ts`. It displays every compatible regular/Epic Character, links fused-only Evos to the **b face**, and explains that a cancelled Evo has no legal target.
+
+The game engine compiles `play.evolvesFrom` from the same runtime registry, not from character-name/set inference. `canonicalEvoTargetAllowed` checks the **active Character face**: the fused `b` side is only targetable while the Bakugan is actually fused. All gameplay entry points using that validator inherit the new restrictions, including free-play and queued effects. Existing legal Evo stacking remains unchanged.
+
+The compact runtime file is derived from the audit document; to update both, edit `content/evo-character-relationships.audit.json`, then run `node scripts/generate-evo-targets.mjs --write`. The regression suite checks every entry for exact consistency and tests version-specific, regular/Epic, fused-only and cancelled behaviour. A `--check` mode is available for CI or verification without changing files.
+
+**Source verification remains necessary.** Most of the 335 active mappings are still catalogue-inferred. The Inspector and game now enforce those explicit candidate IDs rather than permissive name matching, but those relationships must be corrected if authoritative scans or rulings reveal further discrepancies.

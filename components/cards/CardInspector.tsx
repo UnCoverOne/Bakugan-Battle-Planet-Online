@@ -13,6 +13,7 @@ import {
   inspectorEvolutionChildren, inspectorFusionFace, inspectorOfficialRules,
 } from "../../lib/card-inspector-data";
 import { collectionEntry, type Collection, type CollectionField } from "../../lib/collection";
+import { isCancelledEvo } from "../../lib/evo-relationships";
 import { coreEffects } from "../../lib/core-preview";
 import type { Core, GameCard } from "../../lib/game";
 import { SYMBOL_ENTRIES } from "../../lib/reference";
@@ -100,6 +101,7 @@ function CardOverview({ card, allCards, onSelectCard }: {
   const rolling = bakuganRollingValues(card);
   const bases = inspectorEvolutionBases(card, allCards);
   const children = inspectorEvolutionChildren(card, allCards);
+  const cancelledEvo = card.type === "Evo" && isCancelledEvo(card.catalogId);
   const hasStats = card.bPower !== null || card.damage !== null ||
     card.type !== "Character" || card.armorRating !== undefined;
   return <div className={styles.overview}>
@@ -131,16 +133,23 @@ function CardOverview({ card, allCards, onSelectCard }: {
       <div className={styles.keywords}>{card.mechanics.map(word =>
         <span className={galleryStyles.tag} key={word}>{word}</span>)}</div>
     </section>}
-    {card.type === "Evo" && card.evolvesFrom && <section className={styles.section}>
+    {card.type === "Evo" && <section className={styles.section}>
       <h3 className={styles.sectionTitle}>Evolves from</h3>
-      {bases.length ? <div className={styles.linkList}>
-        {bases.map(base => <button type="button" key={base.catalogId} className={styles.cardLink}
-          onClick={() => onSelectCard?.(base)}>
-          <ResponsiveCardImage card={base} presentation="thumbnail" alt="" />
-          <span><strong>{base.displayName}</strong><small>{CARD_SET_INFO[cardSetCode(base)].name} · Character</small></span>
-          <span className={styles.linkArrow} aria-hidden="true">↗</span>
-        </button>)}
-      </div> : <p className={styles.muted}>Base Character: {card.evolvesFrom} (no matching catalogue card available).</p>}
+      {cancelledEvo
+        ? <p className={styles.muted}>Cancelled Evo — no corresponding Character Card exists. This Evo has no legal target.</p>
+        : bases.length ? <>
+          <div className={styles.linkList}>
+            {bases.map(base => <button type="button" key={base.catalogId} className={styles.cardLink}
+              onClick={() => onSelectCard?.(base)}>
+              <ResponsiveCardImage card={base} presentation="thumbnail" alt="" />
+              <span><strong>{base.displayName}</strong><small>{CARD_SET_INFO[cardSetCode(base)].name} · {base.fusionFace === "b" ? "Fused Character" : "Character"}</small></span>
+              <span className={styles.linkArrow} aria-hidden="true">↗</span>
+            </button>)}
+          </div>
+          {bases.some(base => base.fusionFace === "b") &&
+            <p className={styles.muted}>Requires the matching Bakugan to be fused before playing this Evo.</p>}
+        </>
+        : <p className={styles.muted}>No compatible Character card is currently linked in the catalogue.</p>}
     </section>}
     {children.length > 0 && <section className={styles.section}>
       <h3 className={styles.sectionTitle}>Evolutions</h3>
