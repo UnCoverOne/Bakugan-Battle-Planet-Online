@@ -127,7 +127,8 @@ test("Inspector artwork, responsive tabs, printings, zoom and focus controls use
   assert.match(view, /<CardOverview card=\{displayedCard\}/);
   assert.match(view, /<CoreOverview core=\{core\}/);
   assert.match(view, /<footer className=\{styles.collector\}>/);
-  assert.match(view, /<StatusChip>\{displayedCard.type\}<\/StatusChip>/);
+  assert.match(view, /<CardFactionTag key=\{faction\} faction=\{faction\}/);
+  assert.match(view, /galleryStyles\.typeTag/);
   assert.match(view, /<Stat label="Energy">\{card.cost\}<\/Stat>/);
   assert.match(view, /<dt>Roll Accuracy<\/dt>/);
   assert.match(view, /<dt>Double Core Chance<\/dt>/);
@@ -149,9 +150,28 @@ test("Inspector artwork, responsive tabs, printings, zoom and focus controls use
 test("Artwork keyboard navigation and stacked modal scroll lock remain accessible", () => {
   const view = file("components/cards/CardInspector.tsx");
   const modal = file("components/cards/InspectorModal.tsx");
-  assert.match(view, /onKeyDown=\\{onArtworkKeyDown\\}/);
-  assert.match(view, /navigatePrinting\\(event.key === "ArrowRight" \\? 1 : -1\\)/);
-  assert.match(modal, /openDialogCount \\+= 1/);
-  assert.match(modal, /if \\(openDialogCount === 0\\) document.body.style.overflow = originalBodyOverflow/);
-  assert.match(modal, /if \\(!panel.contains\\(document.activeElement\\)\\)/);
+  assert.ok(view.includes("onKeyDown={onArtworkKeyDown}"));
+  assert.ok(view.includes('navigatePrinting(event.key === "ArrowRight" ? 1 : -1)'));
+  assert.ok(modal.includes("openDialogCount += 1"));
+  assert.ok(modal.includes("if (openDialogCount === 0) document.body.style.overflow = originalBodyOverflow"));
+  assert.ok(modal.includes("if (!panel.contains(document.activeElement))"));
+});
+
+
+test("Inspector metadata matches the existing gallery tags, without a redundant zoom button", () => {
+  const view = file("components/cards/CardInspector.tsx");
+  const css = file("components/cards/CardInspector.module.css");
+  const gallery = file("components/routes/CardsGallery.tsx");
+  assert.ok(view.includes('import { CardFactionTag } from "../routes/CardFactionTag";'));
+  assert.ok(view.includes('import galleryStyles from "../routes/CardsGallery.module.css";'));
+  assert.ok(gallery.includes("<CardFactionTag key={faction} faction={faction} />"));
+  assert.ok(view.includes("<CardFactionTag key={faction} faction={faction} />"));
+  assert.ok(view.includes("galleryStyles.typeTag"));
+  assert.ok(view.includes("galleryStyles.tag"));
+  assert.ok(view.includes('cardSetCode(displayedCard)'));
+  assert.ok(view.includes("onClick={onImageClick}"));
+  assert.ok(view.includes('aria-label={"Enlarge artwork: " + label}'));
+  assert.ok(!view.includes("styles.enlarge"));
+  assert.ok(!css.includes(".enlarge"));
+  assert.ok(!view.includes("StatusChip"));
 });

@@ -26,17 +26,7 @@
   font: 700 clamp(1.3rem, 2.4vw, 1.85rem)/1.23 var(--bb-font-display);
   overflow-wrap: anywhere;
 }
-.tags { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
-.tags :global([data-ui="status-chip"]) {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 26px;
-  padding: 3px 9px;
-  text-transform: none;
-  font: 600 .78rem/1.25 var(--bb-font-interface);
-}
-.factionGlyph { display: inline-block; width: 15px; height: 15px; flex: none; }
+.tags { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
 .headerActions { display: flex; flex: none; gap: 7px; }
 .headerActions button,
 .zoomHeader button {
@@ -136,7 +126,7 @@
 .dots { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .dots span { width: 5px; height: 5px; border-radius: 50%; background: var(--bb-border-hover); }
 .dots span[data-active="true"] { width: 7px; height: 7px; background: var(--bb-focus); }
-.enlarge, .fusionToggle {
+.fusionToggle {
   border: 0;
   background: transparent;
   color: var(--bb-link);
@@ -144,7 +134,7 @@
   font: 600 .8rem/1.5 var(--bb-font-interface);
   padding: 5px 8px;
 }
-.enlarge:hover, .fusionToggle:hover { text-decoration: underline; text-underline-offset: 3px; }
+.fusionToggle:hover { text-decoration: underline; text-underline-offset: 3px; }
 .fusionToggle { border: 1px solid var(--bb-border); color: var(--bb-text-soft); }
 .fusionToggle:hover { border-color: var(--bb-border-hover); }
 .infoColumn {
@@ -241,13 +231,7 @@
   margin: 0 .12rem;
   object-fit: contain;
 }
-.detailTags, .keywords { display: flex; flex-wrap: wrap; gap: 7px; }
-.keywords span {
-  padding: 4px 8px;
-  font: 500 .78rem/1.4 var(--bb-font-interface);
-  border: 1px solid var(--bb-border);
-  color: var(--bb-text-soft);
-}
+.detailTags, .keywords { display: flex; flex-wrap: wrap; gap: 4px; }
 .linkList { display: grid; gap: 0; }
 .cardLink {
   display: grid;
@@ -363,7 +347,6 @@
   .header { gap: 8px; }
   .headerActions { gap: 4px; }
   .headerActions button { padding: 4px 8px; min-height: 36px; }
-  .tags :global([data-ui="status-chip"]) { font-size: .73rem; }
   .overview, .references, .collectionPanel { padding: 20px 17px calc(26px + env(safe-area-inset-bottom)); }
   .stats { gap: 16px 22px; }
   .stat dd { font-size: 1.7rem; }

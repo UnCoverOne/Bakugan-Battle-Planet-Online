@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type KeyboardEvent, type MouseEvent, type TouchEvent } from "react";
 import { OriginalImage } from "@/components/media/OriginalImage";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
-import { CardFactionGlyph } from "../routes/CardFactionTag";
+import { CardFactionTag } from "../routes/CardFactionTag";
+import galleryStyles from "../routes/CardsGallery.module.css";
 import { CARD_SET_INFO, cardCollectorLabel, cardSetCode } from "../../lib/content/catalogue";
 import { cardArtSource } from "../../lib/content/card-art";
 import { CARD_INSPECTOR_TABS, type CardInspectorTab } from "../../lib/compendium";
@@ -15,7 +16,6 @@ import { collectionEntry, type Collection, type CollectionField } from "../../li
 import { coreEffects } from "../../lib/core-preview";
 import type { Core, GameCard } from "../../lib/game";
 import { SYMBOL_ENTRIES } from "../../lib/reference";
-import { StatusChip } from "../design-system/primitives";
 import { MotionValue } from "../design-system/MotionValue";
 import { BakuganRollingStat, bakuganRollingValues } from "./BakuganRollingStats";
 import { ResponsiveCardImage } from "./ResponsiveCardImage";
@@ -124,11 +124,12 @@ function CardOverview({ card, allCards, onSelectCard }: {
     {card.coreTypes.length > 0 && <section className={styles.section}>
       <h3 className={styles.sectionTitle}>BakuCore requirements</h3>
       <div className={styles.detailTags}>{card.coreTypes.map((type, i) =>
-        <StatusChip key={type + i}>{type}</StatusChip>)}</div>
+        <span className={galleryStyles.tag} key={type + i}>{type}</span>)}</div>
     </section>}
     {card.mechanics.length > 0 && <section className={styles.section}>
       <h3 className={styles.sectionTitle}>Keywords</h3>
-      <div className={styles.keywords}>{card.mechanics.map(word => <span key={word}>{word}</span>)}</div>
+      <div className={styles.keywords}>{card.mechanics.map(word =>
+        <span className={galleryStyles.tag} key={word}>{word}</span>)}</div>
     </section>}
     {card.type === "Evo" && card.evolvesFrom && <section className={styles.section}>
       <h3 className={styles.sectionTitle}>Evolves from</h3>
@@ -318,17 +319,37 @@ export function CardInspector(props: InspectorProps) {
     items[next].focus();
     onTabChange?.(visibleTabs[next]);
   };
+  // Use the exact compact, square metadata tags from the Cards gallery, including
+  // its colour-coded faction glyphs and abbreviated type/set labels.
   const identityTags: ReactNode = displayedCard
     ? <>
-      <StatusChip>{displayedCard.type}</StatusChip>
-      {displayedCard.factions.map(faction => <StatusChip key={faction} tone="info">
-        <CardFactionGlyph faction={faction} className={styles.factionGlyph} />{faction}
-      </StatusChip>)}
-      <StatusChip>{CARD_SET_INFO[cardSetCode(displayedCard)].name}</StatusChip>
-      <StatusChip>{displayedCard.rarity}</StatusChip>
+      <span className={galleryStyles.factions} aria-label={displayedCard.factions.join(" / ")}>
+        {displayedCard.factions.map(faction =>
+          <CardFactionTag key={faction} faction={faction} />)}
+      </span>
+      <span className={`${galleryStyles.tag} ${galleryStyles.typeTag}`}
+        title={displayedCard.type === "Character" ? "Character Card" : displayedCard.type}
+        aria-label={displayedCard.type === "Character" ? "Character Card" : displayedCard.type}>
+        {displayedCard.type === "Character" ? "CC" : displayedCard.type}
+      </span>
+      <span className={galleryStyles.tag}
+        title={CARD_SET_INFO[cardSetCode(displayedCard)].name}
+        aria-label={CARD_SET_INFO[cardSetCode(displayedCard)].name}>
+        {cardSetCode(displayedCard)}
+      </span>
+      <span className={galleryStyles.tag} title={`Rarity: ${displayedCard.rarity}`}>
+        {displayedCard.rarity}
+      </span>
     </>
     : core && displayedCore
-      ? <><StatusChip>{core.type}</StatusChip><StatusChip>{displayedCore.set ?? "Battle Brawlers"}</StatusChip></>
+      ? <>
+        <span className={galleryStyles.tag}>{core.type}</span>
+        <span className={galleryStyles.tag}
+          title={displayedCore.set ?? "Battle Brawlers"}
+          aria-label={displayedCore.set ?? "Battle Brawlers"}>
+          {displayedCore.set === "Armored Alliance" ? "AA" : "BB"}
+        </span>
+      </>
       : null;
   const currentCollectionId = cardPrint?.catalogId ?? corePrint?.id ?? "";
 
@@ -376,9 +397,6 @@ export function CardInspector(props: InspectorProps) {
             {slides.map((slide,i) => <span key={slide} data-active={i === slideIndex} />)}
           </div>
         </div>}
-        <button type="button" className={styles.enlarge} onClick={event => openZoom(event.currentTarget)}>
-          Enlarge artwork
-        </button>
       </div>
       <div className={styles.infoColumn}>
         <div role="tablist" aria-label={label + " information"} className={styles.tabs}
