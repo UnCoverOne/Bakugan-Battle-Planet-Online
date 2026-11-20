@@ -1,0 +1,5446 @@
+{
+  "schemaVersion": 1,
+  "summary": {
+    "generatedOn": "2026-11-20",
+    "scope": "All 336 Evo entries in the 1,734-card controlled catalogue",
+    "status": "AUDIT DRAFT — NOT PRODUCTION APPROVED",
+    "caution": "mapped_candidate means a uniquely resolved catalogue target, not independent visual verification. catalogueEvoIdentifier is transcribed source data and may be incorrect; entries marked needs_review intentionally have no approved target.",
+    "recordCount": 336,
+    "mappedCandidates": 329,
+    "externallyChecked": 8,
+    "needingReview": 7,
+    "fusedTargetCandidates": 11,
+    "bySet": {
+      "AA": {
+        "evos": 85,
+        "mapped": 85,
+        "needsReview": 0
+      },
+      "AV": {
+        "evos": 41,
+        "mapped": 41,
+        "needsReview": 0
+      },
+      "BB": {
+        "evos": 66,
+        "mapped": 66,
+        "needsReview": 0
+      },
+      "BR": {
+        "evos": 81,
+        "mapped": 81,
+        "needsReview": 0
+      },
+      "EX": {
+        "evos": 1,
+        "mapped": 1,
+        "needsReview": 0
+      },
+      "FF": {
+        "evos": 26,
+        "mapped": 25,
+        "needsReview": 1
+      },
+      "PS1": {
+        "evos": 16,
+        "mapped": 16,
+        "needsReview": 0
+      },
+      "SV": {
+        "evos": 20,
+        "mapped": 14,
+        "needsReview": 6
+      }
+    }
+  },
+  "relationships": [
+    {
+      "evoId": "aa-77",
+      "evoName": "Aquos Diamond Fade Ninja",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-163"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-163"
+      ],
+      "catalogueEvoIdentifier": "Fade Ninja"
+    },
+    {
+      "evoId": "aa-78",
+      "evoName": "Aquos Diamond Vicerox",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-179"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "source_checked",
+      "resolutionBasis": "externally_checked",
+      "candidateCharacterIds": [
+        "br-179"
+      ],
+      "evidenceUrl": "https://bakugan.wiki/wiki/Age_of_Aurelus",
+      "notes": "The Age of Aurelus catalogue explicitly identifies the Bakugan Resurgence Character.",
+      "catalogueEvoIdentifier": "Aquos Vicerox"
+    },
+    {
+      "evoId": "aa-79",
+      "evoName": "Aquos Hyper Cloptor Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-166"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-166"
+      ],
+      "catalogueEvoIdentifier": "Aquos Cloptor Ultra"
+    },
+    {
+      "evoId": "aa-80",
+      "evoName": "Aquos Hyper Cubbo",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-167"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-167"
+      ],
+      "catalogueEvoIdentifier": "Aquos Cubbo"
+    },
+    {
+      "evoId": "aa-81",
+      "evoName": "Aquos Hyper Cyndeous",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-162"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-162"
+      ],
+      "catalogueEvoIdentifier": "Aquos Cyndeous"
+    },
+    {
+      "evoId": "aa-82",
+      "evoName": "Aquos Hyper Nobilious Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-174"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-174"
+      ],
+      "catalogueEvoIdentifier": "Aquos Nobilious Ultra"
+    },
+    {
+      "evoId": "aa-83",
+      "evoName": "Aquos Hyper Phaedrus Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-166"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-166"
+      ],
+      "catalogueEvoIdentifier": "Aquos Phaedrus Ultra"
+    },
+    {
+      "evoId": "aa-84",
+      "evoName": "Aquos Hyper Pyravian Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-176"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-176"
+      ],
+      "catalogueEvoIdentifier": "Aquos Pyravian Ultra"
+    },
+    {
+      "evoId": "aa-85",
+      "evoName": "Aquos Hyper Trhyno",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-177"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-177"
+      ],
+      "catalogueEvoIdentifier": "Aquos Trhyno"
+    },
+    {
+      "evoId": "aa-86",
+      "evoName": "Aquos Titan Fangzor Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-168"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-168"
+      ],
+      "catalogueEvoIdentifier": "Aquos Fangzor Ultra"
+    },
+    {
+      "evoId": "aa-87",
+      "evoName": "Aquos Titan Hydranoid",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-171"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-171"
+      ],
+      "catalogueEvoIdentifier": "Aquos Hydranoid"
+    },
+    {
+      "evoId": "aa-88",
+      "evoName": "Aquos Titan Vicerox Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-167"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-167"
+      ],
+      "catalogueEvoIdentifier": "Aquos Vicerox Ultra"
+    },
+    {
+      "evoId": "aa-89",
+      "evoName": "Aquos Titan Webam Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-180"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-180"
+      ],
+      "catalogueEvoIdentifier": "Aquos Webam Ultra"
+    },
+    {
+      "evoId": "aa-90",
+      "evoName": "Aurelus Diamond Trhyno",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-189"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-189"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Trhyno"
+    },
+    {
+      "evoId": "aa-91",
+      "evoName": "Aurelus Hyper Goreene Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-171"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-171"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Goreene Ultra"
+    },
+    {
+      "evoId": "aa-92",
+      "evoName": "Aurelus Hyper Lupitheon Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-186"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-186"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Lupitheon Ultra"
+    },
+    {
+      "evoId": "aa-93",
+      "evoName": "Aurelus Hyper Phaedrus Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-188"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-188"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Phaedrus Ultra"
+    },
+    {
+      "evoId": "aa-94",
+      "evoName": "Aurelus Hyper Skorporos",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-175"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-175"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Skorporos"
+    },
+    {
+      "evoId": "aa-95",
+      "evoName": "Aurelus Hyper Vicerox",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-191"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-191"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Vicerox"
+    },
+    {
+      "evoId": "aa-96",
+      "evoName": "Aurelus Hyper Vicerox Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-192"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-192"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Vicerox Ultra"
+    },
+    {
+      "evoId": "aa-97",
+      "evoName": "Aurelus Maximus Goreene Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-171"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-171"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Goreene Ultra"
+    },
+    {
+      "evoId": "aa-98",
+      "evoName": "Aurelus Titan Cubbo",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-181"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-181"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Cubbo"
+    },
+    {
+      "evoId": "aa-99",
+      "evoName": "Aurelus Titan Gorthion Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-172"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-172"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Gorthion Ultra"
+    },
+    {
+      "evoId": "aa-100",
+      "evoName": "Aurelus Titan Hydranoid Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-184"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-184"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Hydranoid Ultra"
+    },
+    {
+      "evoId": "aa-101",
+      "evoName": "Aurelus Titan Nobilious Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-187"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-187"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Nobilious Ultra"
+    },
+    {
+      "evoId": "aa-102",
+      "evoName": "Aurelus Titan Zentaur",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-193"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-193"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Zentaur"
+    },
+    {
+      "evoId": "aa-103",
+      "evoName": "Darkus Diamond Cloptor",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-178"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-178"
+      ],
+      "catalogueEvoIdentifier": "Darkus Cloptor"
+    },
+    {
+      "evoId": "aa-104",
+      "evoName": "Darkus Diamond Phaedrus Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-183"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-183"
+      ],
+      "catalogueEvoIdentifier": "Darkus Phaedrus Ultra"
+    },
+    {
+      "evoId": "aa-105",
+      "evoName": "Darkus Diamond Skorporos",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-205"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-205"
+      ],
+      "catalogueEvoIdentifier": "Darkus Skorporos"
+    },
+    {
+      "evoId": "aa-106",
+      "evoName": "Darkus Hyper Cubbo",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-194"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-194"
+      ],
+      "catalogueEvoIdentifier": "Darkus Cubbo"
+    },
+    {
+      "evoId": "aa-107",
+      "evoName": "Darkus Hyper Kelion Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-181"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-181"
+      ],
+      "catalogueEvoIdentifier": "Darkus Kelion Ultra"
+    },
+    {
+      "evoId": "aa-108",
+      "evoName": "Darkus Hyper Krakelios Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-200"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-200"
+      ],
+      "catalogueEvoIdentifier": "Darkus Krakelios Ultra"
+    },
+    {
+      "evoId": "aa-109",
+      "evoName": "Darkus Hyper Skorporos Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-206"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-206"
+      ],
+      "catalogueEvoIdentifier": "Darkus Skorporos Ultra"
+    },
+    {
+      "evoId": "aa-110",
+      "evoName": "Darkus Hyper Trhyno",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-207"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-207"
+      ],
+      "catalogueEvoIdentifier": "Darkus Trhyno"
+    },
+    {
+      "evoId": "aa-111",
+      "evoName": "Darkus Hyper Trunkanious Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-184"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-184"
+      ],
+      "catalogueEvoIdentifier": "Darkus Trunkanious Ultra"
+    },
+    {
+      "evoId": "aa-112",
+      "evoName": "Darkus Hyper Vicerox",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-186"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-186"
+      ],
+      "catalogueEvoIdentifier": "Darkus Vicerox"
+    },
+    {
+      "evoId": "aa-113",
+      "evoName": "Darkus Hyper Webam Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-208"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-208"
+      ],
+      "catalogueEvoIdentifier": "Darkus Webam Ultra"
+    },
+    {
+      "evoId": "aa-114",
+      "evoName": "Darkus Hyper Zentaur",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-209"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-209"
+      ],
+      "catalogueEvoIdentifier": "Darkus Zentaur"
+    },
+    {
+      "evoId": "aa-115",
+      "evoName": "Darkus Maximus Lupitheon Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-201"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-201"
+      ],
+      "catalogueEvoIdentifier": "Darkus Lupitheon Ultra"
+    },
+    {
+      "evoId": "aa-116",
+      "evoName": "Darkus Maximus Nillious Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "bb-322"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-322"
+      ],
+      "catalogueEvoIdentifier": "Darkus Nillious Ultra"
+    },
+    {
+      "evoId": "aa-117",
+      "evoName": "Darkus Titan Gorthion",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-197"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-197"
+      ],
+      "catalogueEvoIdentifier": "Darkus Gorthion"
+    },
+    {
+      "evoId": "aa-118",
+      "evoName": "Darkus Titan Hydranoid Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-199"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-199"
+      ],
+      "catalogueEvoIdentifier": "Darkus Hydranoid Ultra"
+    },
+    {
+      "evoId": "aa-119",
+      "evoName": "Darkus Titan Phaedrus",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-203"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-203"
+      ],
+      "catalogueEvoIdentifier": "Darkus Phaedrus"
+    },
+    {
+      "evoId": "aa-120",
+      "evoName": "Haos Hyper Cloptor Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-188"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-188"
+      ],
+      "catalogueEvoIdentifier": "Haos Cloptor Ultra"
+    },
+    {
+      "evoId": "aa-121",
+      "evoName": "Haos Hyper Cubbo",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-210"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-210"
+      ],
+      "catalogueEvoIdentifier": "Haos Cubbo"
+    },
+    {
+      "evoId": "aa-122",
+      "evoName": "Haos Hyper Dragonoid Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-191"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-191"
+      ],
+      "catalogueEvoIdentifier": "Haos Dragonoid Ultra"
+    },
+    {
+      "evoId": "aa-123",
+      "evoName": "Haos Hyper Gorthion",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-211"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-211"
+      ],
+      "catalogueEvoIdentifier": "Haos Gorthion"
+    },
+    {
+      "evoId": "aa-124",
+      "evoName": "Haos Hyper Hydranoid",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-193"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-193"
+      ],
+      "catalogueEvoIdentifier": "Haos Hydranoid"
+    },
+    {
+      "evoId": "aa-125",
+      "evoName": "Haos Hyper Lupitheon Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-212"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-212"
+      ],
+      "catalogueEvoIdentifier": "Haos Lupitheon Ultra"
+    },
+    {
+      "evoId": "aa-126",
+      "evoName": "Haos Hyper Phaedrus",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-216"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-216"
+      ],
+      "catalogueEvoIdentifier": "Haos Phaedrus"
+    },
+    {
+      "evoId": "aa-127",
+      "evoName": "Haos Hyper Turtonium",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-218"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-218"
+      ],
+      "catalogueEvoIdentifier": "Haos Turtonium"
+    },
+    {
+      "evoId": "aa-128",
+      "evoName": "Haos Hyper Vicerox",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-219"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-219"
+      ],
+      "catalogueEvoIdentifier": "Haos Vicerox"
+    },
+    {
+      "evoId": "aa-129",
+      "evoName": "Haos Titan Nobilious Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-213"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-213"
+      ],
+      "catalogueEvoIdentifier": "Haos Nobilious Ultra"
+    },
+    {
+      "evoId": "aa-130",
+      "evoName": "Haos Titan Pandoxx Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-214"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-214"
+      ],
+      "catalogueEvoIdentifier": "Haos Pandoxx Ultra"
+    },
+    {
+      "evoId": "aa-131",
+      "evoName": "Haos Titan Trhyno",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-217"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-217"
+      ],
+      "catalogueEvoIdentifier": "Haos Trhyno"
+    },
+    {
+      "evoId": "aa-132",
+      "evoName": "Haos Titan Turtonium Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-196"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-196"
+      ],
+      "catalogueEvoIdentifier": "Haos Turtonium Ultra"
+    },
+    {
+      "evoId": "aa-133",
+      "evoName": "Haos Titan Vicerox Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-220"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-220"
+      ],
+      "catalogueEvoIdentifier": "Haos Vicerox Ultra"
+    },
+    {
+      "evoId": "aa-134",
+      "evoName": "Haos Titan Zentaur",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-197"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-197"
+      ],
+      "catalogueEvoIdentifier": "Haos Zentaur"
+    },
+    {
+      "evoId": "aa-135",
+      "evoName": "Pyrus Diamond Kelion Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-201"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-201"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Kelion Ultra"
+    },
+    {
+      "evoId": "aa-136",
+      "evoName": "Pyrus Hyper Nillious",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-225"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-225"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Nillious"
+    },
+    {
+      "evoId": "aa-137",
+      "evoName": "Pyrus Hyper Nillious Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-226"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-226"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Nillious Ultra"
+    },
+    {
+      "evoId": "aa-138",
+      "evoName": "Pyrus Hyper Phaedrus",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-229"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-229"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Phaedrus"
+    },
+    {
+      "evoId": "aa-139",
+      "evoName": "Pyrus Hyper Pyravian Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-203"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-203"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Pyravian Ultra"
+    },
+    {
+      "evoId": "aa-140",
+      "evoName": "Pyrus Hyper Trhyno",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-231"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-231"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Trhyno"
+    },
+    {
+      "evoId": "aa-141",
+      "evoName": "Pyrus Hyper Vicerox",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-234"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-234"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Vicerox"
+    },
+    {
+      "evoId": "aa-142",
+      "evoName": "Pyrus Hyper Vicerox Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-235"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-235"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Vicerox Ultra"
+    },
+    {
+      "evoId": "aa-143",
+      "evoName": "Pyrus Hyper Zentaur",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-209"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-209"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Zentaur"
+    },
+    {
+      "evoId": "aa-144",
+      "evoName": "Pyrus Titan Cyndeous",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-222"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-222"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Cyndeous"
+    },
+    {
+      "evoId": "aa-145",
+      "evoName": "Pyrus Titan Hydranoid Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-223"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-223"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Hydranoid Ultra"
+    },
+    {
+      "evoId": "aa-146",
+      "evoName": "Pyrus Titan Nobilious Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-227"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-227"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Nobilious Ultra"
+    },
+    {
+      "evoId": "aa-147",
+      "evoName": "Pyrus Titan Phaedrus Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-202"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-202"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Phaedrus Ultra"
+    },
+    {
+      "evoId": "aa-148",
+      "evoName": "Pyrus Titan Skorporos",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-204"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-204"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Skorporos"
+    },
+    {
+      "evoId": "aa-149",
+      "evoName": "Ventus Hyper Cubbo",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-236"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-236"
+      ],
+      "catalogueEvoIdentifier": "Ventus Cubbo"
+    },
+    {
+      "evoId": "aa-150",
+      "evoName": "Ventus Hyper Cyndeous",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-237"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-237"
+      ],
+      "catalogueEvoIdentifier": "Ventus Cyndeous"
+    },
+    {
+      "evoId": "aa-151",
+      "evoName": "Ventus Hyper Dragonoid Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-210"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-210"
+      ],
+      "catalogueEvoIdentifier": "Ventus Dragonoid Ultra"
+    },
+    {
+      "evoId": "aa-152",
+      "evoName": "Ventus Hyper Lupitheon Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-239"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-239"
+      ],
+      "catalogueEvoIdentifier": "Ventus Lupitheon Ultra"
+    },
+    {
+      "evoId": "aa-153",
+      "evoName": "Ventus Hyper Phaedrus",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-240"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-240"
+      ],
+      "catalogueEvoIdentifier": "Ventus Phaedrus"
+    },
+    {
+      "evoId": "aa-154",
+      "evoName": "Ventus Hyper Pyravian Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-215"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-215"
+      ],
+      "catalogueEvoIdentifier": "Ventus Pyravian Ultra"
+    },
+    {
+      "evoId": "aa-155",
+      "evoName": "Ventus Hyper Skorporos Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-242"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-242"
+      ],
+      "catalogueEvoIdentifier": "Ventus Skorporos Ultra"
+    },
+    {
+      "evoId": "aa-156",
+      "evoName": "Ventus Maximus Hydranoid Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-238"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-238"
+      ],
+      "catalogueEvoIdentifier": "Ventus Hydranoid Ultra"
+    },
+    {
+      "evoId": "aa-157",
+      "evoName": "Ventus Titan Fade Ninja",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-211"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-211"
+      ],
+      "catalogueEvoIdentifier": "Ventus Fade Ninja"
+    },
+    {
+      "evoId": "aa-158",
+      "evoName": "Ventus Titan Phaedrus Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-241"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-241"
+      ],
+      "catalogueEvoIdentifier": "Ventus Phaedrus Ultra"
+    },
+    {
+      "evoId": "aa-159",
+      "evoName": "Ventus Titan Trunkanious Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-219"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-219"
+      ],
+      "catalogueEvoIdentifier": "Ventus Trunkanious Ultra"
+    },
+    {
+      "evoId": "aa-160",
+      "evoName": "Ventus Titan Vicerox Ultra",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "br-245"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "br-245"
+      ],
+      "catalogueEvoIdentifier": "Ventus Vicerox Ultra"
+    },
+    {
+      "evoId": "aa-161",
+      "evoName": "Ventus Titan Zentaur",
+      "evoSet": "AA",
+      "targetCharacterIds": [
+        "aa-220"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "aa-220"
+      ],
+      "catalogueEvoIdentifier": "Ventus Zentaur"
+    },
+    {
+      "evoId": "av-117",
+      "evoName": "Aquos Hyper Dragonoid",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-160"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "source_checked",
+      "resolutionBasis": "externally_checked",
+      "candidateCharacterIds": [
+        "av-160"
+      ],
+      "evidenceUrl": "https://bakugan.wiki/wiki/Armored_Elite",
+      "notes": "The supplied [AV] qualifier identifies the Armored Elite Character.",
+      "catalogueEvoIdentifier": "Aquos Dragonoid [AV]"
+    },
+    {
+      "evoId": "av-118",
+      "evoName": "Aquos Hyper Howlkor Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-166"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-166"
+      ],
+      "catalogueEvoIdentifier": "Aquos Howlkor Ultra [AV]"
+    },
+    {
+      "evoId": "av-119",
+      "evoName": "Aquos Hyper Nillious Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-171"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-171"
+      ],
+      "catalogueEvoIdentifier": "Aquos Nillious Ultra [AV]"
+    },
+    {
+      "evoId": "av-120",
+      "evoName": "Aquos Maximus Trox Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-177"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-177"
+      ],
+      "catalogueEvoIdentifier": "Aquos Trox Ultra [AV]"
+    },
+    {
+      "evoId": "av-121",
+      "evoName": "Aquos Titan Nillious",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-170"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-170"
+      ],
+      "catalogueEvoIdentifier": "Aquos Nillious [AV]"
+    },
+    {
+      "evoId": "av-122",
+      "evoName": "Aurelus [Diamond] Auxillataur",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-179"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "av-179"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Auxillataur"
+    },
+    {
+      "evoId": "av-123",
+      "evoName": "Aurelus [Diamond] Pharol",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-190"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "av-190"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Pharol"
+    },
+    {
+      "evoId": "av-124",
+      "evoName": "Aurelus Hyper Dragonoid Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-182"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-182"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Dragonoid Ultra [AV]"
+    },
+    {
+      "evoId": "av-125",
+      "evoName": "Aurelus Hyper Nillious Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-187"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-187"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Nillious Ultra [AV]"
+    },
+    {
+      "evoId": "av-126",
+      "evoName": "Aurelus Maximus Hydorous",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-184"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-184"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Hydorous [AV]"
+    },
+    {
+      "evoId": "av-127",
+      "evoName": "Aurelus Titan Pharol",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-190"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "av-190"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Pharol"
+    },
+    {
+      "evoId": "av-128",
+      "evoName": "Darkus [Diamond] Eenoch Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-196"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "av-196"
+      ],
+      "catalogueEvoIdentifier": "Darkus Eenoch Ultra"
+    },
+    {
+      "evoId": "av-129",
+      "evoName": "Darkus [Diamond] Howlkor",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-198"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-198"
+      ],
+      "catalogueEvoIdentifier": "Darkus Howlkor [AV]"
+    },
+    {
+      "evoId": "av-130",
+      "evoName": "Darkus [Diamond] Nillious",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-203"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-203"
+      ],
+      "catalogueEvoIdentifier": "Darkus Nillious [AV]"
+    },
+    {
+      "evoId": "av-131",
+      "evoName": "Darkus Hyper Pegatrix",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-205"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-205"
+      ],
+      "catalogueEvoIdentifier": "Darkus Pegatrix [AV]"
+    },
+    {
+      "evoId": "av-132",
+      "evoName": "Darkus Hyper Dragonoid Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-194"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-194"
+      ],
+      "catalogueEvoIdentifier": "Darkus Dragonoid Ultra [AV]"
+    },
+    {
+      "evoId": "av-133",
+      "evoName": "Darkus Hyper Hydorous Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-201"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-201"
+      ],
+      "catalogueEvoIdentifier": "Darkus Hydorous Ultra [AV]"
+    },
+    {
+      "evoId": "av-134",
+      "evoName": "Darkus Hyper Trox Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-212"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-212"
+      ],
+      "catalogueEvoIdentifier": "Darkus Trox Ultra [AV]"
+    },
+    {
+      "evoId": "av-135",
+      "evoName": "Darkus Maximus Nillious",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-203"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-203"
+      ],
+      "catalogueEvoIdentifier": "Darkus Nillious [AV]"
+    },
+    {
+      "evoId": "av-136",
+      "evoName": "Darkus Titan Pharol",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-209"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "av-209"
+      ],
+      "catalogueEvoIdentifier": "Darkus Pharol"
+    },
+    {
+      "evoId": "av-137",
+      "evoName": "Haos [Diamond] Pegatrix Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-226"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-226"
+      ],
+      "catalogueEvoIdentifier": "Haos Pegatrix Ultra [AV]"
+    },
+    {
+      "evoId": "av-138",
+      "evoName": "Haos Maximus Pegatrix Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-226"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-226"
+      ],
+      "catalogueEvoIdentifier": "Haos Pegatrix Ultra [AV]"
+    },
+    {
+      "evoId": "av-139",
+      "evoName": "Haos Hyper Pharol",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-228"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "av-228"
+      ],
+      "catalogueEvoIdentifier": "Haos Pharol"
+    },
+    {
+      "evoId": "av-140",
+      "evoName": "Haos Hyper Pegatrix",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-225"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-225"
+      ],
+      "catalogueEvoIdentifier": "Haos Pegatrix [AV]"
+    },
+    {
+      "evoId": "av-141",
+      "evoName": "Haos Maximus Trox Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-231"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-231"
+      ],
+      "catalogueEvoIdentifier": "Haos Trox Ultra [AV]"
+    },
+    {
+      "evoId": "av-142",
+      "evoName": "Pyrus [Diamond] Dragonoid",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-233"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-233"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Dragonoid [AV]"
+    },
+    {
+      "evoId": "av-143",
+      "evoName": "Pyrus [Diamond] Cycloid",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-235"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "av-235"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Cycloid"
+    },
+    {
+      "evoId": "av-144",
+      "evoName": "Pyrus [Diamond] Gillator Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-246"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "source_checked",
+      "resolutionBasis": "externally_checked",
+      "candidateCharacterIds": [
+        "av-246"
+      ],
+      "evidenceUrl": "https://bakugan.wiki/wiki/Diamond_Gillator_Ultra_(Armored_Elite)",
+      "notes": "Source evolvesFrom drops Ultra; the published card page specifies Pyrus Gillator Ultra.",
+      "catalogueEvoIdentifier": "Pyrus Gillator"
+    },
+    {
+      "evoId": "av-145",
+      "evoName": "Pyrus Hyper Hydorous Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-240"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-240"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Hydorous Ultra [AV]"
+    },
+    {
+      "evoId": "av-146",
+      "evoName": "Pyrus Hyper Nillious Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-242"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-242"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Nillious Ultra [AV]"
+    },
+    {
+      "evoId": "av-147",
+      "evoName": "Pyrus Hyper Pegatrix Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-244"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-244"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Pegatrix Ultra [AV]"
+    },
+    {
+      "evoId": "av-148",
+      "evoName": "Pyrus Maximus Dragonoid Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-234"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-234"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Dragonoid Ultra [AV]"
+    },
+    {
+      "evoId": "av-149",
+      "evoName": "Pyrus Titan Nillious",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-241"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-241"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Nillious [AV]"
+    },
+    {
+      "evoId": "av-150",
+      "evoName": "Pyrus Titan Trox",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-249"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-249"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Trox [AV]"
+    },
+    {
+      "evoId": "av-151",
+      "evoName": "Ventus [Diamond] Trox Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-271"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-271"
+      ],
+      "catalogueEvoIdentifier": "Ventus Trox Ultra [AV]"
+    },
+    {
+      "evoId": "av-152",
+      "evoName": "Ventus Hyper Howlkor",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-258"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-258"
+      ],
+      "catalogueEvoIdentifier": "Ventus Howlkor [AV]"
+    },
+    {
+      "evoId": "av-153",
+      "evoName": "Ventus Hyper Pharol",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-268"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "av-268"
+      ],
+      "catalogueEvoIdentifier": "Ventus Pharol"
+    },
+    {
+      "evoId": "av-154",
+      "evoName": "Ventus Hyper Trox",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-270"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-270"
+      ],
+      "catalogueEvoIdentifier": "Ventus Trox [AV]"
+    },
+    {
+      "evoId": "av-155",
+      "evoName": "Ventus Maximus Dragonoid",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-254"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-254"
+      ],
+      "catalogueEvoIdentifier": "Ventus Dragonoid [AV]"
+    },
+    {
+      "evoId": "av-156",
+      "evoName": "Ventus Maximus Pegatrix",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-263"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-263"
+      ],
+      "catalogueEvoIdentifier": "Ventus Pegatrix [AV]"
+    },
+    {
+      "evoId": "av-157",
+      "evoName": "Ventus Titan Howlkor Ultra",
+      "evoSet": "AV",
+      "targetCharacterIds": [
+        "av-259"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-259"
+      ],
+      "catalogueEvoIdentifier": "Ventus Howlkor Ultra [AV]"
+    },
+    {
+      "evoId": "bb-216",
+      "evoName": "Diamond Hydorous",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-287"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-287"
+      ],
+      "catalogueEvoIdentifier": "Hydorous"
+    },
+    {
+      "evoId": "bb-217",
+      "evoName": "Diamond Hydorous Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-288"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-288"
+      ],
+      "catalogueEvoIdentifier": "Hydorous Ultra"
+    },
+    {
+      "evoId": "bb-218",
+      "evoName": "Diamond Serpenteze",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-293"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-293"
+      ],
+      "catalogueEvoIdentifier": "Serpenteze"
+    },
+    {
+      "evoId": "bb-219",
+      "evoName": "Aquos Hyper Pegatrix",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-292"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "source_checked",
+      "resolutionBasis": "externally_checked",
+      "candidateCharacterIds": [
+        "bb-292"
+      ],
+      "evidenceUrl": "https://bakugan.wiki/wiki/Battle_Brawlers_(set)",
+      "notes": "BB 219 specifically identifies BB 292, not AV 172.",
+      "catalogueEvoIdentifier": "Pegatrix"
+    },
+    {
+      "evoId": "bb-220",
+      "evoName": "Aquos Hyper Fangzor",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-284"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-284"
+      ],
+      "catalogueEvoIdentifier": "Fangzor"
+    },
+    {
+      "evoId": "bb-221",
+      "evoName": "Aquos Hyper Hydorous",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-287"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-287"
+      ],
+      "catalogueEvoIdentifier": "Hydorous"
+    },
+    {
+      "evoId": "bb-222",
+      "evoName": "Aquos Hyper Hydorous Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-288"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-288"
+      ],
+      "catalogueEvoIdentifier": "Hydorous Ultra"
+    },
+    {
+      "evoId": "bb-223",
+      "evoName": "Aquos Hyper Mantonoid Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-290"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-290"
+      ],
+      "catalogueEvoIdentifier": "Mantonoid Ultra"
+    },
+    {
+      "evoId": "bb-224",
+      "evoName": "Aquos Hyper Serpenteze Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-294"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-294"
+      ],
+      "catalogueEvoIdentifier": "Serpenteze Ultra"
+    },
+    {
+      "evoId": "bb-225",
+      "evoName": "Aquos Hyper Trox",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-295"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-295"
+      ],
+      "catalogueEvoIdentifier": "Trox"
+    },
+    {
+      "evoId": "bb-226",
+      "evoName": "Aquos Maximus Hydorous Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-288"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-288"
+      ],
+      "catalogueEvoIdentifier": "Hydorous Ultra"
+    },
+    {
+      "evoId": "bb-227",
+      "evoName": "Aquos Titan Dragonoid",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-283"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-283"
+      ],
+      "catalogueEvoIdentifier": "Dragonoid"
+    },
+    {
+      "evoId": "bb-228",
+      "evoName": "Aquos Titan Garganoid Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-285"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-285"
+      ],
+      "catalogueEvoIdentifier": "Garganoid Ultra"
+    },
+    {
+      "evoId": "bb-229",
+      "evoName": "Aurelus Hyper Dragonoid",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-298"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-298"
+      ],
+      "catalogueEvoIdentifier": "Dragonoid"
+    },
+    {
+      "evoId": "bb-230",
+      "evoName": "Aurelus Hyper Howlkor Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-302"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-302"
+      ],
+      "catalogueEvoIdentifier": "Howlkor Ultra"
+    },
+    {
+      "evoId": "bb-231",
+      "evoName": "Aurelus Hyper Maxotaur Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-306"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-306"
+      ],
+      "catalogueEvoIdentifier": "Maxotaur Ultra"
+    },
+    {
+      "evoId": "bb-232",
+      "evoName": "Aurelus Hyper Nillious",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-307"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-307"
+      ],
+      "catalogueEvoIdentifier": "Nillious"
+    },
+    {
+      "evoId": "bb-233",
+      "evoName": "Aurelus Hyper Pegatrix",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-308"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-308"
+      ],
+      "catalogueEvoIdentifier": "Pegatrix"
+    },
+    {
+      "evoId": "bb-234",
+      "evoName": "Aurelus Hyper Garganoid Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-301"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-301"
+      ],
+      "catalogueEvoIdentifier": "Garganoid Ultra"
+    },
+    {
+      "evoId": "bb-235",
+      "evoName": "Aurelus Titan Fangzor",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-299"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-299"
+      ],
+      "catalogueEvoIdentifier": "Fangzor"
+    },
+    {
+      "evoId": "bb-236",
+      "evoName": "Aurelus Titan Hydorous",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-303"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-303"
+      ],
+      "catalogueEvoIdentifier": "Hydorous"
+    },
+    {
+      "evoId": "bb-237",
+      "evoName": "Diamond Garganoid Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-315"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-315"
+      ],
+      "catalogueEvoIdentifier": "Garganoid Ultra"
+    },
+    {
+      "evoId": "bb-238",
+      "evoName": "Diamond Nillious",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-321"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-321"
+      ],
+      "catalogueEvoIdentifier": "Nillious"
+    },
+    {
+      "evoId": "bb-239",
+      "evoName": "Darkus Hyper Dragonoid",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-312"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-312"
+      ],
+      "catalogueEvoIdentifier": "Dragonoid"
+    },
+    {
+      "evoId": "bb-240",
+      "evoName": "Darkus Hyper Fangzor",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-313"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-313"
+      ],
+      "catalogueEvoIdentifier": "Fangzor"
+    },
+    {
+      "evoId": "bb-241",
+      "evoName": "Darkus Hyper Hydorous",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-318"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-318"
+      ],
+      "catalogueEvoIdentifier": "Hydorous"
+    },
+    {
+      "evoId": "bb-242",
+      "evoName": "Darkus Hyper Hydorous Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-319"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-319"
+      ],
+      "catalogueEvoIdentifier": "Hydorous Ultra"
+    },
+    {
+      "evoId": "bb-243",
+      "evoName": "Darkus Hyper Trox",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-325"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-325"
+      ],
+      "catalogueEvoIdentifier": "Trox"
+    },
+    {
+      "evoId": "bb-244",
+      "evoName": "Darkus Hyper Nillious",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-321"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-321"
+      ],
+      "catalogueEvoIdentifier": "Nillious"
+    },
+    {
+      "evoId": "bb-245",
+      "evoName": "Darkus Titan Howlkor Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-317"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-317"
+      ],
+      "catalogueEvoIdentifier": "Howlkor Ultra"
+    },
+    {
+      "evoId": "bb-246",
+      "evoName": "Darkus Titan Mantonoid Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-320"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-320"
+      ],
+      "catalogueEvoIdentifier": "Mantonoid Ultra"
+    },
+    {
+      "evoId": "bb-247",
+      "evoName": "Darkus Titan Nillious",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-321"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-321"
+      ],
+      "catalogueEvoIdentifier": "Nillious"
+    },
+    {
+      "evoId": "bb-248",
+      "evoName": "Diamond Gorthion Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-330"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-330"
+      ],
+      "catalogueEvoIdentifier": "Gorthion Ultra"
+    },
+    {
+      "evoId": "bb-249",
+      "evoName": "Diamond Pegatrix",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-339"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-339"
+      ],
+      "catalogueEvoIdentifier": "Pegatrix"
+    },
+    {
+      "evoId": "bb-250",
+      "evoName": "Haos Hyper Fangzor",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-328"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-328"
+      ],
+      "catalogueEvoIdentifier": "Fangzor"
+    },
+    {
+      "evoId": "bb-251",
+      "evoName": "Haos Hyper Garganoid Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-329"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-329"
+      ],
+      "catalogueEvoIdentifier": "Garganoid Ultra"
+    },
+    {
+      "evoId": "bb-252",
+      "evoName": "Haos Hyper Nillious",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-337"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-337"
+      ],
+      "catalogueEvoIdentifier": "Nillious"
+    },
+    {
+      "evoId": "bb-253",
+      "evoName": "Haos Hyper Hydorous Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-333"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-333"
+      ],
+      "catalogueEvoIdentifier": "Hydorous Ultra"
+    },
+    {
+      "evoId": "bb-254",
+      "evoName": "Haos Hyper Serpenteze Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-341"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-341"
+      ],
+      "catalogueEvoIdentifier": "Serpenteze Ultra"
+    },
+    {
+      "evoId": "bb-255",
+      "evoName": "Haos Maximus Hydorous Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-333"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-333"
+      ],
+      "catalogueEvoIdentifier": "Hydorous Ultra"
+    },
+    {
+      "evoId": "bb-256",
+      "evoName": "Haos Titan Howlkor Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-331"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-331"
+      ],
+      "catalogueEvoIdentifier": "Howlkor Ultra"
+    },
+    {
+      "evoId": "bb-257",
+      "evoName": "Haos Titan Nillious",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-337"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-337"
+      ],
+      "catalogueEvoIdentifier": "Nillious"
+    },
+    {
+      "evoId": "bb-258",
+      "evoName": "Haos Titan Pegatrix",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-339"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-339"
+      ],
+      "catalogueEvoIdentifier": "Pegatrix"
+    },
+    {
+      "evoId": "bb-259",
+      "evoName": "Diamond Dragonoid",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-343"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-343"
+      ],
+      "catalogueEvoIdentifier": "Dragonoid"
+    },
+    {
+      "evoId": "bb-260",
+      "evoName": "Diamond Fangzor",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-344"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-344"
+      ],
+      "catalogueEvoIdentifier": "Fangzor"
+    },
+    {
+      "evoId": "bb-261",
+      "evoName": "Pyrus Hyper Hydorous",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-350"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-350"
+      ],
+      "catalogueEvoIdentifier": "Hydorous"
+    },
+    {
+      "evoId": "bb-262",
+      "evoName": "Pyrus Hyper Hydorous Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-351"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-351"
+      ],
+      "catalogueEvoIdentifier": "Hydorous Ultra"
+    },
+    {
+      "evoId": "bb-263",
+      "evoName": "Pyrus Hyper Maxotaur Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-354"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-354"
+      ],
+      "catalogueEvoIdentifier": "Maxotaur Ultra"
+    },
+    {
+      "evoId": "bb-264",
+      "evoName": "Pyrus Hyper Trox",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-356"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-356"
+      ],
+      "catalogueEvoIdentifier": "Trox"
+    },
+    {
+      "evoId": "bb-265",
+      "evoName": "Pyrus Hyper Dragonoid",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-343"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-343"
+      ],
+      "catalogueEvoIdentifier": "Dragonoid"
+    },
+    {
+      "evoId": "bb-266",
+      "evoName": "Pyrus Hyper Mantonoid Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-353"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-353"
+      ],
+      "catalogueEvoIdentifier": "Mantonoid Ultra"
+    },
+    {
+      "evoId": "bb-267",
+      "evoName": "Pyrus Hyper Serpenteze Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-355"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-355"
+      ],
+      "catalogueEvoIdentifier": "Serpenteze Ultra"
+    },
+    {
+      "evoId": "bb-268",
+      "evoName": "Pyrus Titan Fangzor",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-344"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-344"
+      ],
+      "catalogueEvoIdentifier": "Fangzor"
+    },
+    {
+      "evoId": "bb-269",
+      "evoName": "Pyrus Titan Hydorous Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-351"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-351"
+      ],
+      "catalogueEvoIdentifier": "Hydorous Ultra"
+    },
+    {
+      "evoId": "bb-270",
+      "evoName": "Pyrus Titan Dragonoid",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-343"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "source_checked",
+      "resolutionBasis": "externally_checked",
+      "candidateCharacterIds": [
+        "bb-343"
+      ],
+      "evidenceUrl": "https://bakugan.wiki/wiki/Battle_Brawlers_(set)",
+      "notes": "Battle Brawlers Evo and Character.",
+      "catalogueEvoIdentifier": "Dragonoid"
+    },
+    {
+      "evoId": "bb-271",
+      "evoName": "Diamond Maxotaur Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-367"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-367"
+      ],
+      "catalogueEvoIdentifier": "Maxotaur Ultra"
+    },
+    {
+      "evoId": "bb-272",
+      "evoName": "Diamond Trox",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-372"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-372"
+      ],
+      "catalogueEvoIdentifier": "Trox"
+    },
+    {
+      "evoId": "bb-273",
+      "evoName": "Diamond Trox Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-373"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-373"
+      ],
+      "catalogueEvoIdentifier": "Trox Ultra"
+    },
+    {
+      "evoId": "bb-274",
+      "evoName": "Ventus Hyper Dragonoid",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-359"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-359"
+      ],
+      "catalogueEvoIdentifier": "Dragonoid"
+    },
+    {
+      "evoId": "bb-275",
+      "evoName": "Ventus Hyper Fangzor",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-360"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-360"
+      ],
+      "catalogueEvoIdentifier": "Fangzor"
+    },
+    {
+      "evoId": "bb-276",
+      "evoName": "Ventus Hyper Nillious",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-368"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-368"
+      ],
+      "catalogueEvoIdentifier": "Nillious"
+    },
+    {
+      "evoId": "bb-277",
+      "evoName": "Ventus Hyper Pegatrix",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-369"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-369"
+      ],
+      "catalogueEvoIdentifier": "Pegatrix"
+    },
+    {
+      "evoId": "bb-278",
+      "evoName": "Ventus Hyper Mantonoid Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-366"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-366"
+      ],
+      "catalogueEvoIdentifier": "Mantonoid Ultra"
+    },
+    {
+      "evoId": "bb-279",
+      "evoName": "Ventus Titan Howlkor Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-364"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-364"
+      ],
+      "catalogueEvoIdentifier": "Howlkor Ultra"
+    },
+    {
+      "evoId": "bb-280",
+      "evoName": "Ventus Titan Maxotaur Ultra",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-367"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-367"
+      ],
+      "catalogueEvoIdentifier": "Maxotaur Ultra"
+    },
+    {
+      "evoId": "bb-281",
+      "evoName": "Ventus Titan Trox",
+      "evoSet": "BB",
+      "targetCharacterIds": [
+        "bb-372"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "bb-372"
+      ],
+      "catalogueEvoIdentifier": "Trox"
+    },
+    {
+      "evoId": "br-85",
+      "evoName": "Aquos Diamond Hydranoid",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-171"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-171"
+      ],
+      "catalogueEvoIdentifier": "Aquos Hydranoid"
+    },
+    {
+      "evoId": "br-86",
+      "evoName": "Aquos Diamond Hydranoid Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-172"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-172"
+      ],
+      "catalogueEvoIdentifier": "Aquos Hydranoid Ultra"
+    },
+    {
+      "evoId": "br-87",
+      "evoName": "Aquos Diamond Serpenteze Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-293"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-293"
+      ],
+      "catalogueEvoIdentifier": "Aquos Serpenteze"
+    },
+    {
+      "evoId": "br-88",
+      "evoName": "Aquos Hyper Gorthion",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-169"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-169"
+      ],
+      "catalogueEvoIdentifier": "Aquos Gorthion"
+    },
+    {
+      "evoId": "br-89",
+      "evoName": "Aquos Hyper Krakelios Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-289"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-289"
+      ],
+      "catalogueEvoIdentifier": "Aquos Krakelios Ultra"
+    },
+    {
+      "evoId": "br-90",
+      "evoName": "Aquos Hyper Mantonoid",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-173"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-173"
+      ],
+      "catalogueEvoIdentifier": "Aquos Mantonoid"
+    },
+    {
+      "evoId": "br-91",
+      "evoName": "Aquos Hyper Serpenteze",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-293"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-293"
+      ],
+      "catalogueEvoIdentifier": "Aquos Serpenteze"
+    },
+    {
+      "evoId": "br-92",
+      "evoName": "Aquos Hyper Trox Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-297"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-297"
+      ],
+      "catalogueEvoIdentifier": "Aquos Trox Ultra"
+    },
+    {
+      "evoId": "br-93",
+      "evoName": "Aquos Hyper Turtonium",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-296"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-296"
+      ],
+      "catalogueEvoIdentifier": "Aquos Turtonium"
+    },
+    {
+      "evoId": "br-94",
+      "evoName": "Aquos Hyper Turtonium Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-178"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-178"
+      ],
+      "catalogueEvoIdentifier": "Aquos Turtonium Ultra"
+    },
+    {
+      "evoId": "br-95",
+      "evoName": "Aquos Titan Cyndeous Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-282"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-282"
+      ],
+      "catalogueEvoIdentifier": "Aquos Cyndeous Ultra"
+    },
+    {
+      "evoId": "br-96",
+      "evoName": "Aquos Titan Nillious",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-291"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-291"
+      ],
+      "catalogueEvoIdentifier": "Aquos Nillious"
+    },
+    {
+      "evoId": "br-97",
+      "evoName": "Aquos Titan Pegatrix Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-175"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-175"
+      ],
+      "catalogueEvoIdentifier": "Aquos Pegatrix Ultra"
+    },
+    {
+      "evoId": "br-98",
+      "evoName": "Aurelus Hyper Hydorous Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-304"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-304"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Hydorous Ultra"
+    },
+    {
+      "evoId": "br-99",
+      "evoName": "Aurelus Hyper Mantonoid",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-305"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-305"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Mantonoid"
+    },
+    {
+      "evoId": "br-100",
+      "evoName": "Aurelus Hyper Serpenteze",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-374"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-374"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Serpenteze"
+    },
+    {
+      "evoId": "br-101",
+      "evoName": "Aurelus Hyper Trox",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-190"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-190"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Trox"
+    },
+    {
+      "evoId": "br-102",
+      "evoName": "Aurelus Maximus Fangzor Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-300"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-300"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Fangzor Ultra"
+    },
+    {
+      "evoId": "br-103",
+      "evoName": "Aurelus Maximus Trox Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-309"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-309"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Trox Ultra"
+    },
+    {
+      "evoId": "br-104",
+      "evoName": "Aurelus Titan Dragonoid Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-182"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-182"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Dragonoid Ultra"
+    },
+    {
+      "evoId": "br-105",
+      "evoName": "Aurelus Titan Gorthion",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-183"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-183"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Gorthion"
+    },
+    {
+      "evoId": "br-106",
+      "evoName": "Aurelus Titan Krakelios Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-185"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-185"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Krakelios Ultra"
+    },
+    {
+      "evoId": "br-107",
+      "evoName": "Aurelus Titan Turtonium",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-310"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-310"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Turtonium"
+    },
+    {
+      "evoId": "br-108",
+      "evoName": "Darkus Diamond Phaedrus",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-203"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-203"
+      ],
+      "catalogueEvoIdentifier": "Darkus Phaedrus"
+    },
+    {
+      "evoId": "br-109",
+      "evoName": "Darkus Hyper Cyndeous Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-311"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-311"
+      ],
+      "catalogueEvoIdentifier": "Darkus Cyndeous Ultra"
+    },
+    {
+      "evoId": "br-110",
+      "evoName": "Darkus Hyper Dragonoid Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-196"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-196"
+      ],
+      "catalogueEvoIdentifier": "Darkus Dragonoid Ultra"
+    },
+    {
+      "evoId": "br-111",
+      "evoName": "Darkus Hyper Fangzor Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-314"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-314"
+      ],
+      "catalogueEvoIdentifier": "Darkus Fangzor Ultra"
+    },
+    {
+      "evoId": "br-112",
+      "evoName": "Darkus Hyper Gorthion Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-197"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-197"
+      ],
+      "catalogueEvoIdentifier": "Darkus Gorthion"
+    },
+    {
+      "evoId": "br-113",
+      "evoName": "Darkus Hyper Nillious Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-322"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-322"
+      ],
+      "catalogueEvoIdentifier": "Darkus Nillious Ultra"
+    },
+    {
+      "evoId": "br-114",
+      "evoName": "Darkus Hyper Pegatrix",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-323"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "source_checked",
+      "resolutionBasis": "externally_checked",
+      "candidateCharacterIds": [
+        "bb-323"
+      ],
+      "evidenceUrl": "https://bakugan.wiki/wiki/Bakugan_Resurgence",
+      "notes": "Source evolvesFrom erroneously says Pegatrix Ultra; the published set table identifies Darkus Pegatrix (BB).",
+      "catalogueEvoIdentifier": "Darkus Pegatrix Ultra"
+    },
+    {
+      "evoId": "br-115",
+      "evoName": "Darkus Hyper Serpenteze Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-204"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-204"
+      ],
+      "catalogueEvoIdentifier": "Darkus Serpenteze Ultra"
+    },
+    {
+      "evoId": "br-116",
+      "evoName": "Darkus Maximus Garganoid Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-315"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-315"
+      ],
+      "catalogueEvoIdentifier": "Darkus Garganoid Ultra"
+    },
+    {
+      "evoId": "br-117",
+      "evoName": "Darkus Titan Cyndeous",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-195"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-195"
+      ],
+      "catalogueEvoIdentifier": "Darkus Cyndeous"
+    },
+    {
+      "evoId": "br-118",
+      "evoName": "Darkus Titan Mantonoid",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-202"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-202"
+      ],
+      "catalogueEvoIdentifier": "Darkus Mantonoid"
+    },
+    {
+      "evoId": "br-119",
+      "evoName": "Darkus Titan Serpenteze",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-324"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-324"
+      ],
+      "catalogueEvoIdentifier": "Darkus Serpenteze"
+    },
+    {
+      "evoId": "br-120",
+      "evoName": "Darkus Titan Turtonium Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-326"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-326"
+      ],
+      "catalogueEvoIdentifier": "Darkus Turtonium Ultra"
+    },
+    {
+      "evoId": "br-121",
+      "evoName": "Haos Diamond Cubbo",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-210"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-210"
+      ],
+      "catalogueEvoIdentifier": "Haos Cubbo"
+    },
+    {
+      "evoId": "br-122",
+      "evoName": "Haos Diamond Gorthion",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-211"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-211"
+      ],
+      "catalogueEvoIdentifier": "Haos Gorthion"
+    },
+    {
+      "evoId": "br-123",
+      "evoName": "Haos Diamond Pegatrix Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-215"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-215"
+      ],
+      "catalogueEvoIdentifier": "Haos Pegatrix Ultra"
+    },
+    {
+      "evoId": "br-124",
+      "evoName": "Haos Hyper Dragonoid",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-327"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-327"
+      ],
+      "catalogueEvoIdentifier": "Haos Dragonoid"
+    },
+    {
+      "evoId": "br-125",
+      "evoName": "Haos Hyper Hydorous",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-332"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-332"
+      ],
+      "catalogueEvoIdentifier": "Haos Hydorous"
+    },
+    {
+      "evoId": "br-126",
+      "evoName": "Haos Hyper Pegatrix Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-215"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-215"
+      ],
+      "catalogueEvoIdentifier": "Haos Pegatrix Ultra"
+    },
+    {
+      "evoId": "br-127",
+      "evoName": "Haos Hyper Serpenteze",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-340"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-340"
+      ],
+      "catalogueEvoIdentifier": "Haos Serpenteze"
+    },
+    {
+      "evoId": "br-128",
+      "evoName": "Haos Maximus Mantonoid Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-335"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-335"
+      ],
+      "catalogueEvoIdentifier": "Haos Mantonoid Ultra"
+    },
+    {
+      "evoId": "br-129",
+      "evoName": "Haos Maximus Maxotaur Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-336"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-336"
+      ],
+      "catalogueEvoIdentifier": "Haos Maxotaur Ultra"
+    },
+    {
+      "evoId": "br-130",
+      "evoName": "Haos Titan Gorthion Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-330"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-330"
+      ],
+      "catalogueEvoIdentifier": "Haos Gorthion Ultra"
+    },
+    {
+      "evoId": "br-131",
+      "evoName": "Haos Titan Krakelios Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-286"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-286"
+      ],
+      "catalogueEvoIdentifier": "Haos Krakelios Ultra"
+    },
+    {
+      "evoId": "br-132",
+      "evoName": "Haos Titan Mantonoid",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-334"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-334"
+      ],
+      "catalogueEvoIdentifier": "Haos Mantonoid"
+    },
+    {
+      "evoId": "br-133",
+      "evoName": "Haos Titan Nillious Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-338"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-338"
+      ],
+      "catalogueEvoIdentifier": "Haos Nillious Ultra"
+    },
+    {
+      "evoId": "br-134",
+      "evoName": "Haos Titan Trox",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-342"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-342"
+      ],
+      "catalogueEvoIdentifier": "Haos Trox"
+    },
+    {
+      "evoId": "br-135",
+      "evoName": "Pyrus Diamond Cyndeous",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-222"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-222"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Cyndeous"
+    },
+    {
+      "evoId": "br-136",
+      "evoName": "Pyrus Diamond Cyndeous Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-352"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-352"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Cyndeous Ultra"
+    },
+    {
+      "evoId": "br-137",
+      "evoName": "Pyrus Diamond Dragonoid Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-357"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-357"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Dragonoid Ultra"
+    },
+    {
+      "evoId": "br-138",
+      "evoName": "Pyrus Hyper Dragonoid Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-357"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-357"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Dragonoid Ultra"
+    },
+    {
+      "evoId": "br-139",
+      "evoName": "Pyrus Hyper Fangzor Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-345"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-345"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Fangzor Ultra"
+    },
+    {
+      "evoId": "br-140",
+      "evoName": "Pyrus Hyper Garganoid Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-346"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-346"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Garganoid Ultra"
+    },
+    {
+      "evoId": "br-141",
+      "evoName": "Pyrus Hyper Gorthion",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-347"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-347"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Gorthion"
+    },
+    {
+      "evoId": "br-142",
+      "evoName": "Pyrus Hyper Mantonoid",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-224"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-224"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Mantonoid"
+    },
+    {
+      "evoId": "br-143",
+      "evoName": "Pyrus Hyper Pegatrix",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-228"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-228"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Pegatrix"
+    },
+    {
+      "evoId": "br-144",
+      "evoName": "Pyrus Hyper Serpenteze",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-230"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-230"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Serpenteze"
+    },
+    {
+      "evoId": "br-145",
+      "evoName": "Pyrus Hyper Trox Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-232"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-232"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Trox Ultra"
+    },
+    {
+      "evoId": "br-146",
+      "evoName": "Pyrus Maximus Turtonium Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-233"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-233"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Turtonium Ultra"
+    },
+    {
+      "evoId": "br-147",
+      "evoName": "Pyrus Titan Gorthion Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-348"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-348"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Gorthion Ultra"
+    },
+    {
+      "evoId": "br-148",
+      "evoName": "Pyrus Titan Trox Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-232"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-232"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Trox Ultra"
+    },
+    {
+      "evoId": "br-149",
+      "evoName": "Pyrus Hyper Howlkor Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-349"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-349"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Howlkor Ultra"
+    },
+    {
+      "evoId": "br-150",
+      "evoName": "Ventus Diamond Mantonoid",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-365"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-365"
+      ],
+      "catalogueEvoIdentifier": "Ventus Mantonoid"
+    },
+    {
+      "evoId": "br-151",
+      "evoName": "Ventus Diamond Turtonium",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-243"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-243"
+      ],
+      "catalogueEvoIdentifier": "Ventus Turtonium"
+    },
+    {
+      "evoId": "br-152",
+      "evoName": "Ventus Diamond Webam Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-246"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-246"
+      ],
+      "catalogueEvoIdentifier": "Ventus Webam Ultra"
+    },
+    {
+      "evoId": "br-153",
+      "evoName": "Ventus Hyper Garganoid Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-362"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-362"
+      ],
+      "catalogueEvoIdentifier": "Ventus Garganoid Ultra"
+    },
+    {
+      "evoId": "br-154",
+      "evoName": "Ventus Hyper Krakelios Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-316"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-316"
+      ],
+      "catalogueEvoIdentifier": "Ventus Krakelios Ultra"
+    },
+    {
+      "evoId": "br-155",
+      "evoName": "Ventus Hyper Serpenteze",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-370"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-370"
+      ],
+      "catalogueEvoIdentifier": "Ventus Serpenteze"
+    },
+    {
+      "evoId": "br-156",
+      "evoName": "Ventus Hyper Serpenteze Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-371"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-371"
+      ],
+      "catalogueEvoIdentifier": "Ventus Serpenteze Ultra"
+    },
+    {
+      "evoId": "br-157",
+      "evoName": "Ventus Hyper Trox Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-373"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-373"
+      ],
+      "catalogueEvoIdentifier": "Ventus Trox Ultra"
+    },
+    {
+      "evoId": "br-158",
+      "evoName": "Ventus Maximus Gorthion",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-363"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-363"
+      ],
+      "catalogueEvoIdentifier": "Ventus Gorthion"
+    },
+    {
+      "evoId": "br-159",
+      "evoName": "Ventus Maximus Gorthion Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-358"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-358"
+      ],
+      "catalogueEvoIdentifier": "Ventus Gorthion Ultra"
+    },
+    {
+      "evoId": "br-160",
+      "evoName": "Ventus Maximus Webam Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-246"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-246"
+      ],
+      "catalogueEvoIdentifier": "Ventus Webam Ultra"
+    },
+    {
+      "evoId": "br-161",
+      "evoName": "Ventus Titan Fangzor Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-361"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-361"
+      ],
+      "catalogueEvoIdentifier": "Ventus Fangzor Ultra"
+    },
+    {
+      "evoId": "br-162",
+      "evoName": "Ventus Titan Garganoid Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-362"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-362"
+      ],
+      "catalogueEvoIdentifier": "Ventus Garganoid Ultra"
+    },
+    {
+      "evoId": "br-163",
+      "evoName": "Ventus Titan Serpenteze Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-371"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-371"
+      ],
+      "catalogueEvoIdentifier": "Ventus Serpenteze Ultra"
+    },
+    {
+      "evoId": "br-164",
+      "evoName": "Ventus Titan Trox Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "bb-373"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "bb-373"
+      ],
+      "catalogueEvoIdentifier": "Ventus Trox Ultra"
+    },
+    {
+      "evoId": "br-165",
+      "evoName": "Ventus Hyper Turtonium Ultra",
+      "evoSet": "BR",
+      "targetCharacterIds": [
+        "br-244"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "br-244"
+      ],
+      "catalogueEvoIdentifier": "Ventus Turtonium Ultra"
+    },
+    {
+      "evoId": "ex-2",
+      "evoName": "Pyrus Dragonoid Maximus",
+      "evoSet": "EX",
+      "targetCharacterIds": [
+        "ex-1"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "source_checked",
+      "resolutionBasis": "externally_checked",
+      "candidateCharacterIds": [
+        "ex-1"
+      ],
+      "evidenceUrl": "https://bakugan.wiki/wiki/Dragonoid_Maximus",
+      "notes": "Exclusive Evo and Titan Dragonoid Character in the same EX release.",
+      "catalogueEvoIdentifier": "Titan Dragonoid"
+    },
+    {
+      "evoId": "ff-124",
+      "evoName": "Aquos [Diamond] Hydorous",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "av-167"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-167"
+      ],
+      "catalogueEvoIdentifier": "Aquos Hydorous [AV]"
+    },
+    {
+      "evoId": "ff-125",
+      "evoName": "Aquos [Diamond] Hydorous x Batrix",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "ff-152b"
+      ],
+      "requiresFusedFace": true,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "ff-152b"
+      ],
+      "catalogueEvoIdentifier": "Aquos/Ventus Hydorous X Batrix"
+    },
+    {
+      "evoId": "ff-126",
+      "evoName": "Aquos Hyper Gillator Ultra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "av-175"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "av-175"
+      ],
+      "catalogueEvoIdentifier": "Aquos Gillator Ultra"
+    },
+    {
+      "evoId": "ff-127",
+      "evoName": "Aquos Titan Eenoch Ultra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "av-162"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "av-162"
+      ],
+      "catalogueEvoIdentifier": "Aquos Eenoch Ultra"
+    },
+    {
+      "evoId": "ff-128",
+      "evoName": "Aurelus Hyper Pegatrix",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "av-188"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-188"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Pegatrix [AV]"
+    },
+    {
+      "evoId": "ff-129",
+      "evoName": "Aurelus Maximus Howlkor Ultra",
+      "evoSet": "FF",
+      "targetCharacterIds": [],
+      "requiresFusedFace": false,
+      "status": "needs_review",
+      "reviewState": "manual_review_required",
+      "resolutionBasis": "requires_manual_review",
+      "candidateCharacterIds": [
+        "bb-302",
+        "ff-164",
+        "ff-222"
+      ],
+      "notes": "Catalogue Evo ID says [AV] but no Aurelus Howlkor Ultra AV Character exists. FF has both standard (ff-164) and Epic (ff-222); inspect printed identification artwork.",
+      "catalogueEvoIdentifier": "Aurelus Howlkor Ultra [AV]"
+    },
+    {
+      "evoId": "ff-130",
+      "evoName": "Aurelus Titan Eenoch Ultra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "ff-160"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "ff-160"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Eenoch Ultra"
+    },
+    {
+      "evoId": "ff-131",
+      "evoName": "Darkus [Diamond Howlkor Ultra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "av-199"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-199"
+      ],
+      "catalogueEvoIdentifier": "Darkus Howlkor Ultra [AV]"
+    },
+    {
+      "evoId": "ff-132",
+      "evoName": "Darkus [Diamond] Nillious Ultra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "av-204"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-204"
+      ],
+      "catalogueEvoIdentifier": "Darkus Nillious Ultra [AV]"
+    },
+    {
+      "evoId": "ff-133",
+      "evoName": "Darkus [Diamond] Tretorous Ultra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "ff-226"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "ff-226"
+      ],
+      "catalogueEvoIdentifier": "Darkus Tretorous Ultra"
+    },
+    {
+      "evoId": "ff-134",
+      "evoName": "Darkus Hyper Batrix Ultra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "av-197"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "av-197"
+      ],
+      "catalogueEvoIdentifier": "Darkus Batrix Ultra"
+    },
+    {
+      "evoId": "ff-135",
+      "evoName": "Darkus Titan Gillator Ultra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "ff-225"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "ff-225"
+      ],
+      "catalogueEvoIdentifier": "Darkus Gillator Ultra"
+    },
+    {
+      "evoId": "ff-136",
+      "evoName": "Darkus Titan Sairus Ultra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "av-207"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "av-207"
+      ],
+      "catalogueEvoIdentifier": "Darkus Sairus Ultra"
+    },
+    {
+      "evoId": "ff-137",
+      "evoName": "Haos [Diamond] Pegatrix",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "av-225"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-225"
+      ],
+      "catalogueEvoIdentifier": "Haos Pegatrix [AV]"
+    },
+    {
+      "evoId": "ff-138",
+      "evoName": "Haos Hyper Dragonoid Ultra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "av-216"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-216"
+      ],
+      "catalogueEvoIdentifier": "Haos Dragonoid Ultra [AV]"
+    },
+    {
+      "evoId": "ff-139",
+      "evoName": "Haos Maximus Barbetra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "ff-177"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "ff-177"
+      ],
+      "catalogueEvoIdentifier": "Haos Barbetra"
+    },
+    {
+      "evoId": "ff-140",
+      "evoName": "Haos Hyper Nillious Ultra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "av-224"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-224"
+      ],
+      "catalogueEvoIdentifier": "Haos Nillious Ultra [AV]"
+    },
+    {
+      "evoId": "ff-141",
+      "evoName": "Pyrus [Diamond] Dragonoid X Tretorous",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "ff-191b"
+      ],
+      "requiresFusedFace": true,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "ff-191b"
+      ],
+      "catalogueEvoIdentifier": "Pyrus/Darkus Dragonoid X Tretorous"
+    },
+    {
+      "evoId": "ff-142",
+      "evoName": "Pyrus [Diamond] Dragonoid Ultra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "av-234"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-234"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Dragonoid Ultra [AV]"
+    },
+    {
+      "evoId": "ff-143",
+      "evoName": "Pyrus Hyper Batrix Ultra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "av-236"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "av-236"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Batrix Ultra"
+    },
+    {
+      "evoId": "ff-144",
+      "evoName": "Pyrus Maximus Trox Ultra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "av-250"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-250"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Trox Ultra [AV]"
+    },
+    {
+      "evoId": "ff-145",
+      "evoName": "Ventus [Diamond] Trox",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "av-270"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-270"
+      ],
+      "catalogueEvoIdentifier": "Ventus Trox [AV]"
+    },
+    {
+      "evoId": "ff-146",
+      "evoName": "Ventus [Diamond] Trox x Sairus",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "ff-204b"
+      ],
+      "requiresFusedFace": true,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "ff-204b"
+      ],
+      "catalogueEvoIdentifier": "Ventus/Haos Trox X Sairus"
+    },
+    {
+      "evoId": "ff-147",
+      "evoName": "Ventus Hyper Pegatrix Ultra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "av-264"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-264"
+      ],
+      "catalogueEvoIdentifier": "Ventus Pegatrix Ultra [AV]"
+    },
+    {
+      "evoId": "ff-148",
+      "evoName": "Ventus Maximus Barbetra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "ff-196"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "ff-196"
+      ],
+      "catalogueEvoIdentifier": "Ventus Barbetra"
+    },
+    {
+      "evoId": "ff-149",
+      "evoName": "Ventus Maximus Batrix Ultra",
+      "evoSet": "FF",
+      "targetCharacterIds": [
+        "av-257"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "av-257"
+      ],
+      "catalogueEvoIdentifier": "Ventus Batrix Ultra"
+    },
+    {
+      "evoId": "ps1-1",
+      "evoName": "Aquos Hyper Howlkor",
+      "evoSet": "PS1",
+      "targetCharacterIds": [
+        "av-165"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-165"
+      ],
+      "catalogueEvoIdentifier": "Aquos Howlkor AV"
+    },
+    {
+      "evoId": "ps1-2",
+      "evoName": "Aquos Maximus Nillious",
+      "evoSet": "PS1",
+      "targetCharacterIds": [
+        "av-170"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-170"
+      ],
+      "catalogueEvoIdentifier": "Aquos Nillious AV"
+    },
+    {
+      "evoId": "ps1-3",
+      "evoName": "Aquos Hyper Trox",
+      "evoSet": "PS1",
+      "targetCharacterIds": [
+        "av-176"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-176"
+      ],
+      "catalogueEvoIdentifier": "Aquos Trox AV"
+    },
+    {
+      "evoId": "ps1-4",
+      "evoName": "Darkus Maximus Dragonoid",
+      "evoSet": "PS1",
+      "targetCharacterIds": [
+        "av-195"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-195"
+      ],
+      "catalogueEvoIdentifier": "Darkus Dragonoid AV"
+    },
+    {
+      "evoId": "ps1-5",
+      "evoName": "Darkus Hyper Hydorous",
+      "evoSet": "PS1",
+      "targetCharacterIds": [
+        "av-200"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-200"
+      ],
+      "catalogueEvoIdentifier": "Darkus Hydorous AV"
+    },
+    {
+      "evoId": "ps1-6",
+      "evoName": "Darkus Hyper Pharol",
+      "evoSet": "PS1",
+      "targetCharacterIds": [
+        "av-209"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-209"
+      ],
+      "catalogueEvoIdentifier": "Darkus Pharol AV"
+    },
+    {
+      "evoId": "ps1-7",
+      "evoName": "Haos [Diamond] Centipod",
+      "evoSet": "PS1",
+      "targetCharacterIds": [
+        "av-214"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-214"
+      ],
+      "catalogueEvoIdentifier": "Haos Centipod AV"
+    },
+    {
+      "evoId": "ps1-8",
+      "evoName": "Haos Hyper Nillious",
+      "evoSet": "PS1",
+      "targetCharacterIds": [
+        "av-223"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-223"
+      ],
+      "catalogueEvoIdentifier": "Haos Nillious AV"
+    },
+    {
+      "evoId": "ps1-9",
+      "evoName": "Haos Titan Pegatrix",
+      "evoSet": "PS1",
+      "targetCharacterIds": [
+        "av-225"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-225"
+      ],
+      "catalogueEvoIdentifier": "Haos Pegatrix AV"
+    },
+    {
+      "evoId": "ps1-10",
+      "evoName": "Haos Maximus Trox",
+      "evoSet": "PS1",
+      "targetCharacterIds": [
+        "av-230"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-230"
+      ],
+      "catalogueEvoIdentifier": "Haos Trox AV"
+    },
+    {
+      "evoId": "ps1-11",
+      "evoName": "Pyrus Titan Pegatrix",
+      "evoSet": "PS1",
+      "targetCharacterIds": [
+        "av-243"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-243"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Pegatrix AV"
+    },
+    {
+      "evoId": "ps1-12",
+      "evoName": "Pyrus Hyper Pharol",
+      "evoSet": "PS1",
+      "targetCharacterIds": [
+        "av-247"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-247"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Pharol AV"
+    },
+    {
+      "evoId": "ps1-13",
+      "evoName": "Pyrus Hyper Trox",
+      "evoSet": "PS1",
+      "targetCharacterIds": [
+        "av-249"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-249"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Trox AV"
+    },
+    {
+      "evoId": "ps1-14",
+      "evoName": "Ventus Hyper Auxillataur",
+      "evoSet": "PS1",
+      "targetCharacterIds": [
+        "av-252"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-252"
+      ],
+      "catalogueEvoIdentifier": "Ventus Auxillataur AV"
+    },
+    {
+      "evoId": "ps1-15",
+      "evoName": "Ventus Titan Dragonoid",
+      "evoSet": "PS1",
+      "targetCharacterIds": [
+        "av-254"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-254"
+      ],
+      "catalogueEvoIdentifier": "Ventus Dragonoid AV"
+    },
+    {
+      "evoId": "ps1-16",
+      "evoName": "Ventus Titan Pharol",
+      "evoSet": "PS1",
+      "targetCharacterIds": [
+        "av-268"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "printed_set_qualifier",
+      "candidateCharacterIds": [
+        "av-268"
+      ],
+      "catalogueEvoIdentifier": "Ventus Pharol AV"
+    },
+    {
+      "evoId": "sv-131",
+      "evoName": "Aquos Hyper Maxodon",
+      "evoSet": "SV",
+      "targetCharacterIds": [
+        "ff-157"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "ff-157"
+      ],
+      "catalogueEvoIdentifier": "Aquos Maxodon"
+    },
+    {
+      "evoId": "sv-132",
+      "evoName": "Aquos Titan Tretorous Ultra",
+      "evoSet": "SV",
+      "targetCharacterIds": [
+        "ff-159"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "ff-159"
+      ],
+      "catalogueEvoIdentifier": "Aquos Tretorous Ultra"
+    },
+    {
+      "evoId": "sv-133",
+      "evoName": "Aquos [Diamond] Ramparian Ultra",
+      "evoSet": "SV",
+      "targetCharacterIds": [
+        "av-178"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "av-178"
+      ],
+      "catalogueEvoIdentifier": "Aquos Ramparian Ultra"
+    },
+    {
+      "evoId": "sv-134",
+      "evoName": "Darkus Maximus Eenoch Ultra",
+      "evoSet": "SV",
+      "targetCharacterIds": [
+        "av-196"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "av-196"
+      ],
+      "catalogueEvoIdentifier": "Darkus Eenoch Ultra"
+    },
+    {
+      "evoId": "sv-135",
+      "evoName": "Darkus [Diamond] Howlkor X Ramparian",
+      "evoSet": "SV",
+      "targetCharacterIds": [
+        "sv-226b"
+      ],
+      "requiresFusedFace": true,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "sv-226b"
+      ],
+      "catalogueEvoIdentifier": "Darkus/Aquos Howlkor X Ramparian"
+    },
+    {
+      "evoId": "sv-136",
+      "evoName": "Darkus [Diamond] Nillious X Eenoch",
+      "evoSet": "SV",
+      "targetCharacterIds": [
+        "sv-168b"
+      ],
+      "requiresFusedFace": true,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "sv-168b"
+      ],
+      "catalogueEvoIdentifier": "Darkus Nillious x Eenoch"
+    },
+    {
+      "evoId": "sv-137",
+      "evoName": "Haos Maximus Gillator Ultra",
+      "evoSet": "SV",
+      "targetCharacterIds": [],
+      "requiresFusedFace": false,
+      "status": "needs_review",
+      "reviewState": "manual_review_required",
+      "resolutionBasis": "requires_manual_review",
+      "candidateCharacterIds": [
+        "sv-253"
+      ],
+      "notes": "Catalogue says Haos Gillator Ultra AV, but the matching Character in the controlled catalogue is SV 253; cross-check original Evo ID artwork and source transcription.",
+      "catalogueEvoIdentifier": "Haos Gillator Ultra AV"
+    },
+    {
+      "evoId": "sv-138",
+      "evoName": "Haos [Diamond] Pegatrix X Goreene Ultra",
+      "evoSet": "SV",
+      "targetCharacterIds": [
+        "ff-184b"
+      ],
+      "requiresFusedFace": true,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "ff-184b"
+      ],
+      "catalogueEvoIdentifier": "Haos/Aurelus Pegatrix X Goreene Ultra"
+    },
+    {
+      "evoId": "sv-139",
+      "evoName": "Pyrus [Diamond] Pharol X Gillator Ultra",
+      "evoSet": "SV",
+      "targetCharacterIds": [],
+      "requiresFusedFace": true,
+      "status": "needs_review",
+      "reviewState": "manual_review_required",
+      "resolutionBasis": "requires_manual_review",
+      "candidateCharacterIds": [
+        "sv-220b",
+        "sv-260b"
+      ],
+      "notes": "Two same-name Pyrus/Aurelus fused Character versions exist (regular SV 220b and Epic SV 260b); artwork/ID must distinguish them.",
+      "catalogueEvoIdentifier": "Pyrus/Aurelus Pharol X Gillator Ultra"
+    },
+    {
+      "evoId": "sv-140",
+      "evoName": "Pyrus Titan Eenoch Ultra",
+      "evoSet": "SV",
+      "targetCharacterIds": [
+        "sv-197"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "sv-197"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Eenoch Ultra"
+    },
+    {
+      "evoId": "sv-141",
+      "evoName": "Pyrus Titan Dragonoid Ultra",
+      "evoSet": "SV",
+      "targetCharacterIds": [],
+      "requiresFusedFace": false,
+      "status": "needs_review",
+      "reviewState": "manual_review_required",
+      "resolutionBasis": "requires_manual_review",
+      "candidateCharacterIds": [
+        "bb-357",
+        "av-234"
+      ],
+      "notes": "The controlled Evo record has no evolvesFrom value. The Evo record omits its printed Evo ID. Pyrus Dragonoid Ultra appears in BB and AV; determine exact Character via printed artwork or an official clarification.",
+      "catalogueEvoIdentifier": ""
+    },
+    {
+      "evoId": "sv-142",
+      "evoName": "Pyrus Hyper Sairus Ultra",
+      "evoSet": "SV",
+      "targetCharacterIds": [
+        "sv-199"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "sv-199"
+      ],
+      "catalogueEvoIdentifier": "Pyrus Sairus Ultra"
+    },
+    {
+      "evoId": "sv-143",
+      "evoName": "Ventus Titan Pegatrix Ultra",
+      "evoSet": "SV",
+      "targetCharacterIds": [
+        "av-264"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "source_checked",
+      "resolutionBasis": "externally_checked",
+      "candidateCharacterIds": [
+        "av-264"
+      ],
+      "evidenceUrl": "https://bakugan.wiki/wiki/Ventus_Titan_Pegatrix_Ultra_(Shields_of_Vestroia)",
+      "notes": "Published ruling resolves the incorrect artwork window to the Armored Elite Character.",
+      "catalogueEvoIdentifier": "Ventus Pegatrix Ultra AV"
+    },
+    {
+      "evoId": "sv-144",
+      "evoName": "Ventus [Diamond] Ryerazu",
+      "evoSet": "SV",
+      "targetCharacterIds": [
+        "av-265"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "av-265"
+      ],
+      "catalogueEvoIdentifier": "Ventus Ryerazu"
+    },
+    {
+      "evoId": "sv-145",
+      "evoName": "Ventus [Diamond] Barbetra",
+      "evoSet": "SV",
+      "targetCharacterIds": [
+        "ff-196"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "ff-196"
+      ],
+      "catalogueEvoIdentifier": "Ventus Barbetra"
+    },
+    {
+      "evoId": "sv-146",
+      "evoName": "Ventus [Diamond] Maxotaur X Zentaur",
+      "evoSet": "SV",
+      "targetCharacterIds": [],
+      "requiresFusedFace": true,
+      "status": "needs_review",
+      "reviewState": "manual_review_required",
+      "resolutionBasis": "requires_manual_review",
+      "candidateCharacterIds": [
+        "sv-206b"
+      ],
+      "notes": "The requested Ventus/Haos fused Character has no exact faction-matching record. SV 206b has a similar name but only Ventus in catalogue metadata; verify the physical printing and faction fields.",
+      "catalogueEvoIdentifier": "Ventus/Haos Maxotaur X Zentaur"
+    },
+    {
+      "evoId": "sv-147",
+      "evoName": "Ventus [Diamond] Trox X Nobilious Ultra",
+      "evoSet": "SV",
+      "targetCharacterIds": [
+        "ff-203b"
+      ],
+      "requiresFusedFace": true,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_prior_set",
+      "candidateCharacterIds": [
+        "ff-203b"
+      ],
+      "catalogueEvoIdentifier": "Ventus/Aurelus Trox x Nobilious Ultra"
+    },
+    {
+      "evoId": "sv-148",
+      "evoName": "Aurelus Titan Hydorous Ultra",
+      "evoSet": "SV",
+      "targetCharacterIds": [
+        "sv-222"
+      ],
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "catalogue_inferred",
+      "resolutionBasis": "unique_same_set",
+      "candidateCharacterIds": [
+        "sv-222"
+      ],
+      "catalogueEvoIdentifier": "Aurelus Hydorous Ultra"
+    },
+    {
+      "evoId": "sv-149",
+      "evoName": "Pyrus Pharol & Gillator Ultra",
+      "evoSet": "SV",
+      "targetCharacterIds": [],
+      "requiresFusedFace": true,
+      "status": "needs_review",
+      "reviewState": "manual_review_required",
+      "resolutionBasis": "requires_manual_review",
+      "candidateCharacterIds": [
+        "sv-220b",
+        "sv-260b"
+      ],
+      "notes": "Source record seems inconsistent with the Diamond Evo card 149 and two Pyrus/Aurelus fused Character versions; verify identification and the catalogue name/type.",
+      "catalogueEvoIdentifier": "Pyrus Aurelus Pharol & Gillator Ultra [SV]"
+    },
+    {
+      "evoId": "sv-261",
+      "evoName": "Haos [Diamond] Cyndeous x Skorporos",
+      "evoSet": "SV",
+      "targetCharacterIds": [],
+      "requiresFusedFace": true,
+      "status": "needs_review",
+      "reviewState": "manual_review_required",
+      "resolutionBasis": "requires_manual_review",
+      "candidateCharacterIds": [],
+      "notes": "The Haos/Pyrus Cyndeous x Skorporos fused Character is not present in the 1,734-card controlled catalogue.",
+      "catalogueEvoIdentifier": "Haos/Pyrus Cyndeous x Skorporos"
+    }
+  ]
+}
