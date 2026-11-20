@@ -386,8 +386,12 @@ export function CompendiumScreen({ segments = [] }: { segments?: string[] }) {
     sidebarTrigger.current?.focus();
   }, []);
   const copyLink = async (path: string, label: string) => {
-    await copyText(`${location.origin}${path}`);
-    notify(`${label} link copied.`);
+    try {
+      await copyText(`${location.origin}${path}`);
+      notify(`${label} link copied.`);
+    } catch {
+      notify("Unable to copy link.");
+    }
   };
   return (
     <div className={styles.route}>
