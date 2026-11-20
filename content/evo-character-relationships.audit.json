@@ -3,60 +3,70 @@
   "summary": {
     "generatedOn": "2026-11-20",
     "scope": "All 336 Evo entries in the 1,734-card controlled catalogue",
-    "status": "AUDIT DRAFT — NOT PRODUCTION APPROVED",
-    "caution": "mapped_candidate includes source-checked examples and catalogue-inferred candidates. Epic/regular Character pairings are catalogue-inferred from name, faction(s), Fusion face, and release chronology. Neither these pairings nor most Evo links have been independently scan-verified; needs_review entries have no approved target. This is not a production rules registry.",
+    "status": "AUDIT DRAFT — SIX FORMERLY UNRESOLVED EVOS RECONCILED BY USER; REMAINING CATALOGUE-INFERRED RELATIONSHIPS STILL AWAIT VERIFICATION",
+    "caution": "Five former disputed Evos have user-confirmed legal target IDs and one was confirmed cancelled with no target. Most other mappings remain catalogue-inferred. No gameplay or Inspector logic has been changed.",
     "recordCount": 336,
-    "mappedCandidates": 330,
+    "mappedCandidates": 335,
     "externallyChecked": 8,
-    "needingReview": 6,
+    "needingReview": 0,
     "fusedTargetCandidates": 11,
     "bySet": {
       "AA": {
         "evos": 85,
         "mapped": 85,
-        "needsReview": 0
+        "needsReview": 0,
+        "cancelled": 0
       },
       "AV": {
         "evos": 41,
         "mapped": 41,
-        "needsReview": 0
+        "needsReview": 0,
+        "cancelled": 0
       },
       "BB": {
         "evos": 66,
         "mapped": 66,
-        "needsReview": 0
+        "needsReview": 0,
+        "cancelled": 0
       },
       "BR": {
         "evos": 81,
         "mapped": 81,
-        "needsReview": 0
+        "needsReview": 0,
+        "cancelled": 0
       },
       "EX": {
         "evos": 1,
         "mapped": 1,
-        "needsReview": 0
+        "needsReview": 0,
+        "cancelled": 0
       },
       "FF": {
         "evos": 26,
-        "mapped": 25,
-        "needsReview": 1
+        "mapped": 26,
+        "needsReview": 0,
+        "cancelled": 0
       },
       "PS1": {
         "evos": 16,
         "mapped": 16,
-        "needsReview": 0
+        "needsReview": 0,
+        "cancelled": 0
       },
       "SV": {
         "evos": 20,
-        "mapped": 15,
-        "needsReview": 5
+        "mapped": 19,
+        "needsReview": 0,
+        "cancelled": 1
       }
     },
     "epicCharacterRecords": 89,
     "pairedEpicCharacterRecords": 54,
     "epicCounterpartsNeedingReview": 35,
-    "evosWithMultipleCharacterTargets": 23,
-    "evoTargetLinks": 353
+    "evosWithMultipleCharacterTargets": 24,
+    "evoTargetLinks": 359,
+    "cancelledNoTarget": 1,
+    "userConfirmedResolutions": 6
   },
   "relationships": [
     {
@@ -4898,19 +4908,24 @@
       "evoId": "ff-129",
       "evoName": "Aurelus Maximus Howlkor Ultra",
       "evoSet": "FF",
-      "targetCharacterIds": [],
-      "requiresFusedFace": false,
-      "status": "needs_review",
-      "reviewState": "manual_review_required",
-      "resolutionBasis": "requires_manual_review",
-      "candidateCharacterIds": [
-        "bb-302",
+      "targetCharacterIds": [
         "ff-164",
         "ff-222"
       ],
-      "notes": "Catalogue Evo ID says [AV] but no Aurelus Howlkor Ultra AV Character exists. FF has both standard (ff-164) and Epic (ff-222); inspect printed identification artwork. The standard and Epic character candidates are compatible variants of one underlying Character identity, but a separate Evo-identifier/source-data discrepancy still requires verification.",
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "user_confirmed",
+      "resolutionBasis": "direct_user_confirmation",
+      "candidateCharacterIds": [
+        "ff-164",
+        "ff-222"
+      ],
+      "notes": "Aurelus Maximus Howlkor Ultra targets FF 164 (regular) and FF 222 (Epic). The catalogue's [AV] qualifier is incorrect.",
       "catalogueEvoIdentifier": "Aurelus Howlkor Ultra [AV]",
-      "epicCharacterTargetIds": []
+      "epicCharacterTargetIds": [
+        "ff-222"
+      ],
+      "confirmation": "User-provided correction, 2026-11-20"
     },
     {
       "evoId": "ff-130",
@@ -5684,17 +5699,22 @@
       "evoId": "sv-137",
       "evoName": "Haos Maximus Gillator Ultra",
       "evoSet": "SV",
-      "targetCharacterIds": [],
+      "targetCharacterIds": [
+        "sv-253"
+      ],
       "requiresFusedFace": false,
-      "status": "needs_review",
-      "reviewState": "manual_review_required",
-      "resolutionBasis": "requires_manual_review",
+      "status": "mapped_candidate",
+      "reviewState": "user_confirmed",
+      "resolutionBasis": "direct_user_confirmation",
       "candidateCharacterIds": [
         "sv-253"
       ],
-      "notes": "Catalogue says Haos Gillator Ultra AV, but the matching Character in the controlled catalogue is SV 253; cross-check original Evo ID artwork and source transcription.",
+      "notes": "Haos Maximus Gillator Ultra targets SV 253 (Epic). The catalogue's AV qualifier is incorrect.",
       "catalogueEvoIdentifier": "Haos Gillator Ultra AV",
-      "epicCharacterTargetIds": []
+      "epicCharacterTargetIds": [
+        "sv-253"
+      ],
+      "confirmation": "User-provided correction, 2026-11-20"
     },
     {
       "evoId": "sv-138",
@@ -5756,18 +5776,20 @@
       "evoId": "sv-141",
       "evoName": "Pyrus Titan Dragonoid Ultra",
       "evoSet": "SV",
-      "targetCharacterIds": [],
-      "requiresFusedFace": false,
-      "status": "needs_review",
-      "reviewState": "manual_review_required",
-      "resolutionBasis": "requires_manual_review",
-      "candidateCharacterIds": [
-        "bb-357",
+      "targetCharacterIds": [
         "av-234"
       ],
-      "notes": "The controlled Evo record has no evolvesFrom value. The Evo record omits its printed Evo ID. Pyrus Dragonoid Ultra appears in BB and AV; determine exact Character via printed artwork or an official clarification.",
+      "requiresFusedFace": false,
+      "status": "mapped_candidate",
+      "reviewState": "user_confirmed",
+      "resolutionBasis": "direct_user_confirmation",
+      "candidateCharacterIds": [
+        "av-234"
+      ],
+      "notes": "Pyrus Titan Dragonoid Ultra targets AV 234. The catalogue is missing its Evo identifier.",
       "catalogueEvoIdentifier": "",
-      "epicCharacterTargetIds": []
+      "epicCharacterTargetIds": [],
+      "confirmation": "User-provided correction, 2026-11-20"
     },
     {
       "evoId": "sv-142",
@@ -5843,17 +5865,20 @@
       "evoId": "sv-146",
       "evoName": "Ventus [Diamond] Maxotaur X Zentaur",
       "evoSet": "SV",
-      "targetCharacterIds": [],
+      "targetCharacterIds": [
+        "sv-206b"
+      ],
       "requiresFusedFace": true,
-      "status": "needs_review",
-      "reviewState": "manual_review_required",
-      "resolutionBasis": "requires_manual_review",
+      "status": "mapped_candidate",
+      "reviewState": "user_confirmed",
+      "resolutionBasis": "direct_user_confirmation",
       "candidateCharacterIds": [
         "sv-206b"
       ],
-      "notes": "The requested Ventus/Haos fused Character has no exact faction-matching record. SV 206b has a similar name but only Ventus in catalogue metadata; verify the physical printing and faction fields.",
+      "notes": "Ventus Diamond Maxotaur x Zentaur targets ONLY the FUSED face SV 206b, not unfused SV 206a. The catalogue has a faction metadata inconsistency; leave the source value intact.",
       "catalogueEvoIdentifier": "Ventus/Haos Maxotaur X Zentaur",
-      "epicCharacterTargetIds": []
+      "epicCharacterTargetIds": [],
+      "confirmation": "User-provided correction, 2026-11-20"
     },
     {
       "evoId": "sv-147",
@@ -5893,18 +5918,21 @@
       "evoId": "sv-149",
       "evoName": "Pyrus Pharol & Gillator Ultra",
       "evoSet": "SV",
-      "targetCharacterIds": [],
-      "requiresFusedFace": true,
-      "status": "needs_review",
-      "reviewState": "manual_review_required",
-      "resolutionBasis": "requires_manual_review",
-      "candidateCharacterIds": [
-        "sv-220b",
-        "sv-260b"
+      "targetCharacterIds": [
+        "sv-220b"
       ],
-      "notes": "Source record seems inconsistent with the Diamond Evo card 149 and two Pyrus/Aurelus fused Character versions; verify identification and the catalogue name/type. The standard and Epic character candidates are compatible variants of one underlying Character identity, but a separate Evo-identifier/source-data discrepancy still requires verification.",
+      "requiresFusedFace": true,
+      "status": "mapped_candidate",
+      "reviewState": "user_confirmed",
+      "resolutionBasis": "direct_user_confirmation",
+      "candidateCharacterIds": [
+        "sv-220b"
+      ],
+      "notes": "Pyrus Diamond Pharol & Gillator Ultra targets ONLY the FUSED face SV 220b, not unfused SV 220a. Do not extend this confirmed mapping to SV 260b; SV 139 remains a separate Evo mapped to both regular and Epic fused Characters.",
       "catalogueEvoIdentifier": "Pyrus Aurelus Pharol & Gillator Ultra [SV]",
-      "epicCharacterTargetIds": []
+      "epicCharacterTargetIds": [],
+      "confirmation": "User-provided correction, 2026-11-20",
+      "confirmedEvoName": "Pyrus Diamond Pharol & Gillator Ultra"
     },
     {
       "evoId": "sv-261",
@@ -5912,13 +5940,14 @@
       "evoSet": "SV",
       "targetCharacterIds": [],
       "requiresFusedFace": true,
-      "status": "needs_review",
-      "reviewState": "manual_review_required",
-      "resolutionBasis": "requires_manual_review",
+      "status": "cancelled_no_target",
+      "reviewState": "user_confirmed",
+      "resolutionBasis": "cancelled_without_character",
       "candidateCharacterIds": [],
-      "notes": "The Haos/Pyrus Cyndeous x Skorporos fused Character is not present in the 1,734-card controlled catalogue.",
+      "notes": "User confirmed that Haos Diamond Cyndeous x Skorporos was cancelled and no corresponding Character Card exists. No legal evolution target.",
       "catalogueEvoIdentifier": "Haos/Pyrus Cyndeous x Skorporos",
-      "epicCharacterTargetIds": []
+      "epicCharacterTargetIds": [],
+      "confirmation": "User-provided cancellation clarification, 2026-11-20"
     }
   ]
 }

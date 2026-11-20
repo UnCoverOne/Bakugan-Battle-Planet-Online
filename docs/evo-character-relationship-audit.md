@@ -1,88 +1,59 @@
-# Evo-to-Character relationship audit — Epic Character update
+# Evo-to-Character relationship audit
 
-**Status: DRAFT, not approved for gameplay.** Updated 20 November 2026 against `redesign/frontend-clean-slate`.
+**Status: DRAFT — user-confirmed exceptions incorporated; catalogue-inferred entries still require source review.** Updated 20 November 2026.
 
-## Files
+## Deliverables
 
-- [Full 336-Evo mapping (JSON)](../content/evo-character-relationships.audit.json)
-- [Full 336-Evo mapping (CSV)](../content/evo-character-relationships.audit.csv)
-- [Epic-to-regular Character pairing audit (JSON)](../content/epic-character-equivalences.audit.json)
-- [Integrity and regression tests](../tests/evo-character-relationship-audit.test.ts)
+- [Complete mapping (JSON)](../content/evo-character-relationships.audit.json), all 336 entries
+- [Reviewable mapping (CSV)](../content/evo-character-relationships.audit.csv), all 336 entries
+- [Epic Character equivalence audit](../content/epic-character-equivalences.audit.json), 89 Epic records
+- [Catalogue relationship validation tests](../tests/evo-character-relationship-audit.test.ts)
 
-## Corrected rule
+The mapping contains **335 Evos with at least one candidate legal Character target**, **one cancelled Evo with no target**, and **zero unresolved Evo identities** among the six previously disputed records. There are **359 target links**, including 24 Evo records with multiple regular/Epic variants. There are 8 earlier source-checked relationships and 5 newly user-confirmed legal mappings; **other catalogue-inferred candidates are not independently verified**.
 
-**An Evo can be played on either the regular Character Card or the corresponding Epic Character Card.** Epic Character cards are variants of their respective Characters, including Fusion versions, not separate incompatible Evo bases. This project rule was confirmed by the user and aligns with the [Epic Character Card overview](https://bakugan.wiki/wiki/Epic_Character_Card).
+## Six confirmed resolutions
 
-**Do not confuse an Epic Character counterpart with another, unrelated, same-name Bakugan.** For example, Aquos Hyper Pegatrix BB 219 is linked to BB 292, **not** AV 172. The existence of a later Epic does not turn every same-name Character into a legal target.
+These six entries were supplied and confirmed by the user on 20 November 2026. Original `catalogueEvoIdentifier` source values are preserved as-is and may be erroneous. The confirmed Character IDs take precedence in this audit.
 
-The `targetCharacterIds` array deliberately allows **multiple legal catalogue Character IDs** for one Evo. `epicCharacterTargetIds` identifies which targets are Epic variants. The `requiresFusedFace` flag still applies to all targets of a Fusion Evo. Epic Fusion Characters must remain distinct from both their corresponding regular Fusion Character and their unfused face.
-
-### Relationship coverage
-
-| Expansion | Evos | Mapped candidates | Individual review |
-| --- | ---: | ---: | ---: |
-| BB | 66 | 66 | 0 |
-| BR | 81 | 81 | 0 |
-| AA | 85 | 85 | 0 |
-| AV | 41 | 41 | 0 |
-| FF | 26 | 25 | 1 |
-| SV | 20 | 15 | 5 |
-| PS1 | 16 | 16 | 0 |
-| EX | 1 | 1 | 0 |
-| **Total** | **336** | **330** | **6** |
-
-- **23 Evo records** now have two candidate Character IDs instead of one, for **353 proposed target links**.
-- **89 Epic Character catalogue records** were examined (including each side of Epic Fusion cards).
-- **54 Epic-to-regular counterpart relationships** resolve uniquely under the conservative catalogue pairing rule.
-- **35 Epic Character records** have no uniquely matched regular counterpart in the controlled catalogue. These may be Epic-only representations or incomplete/irregular catalogue metadata; they are **not** automatically missing game cards. They remain documented in the separate Epic pairing audit.
-- Eight original Evo relationships have individual source references; most other relationships, including newly inferred Epic equivalences, **still require printed-artwork/source verification** before enabling strict gameplay validation.
-
-### Examples of valid alternative Character IDs
-
-| Evo | Regular Character | Epic Character | Notes |
-| --- | --- | --- | --- |
-| `av-118` Aquos Hyper Howlkor Ultra | `av-166` | `ff-217` | Epic was published in a later set |
-| `av-131` Darkus Hyper Pegatrix | `av-205` | `ff-224` | Does **not** imply BB 323 |
-| `ff-133` Darkus Hyper Tretorous Ultra | `av-210` | `ff-226` | Earlier audit incorrectly selected only the Epic card |
-| `ff-135` Darkus Maximus Gillator Ultra | `av-208` | `ff-225` | Earlier audit selected only the Epic card |
-| `ps1-1` Aquos Hyper Howlkor | `av-165` | `ff-216` | Explicit `AV` base, later Epic version |
-| `sv-135` Darkus/Aquos Diamond Howlkor x Ramparian | `ff-171b` | `sv-226b` | **Fused** face required for both |
-| `sv-139` Pyrus/Aurelus Diamond Pharol x Gillator Ultra | `sv-220b` | `sv-260b` | Resolved the previous ordinary/Epic ambiguity |
-
-The `sv-139` mapping is now a **catalogue-inferred candidate**, not an independently scan-confirmed ruling. The other six pending cases remain unapproved.
-
-### Six remaining Evo review cases
-
-| Evo ID | Candidate(s) | Why still unresolved |
+| Evo | Confirmed target IDs | Notes |
 | --- | --- | --- |
-| `ff-129` | `ff-164` + `ff-222` (regular/Epic), possibly `bb-302` | Source Evo ID explicitly claims `[AV]`, but no corresponding AV Character exists. Epic equivalence alone does not resolve the set conflict |
-| `sv-137` | `sv-253` | Source claims an AV version but only SV Epic is catalogued |
-| `sv-141` | `bb-357`, `av-234` | Evo's identification is missing from source |
-| `sv-146` | `sv-206b` | The dual-faction fused identity is inconsistent with available Character metadata |
-| `sv-149` | `sv-220b` + `sv-260b` (regular/Epic) | Their Epic equivalence is clear, but the Evo's source name and identification still need independent review |
-| `sv-261` | None | Intended Haos/Pyrus fused Character is not in the controlled catalogue |
+| `ff-129` — Aurelus Maximus Howlkor Ultra | `ff-164`, `ff-222` | Both regular and Epic; ignore erroneous `[AV]` in source |
+| `sv-137` — Haos Maximus Gillator Ultra | `sv-253` | Only specified Epic Character target |
+| `sv-141` — Pyrus Titan Dragonoid Ultra | `av-234` | Source omitted Evo identifier |
+| `sv-146` — Ventus Diamond Maxotaur x Zentaur | **`sv-206b` only** | Fused only; **not `sv-206a`** |
+| `sv-149` — Pyrus Diamond Pharol & Gillator Ultra | **`sv-220b` only** | Fused only; **not `sv-220a`** |
+| `sv-261` — Haos Diamond Cyndeous x Skorporos | **None** | Cancelled; no corresponding Character, no playable evolution target |
 
-**No production integration:** No Inspector or gameplay rules were changed by this audit. Neither `candidateCharacterIds` on an unresolved record nor the separate Epic pairing candidates should grant legal game targets automatically.
+The source data for SV 149 currently uses the name `Pyrus Pharol & Gillator Ultra`; the user-confirmed title is recorded in `confirmedEvoName` without silently altering the original catalogue row. `sv-149` is kept distinct from `sv-139`: `sv-139` remains mapped as a regular/Epic pair to `sv-220b` and `sv-260b`, whereas the explicitly confirmed `sv-149` mapping contains **only `sv-220b`**. In each case a Fusion Evo requires the correct **fused (b) face**, not its unfused (a) face.
 
-## How pairing candidates were generated
+The `sv-261` catalogue entry is preserved for traceability but marked `status: "cancelled_no_target"`. The absence of targets is deliberate and **must not** be treated as a fallback to name-based matching or as an unfinished audit.
 
-1. Recognize Epic cards from the catalogue's `Epic Character` rarity, rather than their statistics or effect text.
-2. Compare normalized **Character name, all factions, and Fusion face**. A regular Fusion's front side is compared through the identity of its paired fused side to avoid mixing different dual-faction versions that share a front-side name.
-3. Prefer a regular Character in the Epic's own release; otherwise select the nearest earlier compatible set **when exactly one candidate remains**. Never select a different-name, different-faction, or future set card solely for convenience.
-4. Extend a mapped Evo's valid Character IDs in both directions along uniquely resolved regular↔Epic pairings. This includes cases where the previous draft identified *only* the Epic version.
-5. Keep source conflicts and missing/ambiguous counterpart entries explicit. This is not a substitute for validating the actual Evo identification graphic and any published corrections.
+## Current mapping coverage
 
-Examples of the same-name but **wrong set/version** that stay excluded: `bb-219` → `bb-292` **not** `av-172`; `bb-270` → `bb-343` **not** `av-233`.
+| Expansion | Evos | Mapped | Cancelled | Unresolved |
+| --- | ---: | ---: | ---: | ---: |
+| Battle Brawlers (BB) | 66 | 66 | 0 | 0 |
+| Bakugan Resurgence (BR) | 81 | 81 | 0 | 0 |
+| Age of Aurelus (AA) | 85 | 85 | 0 | 0 |
+| Armored Elite (AV) | 41 | 41 | 0 | 0 |
+| Fusion Force (FF) | 26 | 26 | 0 | 0 |
+| Shields of Vestroia (SV) | 20 | 19 | 1 | 0 |
+| Blind Box 1 (PS1) | 16 | 16 | 0 | 0 |
+| EX | 1 | 1 | 0 | 0 |
+| **Total** | **336** | **335** | **1** | **0** |
 
-## Earlier source-checked anchors
+### Regular and Epic Character rule
 
-- `bb-219` → `bb-292` ([Battle Brawlers](https://bakugan.wiki/wiki/Battle_Brawlers_(set)))
-- `bb-270` → `bb-343`
-- `aa-78` → `br-179` ([Age of Aurelus](https://bakugan.wiki/wiki/Age_of_Aurelus))
-- `av-117` → `av-160` ([Armored Elite](https://bakugan.wiki/wiki/Armored_Elite))
-- `br-114` → `bb-323` (catalogue says incorrect Pegatrix Ultra; [Bakugan Resurgence](https://bakugan.wiki/wiki/Bakugan_Resurgence))
-- `av-144` → `av-246` (catalogue drops Ultra; [Diamond Gillator Ultra](https://bakugan.wiki/wiki/Diamond_Gillator_Ultra_(Armored_Elite)))
-- `sv-143` → `av-264` ([specific card/ruling](https://bakugan.wiki/wiki/Ventus_Titan_Pegatrix_Ultra_(Shields_of_Vestroia)))
-- `ex-2` → `ex-1`
+An Evo can evolve both the corresponding regular Character and its Epic Character variant, unless a specifically established target restriction applies. Different set versions sharing only a name are **not** necessarily compatible. The Epic equivalence audit documents **54 candidate counterpart pairings** from 89 Epic records, with 35 lacking a unique regular counterpart in the available catalogue. Those 35 are *pairing audit items*, not six unresolved Evo IDs.
 
-**Deployment warning:** The current game engine's `evoIdentities()` and the Inspector's `matchesBase()` still use their original inference logic. These data artefacts are a **reviewed candidate registry**, not a running rules change. Before wiring this into gameplay, confirm the remaining identity disputes and visually review inferred equivalences.
+Examples: `av-118` targets `av-166` and Epic `ff-217`; `ff-133` targets `av-210` and Epic `ff-226`. `bb-219` targets `bb-292`, **not** the unrelated same-name `av-172`.
+
+### Provenance and safety
+
+- `reviewState: "source_checked"`: linked earlier external card reference (8).
+- `reviewState: "user_confirmed"`: direct user correction for five playable Evos and one cancelled Evo (6).
+- `reviewState: "catalogue_inferred"`: uniquely identified through catalogue name, identity, faction, Fusion face and release history; **not yet independently verified**.
+- `status: "mapped_candidate"`: one or more proposed legal Character IDs in `targetCharacterIds`.
+- `status: "cancelled_no_target"`: no legal Character target; never fallback to other same-name cards.
+
+**This commit changes audit data, documentation and regression tests only.** `lib/rules/catalogue-structure.ts` and `lib/card-inspector-data.ts` retain their old inference logic. The 335 other mappings and existing catalogue errors still require careful source validation and eventual integration before the game and Inspector can be regarded as corrected.

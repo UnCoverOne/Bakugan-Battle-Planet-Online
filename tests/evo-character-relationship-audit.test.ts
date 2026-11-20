@@ -9,8 +9,8 @@ type Relationship = {
   epicCharacterTargetIds: string[];
   candidateCharacterIds: string[];
   requiresFusedFace: boolean;
-  status: "mapped_candidate" | "needs_review";
-  reviewState: "source_checked" | "catalogue_inferred" | "manual_review_required";
+  status: "mapped_candidate" | "needs_review" | "cancelled_no_target";
+  reviewState: "source_checked" | "catalogue_inferred" | "manual_review_required" | "user_confirmed";
 };
 type EpicPair = {
   epicCharacterId: string;
@@ -49,7 +49,7 @@ test("Every mapped Evo supports one or more Character variants, while disputed E
       assert.ok(entry.targetCharacterIds.length >= 1, entry.evoId);
     } else {
       assert.deepEqual(entry.targetCharacterIds, [], entry.evoId);
-      assert.equal(entry.reviewState, "manual_review_required");
+      assert.ok(entry.status === "cancelled_no_target" || entry.reviewState === "manual_review_required", entry.evoId);
     }
     for (const id of [...entry.targetCharacterIds, ...entry.candidateCharacterIds]) {
       const character = cards.get(id);
@@ -63,10 +63,11 @@ test("Every mapped Evo supports one or more Character variants, while disputed E
     }
     assert.deepEqual(entry.epicCharacterTargetIds, entry.targetCharacterIds.filter(id => epicIds.has(id)));
   }
-  assert.equal(audit.relationships.filter(entry => entry.status === "mapped_candidate").length, 330);
-  assert.equal(audit.relationships.filter(entry => entry.status === "needs_review").length, 6);
-  assert.equal(audit.relationships.filter(entry => entry.targetCharacterIds.length > 1).length, 23);
-  assert.equal(audit.summary.evosWithMultipleCharacterTargets, 23);
+  assert.equal(audit.relationships.filter(entry => entry.status === "mapped_candidate").length, 335);
+  assert.equal(audit.relationships.filter(entry => entry.status === "needs_review").length, 0);
+  assert.equal(audit.relationships.filter(entry => entry.status === "cancelled_no_target").length, 1);
+  assert.equal(audit.relationships.filter(entry => entry.targetCharacterIds.length > 1).length, 24);
+  assert.equal(audit.summary.evosWithMultipleCharacterTargets, 24);
 });
 
 test("Epic pair audit covers all Epic Character cards and excludes unrelated same-name Characters", () => {
@@ -130,10 +131,40 @@ test("Identities from genuinely different releases remain distinct", () => {
   assert.ok(!indexed.get("bb-270")?.targetCharacterIds.includes("av-233"));
 });
 
-test("Remaining unresolved Evo identities are not granted gameplay targets", () => {
-  const pending = audit.relationships.filter(entry => entry.status === "needs_review");
-  assert.deepEqual(pending.map(entry => entry.evoId).sort(), [
-    "ff-129", "sv-137", "sv-141", "sv-146", "sv-149", "sv-261",
-  ]);
-  assert.ok(pending.every(entry => entry.targetCharacterIds.length === 0));
+test("All six corrected Evo identities preserve their exact user-confirmed targets", () => {
+  const targets: Record<string, string[]> = {
+    "ff-129": ["ff-164", "ff-222"],
+    "sv-137": ["sv-253"],
+    "sv-141": ["av-234"],
+    "sv-146": ["sv-206b"],
+    "sv-149": ["sv-220b"],
+  };
+  for (const [evoId, legalIds] of Object.entries(targets)) {
+    const record = indexed.get(evoId);
+    assert.ok(record, evoId);
+    assert.deepEqual(record.targetCharacterIds, legalIds, evoId);
+    assert.equal(record.reviewState, "user_confirmed", evoId);
+    assert.equal(record.status, "mapped_candidate", evoId);
+  }
+  assert.deepEqual(indexed.get("ff-129")?.epicCharacterTargetIds, ["ff-222"]);
+  assert.deepEqual(indexed.get("sv-137")?.epicCharacterTargetIds, ["sv-253"]);
+  for (const evoId of ["sv-146", "sv-149"]) {
+    assert.equal(indexed.get(evoId)?.requiresFusedFace, true, evoId);
+    assert.ok(indexed.get(evoId)?.targetCharacterIds.every(id => cards.get(id)?.fusionFace === "b"), evoId);
+  }
+  assert.ok(!indexed.get("sv-146")?.targetCharacterIds.includes("sv-206a"));
+  assert.ok(!indexed.get("sv-149")?.targetCharacterIds.includes("sv-220a"));
+  assert.ok(!indexed.get("sv-149")?.targetCharacterIds.includes("sv-260b"));
+  assert.deepEqual(indexed.get("sv-139")?.targetCharacterIds, ["sv-220b", "sv-260b"]);
+});
+
+test("Cancelled Evo is a documented terminal no-target state, never a fallback to arbitrary Characters", () => {
+  const cancelled = indexed.get("sv-261");
+  assert.ok(cancelled);
+  assert.equal(cancelled.status, "cancelled_no_target");
+  assert.equal(cancelled.reviewState, "user_confirmed");
+  assert.deepEqual(cancelled.targetCharacterIds, []);
+  assert.deepEqual(cancelled.epicCharacterTargetIds, []);
+  assert.deepEqual(cancelled.candidateCharacterIds, []);
+  assert.equal(audit.relationships.filter(entry => entry.status === "needs_review").length, 0);
 });
