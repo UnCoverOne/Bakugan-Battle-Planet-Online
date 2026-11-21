@@ -41,3 +41,12 @@ test("a joining seat is a provisional Standard loadout until lobby selection", a
   assert.match(server, /const provisionalFormat = ranked \? "competitive" : "standard"/);
   assert.match(server, /effectiveSelection\.deck,\s*false/);
 });
+
+test("the application provider no longer persists or exposes a selected-for-play deck", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const provider = await readFile(new URL("../components/application/AppProvider.jsx", import.meta.url), "utf8");
+  assert.doesNotMatch(provider, /useStoredState\("bbp-selected-deck-v1"/);
+  assert.doesNotMatch(provider, /\bsetSelectedDeckId\b|\bstartSolo\b/);
+  assert.match(provider, /selectedDeckId: ""/); // Historical snapshot shape remains readable.
+  assert.match(provider, /localStorage\.removeItem\("bbp-selected-deck-v1"\)/);
+});
