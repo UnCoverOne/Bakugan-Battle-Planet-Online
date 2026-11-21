@@ -98,3 +98,30 @@
 .srOnly{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
 .filterButton{list-style:none}.filterButton::-webkit-details-marker,.importToggle::-webkit-details-marker{display:none}
 .cardActions>button:disabled{opacity:.5;cursor:not-allowed}
+
+/* Below 500px, artwork occupies the full deck tile, including the action row.
+   Only gallery tiles opt in; homepage and deck-detail presentations are untouched. */
+@media (max-width: 499px) {
+  .card[data-deck-library-card] {
+    display: grid;
+    grid-template-columns: minmax(0, 35%) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: stretch;
+    container-type: inline-size;
+  }
+  .card[data-deck-library-card] .cardMain {
+    display: contents;
+  }
+  .card[data-deck-library-card] .cardFooter {
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+    align-self: end;
+    justify-content: flex-end;
+    padding: 7px 9px 9px;
+  }
+  .card[data-deck-library-card] .cardActions {
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+}

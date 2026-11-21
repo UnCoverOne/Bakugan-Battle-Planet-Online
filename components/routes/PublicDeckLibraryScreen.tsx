@@ -164,7 +164,7 @@ function PublicDeckTile({
   favoritePending: boolean; onFavorite: () => void; onCopy: () => void;
 }) {
   const href = `/decks/public/${encodeURIComponent(deck.id)}`;
-  return <article className={library.card}>
+  return <article className={library.card} data-deck-library-card>
     <div className={library.cardMain}><DeckGalleryBody deck={deck} href={href}
       creatorName={deck.creator ?? "Community Brawler"}
       creatorUserId={(deck as DeckRecord & { creatorUserId?: string }).creatorUserId}

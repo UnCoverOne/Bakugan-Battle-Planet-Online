@@ -41,3 +41,45 @@
 .statusReady,.statusInvalid{display:block;font:600 11px/1.35 var(--bb-font-interface)}
 .statusReady{color:var(--bb-success)}
 .statusInvalid{color:var(--bb-deck-warning-text)}
+
+/* On narrow library cards, flatten only the presentation wrappers into the
+   tile's grid. The artwork then spans the information and management footer. */
+@media (max-width: 499px) {
+  :global([data-deck-library-card]) .body {
+    display: contents;
+  }
+  :global([data-deck-library-card]) .previewLink {
+    position: relative;
+    display: block;
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    align-self: stretch;
+    min-height: 0;
+    overflow: hidden;
+  }
+  :global([data-deck-library-card]) .preview {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+  }
+  :global([data-deck-library-card]) .info {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    min-width: 0;
+    padding: 10px 10px 5px;
+  }
+  /* Each Character crop fills its newly taller portrait cell without stretching
+     the original scan. The featured card remains uncropped (object-fit: contain). */
+  :global([data-deck-library-card]) .portrait img {
+    width: 113.63636% !important;
+    height: 100% !important;
+    left: -6.81818%;
+    top: 0;
+    transform: none;
+    object-fit: cover !important;
+    object-position: center 15%;
+  }
+}

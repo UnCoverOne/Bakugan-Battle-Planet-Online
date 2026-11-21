@@ -65,3 +65,22 @@ test("Obsolete deck library selection styles are removed", async () => {
   assert.match(library, /\.card\{/);
   assert.match(library, /\.filterPanel\{/);
 });
+
+test("below 500px the library artwork spans both deck details and footer", async () => {
+  const [library, gallery, personal, publicCards] = await Promise.all([
+    read("components/routes/DeckLibrary.module.css"),
+    read("components/routes/DeckGalleryCard.module.css"),
+    read("components/routes/DeckLibraryScreen.tsx"),
+    read("components/routes/PublicDeckLibraryScreen.tsx"),
+  ]);
+  assert.match(personal, /<article className=\{library\.card\} data-deck-library-card>/);
+  assert.match(publicCards, /<article className=\{library\.card\} data-deck-library-card>/);
+  assert.match(library, /@media \(max-width: 499px\)[\s\S]*?\.card\[data-deck-library-card\][\s\S]*?display: grid/);
+  assert.match(library, /\.card\[data-deck-library-card\] \.cardMain\s*\{\s*display: contents/);
+  assert.match(library, /\.card\[data-deck-library-card\] \.cardFooter\s*\{\s*grid-column: 2;\s*grid-row: 2/);
+  assert.match(gallery, /:global\(\[data-deck-library-card\]\) \.body\s*\{\s*display: contents/);
+  assert.match(gallery, /:global\(\[data-deck-library-card\]\) \.previewLink\s*\{[\s\S]*?grid-column: 1;\s*grid-row: 1 \/ span 2/);
+  assert.match(gallery, /:global\(\[data-deck-library-card\]\) \.preview\s*\{[\s\S]*?height: 100%;\s*aspect-ratio: auto/);
+  assert.match(gallery, /\.featuredCard img\{[^}]*object-fit:contain!important/);
+  assert.match(gallery, /:global\(\[data-deck-library-card\]\) \.portrait img\s*\{[^}]*object-fit: cover !important/);
+});

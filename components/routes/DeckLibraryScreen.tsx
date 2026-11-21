@@ -187,7 +187,7 @@ function DeckTile({
   onToggleShowcase: () => void;
 }) {
   const href = `/decks/${encodeURIComponent(deck.id)}`;
-  return <article className={library.card}>
+  return <article className={library.card} data-deck-library-card>
     <div className={library.cardMain}><DeckGalleryBody deck={deck} href={href} legalFormats={legalFormats}
       creatorName="" personal /></div>
     <footer className={library.cardFooter}>
