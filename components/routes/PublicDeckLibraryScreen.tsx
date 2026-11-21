@@ -171,7 +171,7 @@ function PublicDeckTile({
       legalFormats={legalFormats} likes={favorite.favoriteCount} liked={favorite.viewerHasFavorited}
       onLike={favoriteAvailable ? onFavorite : undefined} likeDisabled={favoritePending} /></div>
     <footer className={library.cardFooter}>
-      <span className={library.cardHint}>Community deck</span>
+      
       <div className={library.cardActions}>
         <Link href={href}>View deck</Link>
         <button type="button" onClick={onCopy} disabled={!legalFormats.length} title="Copy to My Decks">Copy</button>

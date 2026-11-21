@@ -191,7 +191,7 @@ function DeckTile({
     <div className={library.cardMain}><DeckGalleryBody deck={deck} href={href} legalFormats={legalFormats}
       creatorName="" personal /></div>
     <footer className={library.cardFooter}>
-      <span className={library.cardHint}>{deck.visibility}</span>
+      
       <div className={library.cardActions}>
         <Link href={href}>View</Link>
         <button type="button" className={library.editAction} onClick={onEdit}>Edit</button>

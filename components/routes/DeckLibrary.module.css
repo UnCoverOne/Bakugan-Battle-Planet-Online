@@ -57,8 +57,8 @@
 .card{position:relative;min-width:0;overflow:visible;display:flex;flex-direction:column;background:var(--bb-nav);border:1px solid var(--bb-border);color:var(--bb-text)}
 .card:hover{border-color:var(--bb-border-hover)}
 .cardMain{min-width:0;flex:1}
-.cardFooter{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-top:1px solid var(--bb-border-row)}
-.cardHint{color:var(--bb-muted);font:400 11px var(--bb-font-interface);min-width:0}
+.cardFooter{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:10px 12px;border-top:1px solid var(--bb-border-row)}
+
 .cardActions{display:flex;justify-content:end;align-items:center;gap:6px;flex:none}
 .cardActions>a,.cardActions>button{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 12px;text-decoration:none;border:1px solid var(--bb-border);background:var(--bb-panel);color:var(--bb-text);font:600 12px var(--bb-font-interface);cursor:pointer}
 .cardActions>a:hover,.cardActions>button:hover{background:var(--bb-panel-hover)}
@@ -91,9 +91,9 @@
  .sortLabel{display:none}
  .filterPanel{right:-52px}
  .cardFooter{padding:9px 10px}
- .cardHint{font-size:10px}
+ 
 }
-@media(max-width:390px){.cardHint{display:none}.cardFooter{justify-content:end}.tabs{gap:11px}.tab{font-size:12px}}
+@media(max-width:390px){.cardFooter{justify-content:end}.tabs{gap:11px}.tab{font-size:12px}}
 @media(prefers-reduced-motion:reduce){.tab,.card{transition:none}}
 .srOnly{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
 .filterButton{list-style:none}.filterButton::-webkit-details-marker,.importToggle::-webkit-details-marker{display:none}
