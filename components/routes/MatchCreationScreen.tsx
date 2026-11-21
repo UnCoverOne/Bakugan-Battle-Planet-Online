@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { deckIsLegalForFormat, validateDeck, type DeckRecord } from "../../lib/data";
 import type { DeckRestriction } from "../../lib/deck-validation";
-import { normalizeRoomCode } from "../../lib/play-setup-machine";
+import { normalizeRoomCode } from "../../lib/room-code";
 import { initializeLocalReplayJournal } from "../../lib/replay-journal";
 import { createTrainingLobbyState } from "../../lib/training-lobby";
 import { primeMatchStore } from "../game-screen-v2/matchStore";
