@@ -34,3 +34,10 @@ test("Ranked lobbies stay in deck-lock until both players submit their rosters",
   assert.equal(rankedSeries(joined)?.stage, "deck-lock");
   assert.equal(rankedSeries(joined)?.players.second.decks.length, 0);
 });
+
+test("a joining seat is a provisional Standard loadout until lobby selection", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const server = await readFile(new URL("../app/api/game/route.ts", import.meta.url), "utf8");
+  assert.match(server, /const provisionalFormat = ranked \? "competitive" : "standard"/);
+  assert.match(server, /effectiveSelection\.deck,\s*false/);
+});

@@ -553,8 +553,10 @@ export async function POST(request: Request) {
       if (ranked && body.format !== "bo3") throw new ValidationError("Ranked is locked to Best of Three.");
       if (!ranked && body.rankedDecks) throw new ValidationError("This is not a Ranked lobby.");
       const submittedSelection = ranked ? { ...body.selection, name: account!.displayName } : body.selection;
-      const requiredFormat = requiredDeckFormat(lobbyConfig(state).rulesFormat);
-      const effectiveSelection = canonicalSelectionForFormat(submittedSelection, requiredFormat);
+      // Joining seats are provisional: non-Ranked players choose the lobby’s actual
+      // Standard/Singleton deck after entering, not while opening the room.
+      const provisionalFormat = ranked ? "competitive" : "standard";
+      const effectiveSelection = canonicalSelectionForFormat(submittedSelection, provisionalFormat);
       const player = tagLobbyPlayerDeck(
         ranked ? makeCanonicalPlayerWithRestrictions(effectiveSelection, ranked.restrictions, ranked.deckSize ?? 50) : makeCanonicalPlayer(effectiveSelection),
         effectiveSelection.deck,

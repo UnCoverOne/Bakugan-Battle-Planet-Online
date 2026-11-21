@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { deckIsLegalForFormat, validateDeck, type DeckRecord } from "../../lib/data";
 import type { DeckRestriction } from "../../lib/deck-validation";
+import { deckAllowedInMeta } from "../../lib/meta-formats";
 import { normalizeRoomCode } from "../../lib/room-code";
 import { initializeLocalReplayJournal } from "../../lib/replay-journal";
 import { createTrainingLobbyState } from "../../lib/training-lobby";
@@ -71,7 +72,7 @@ export function MatchCreationScreen() {
   );
   const competitiveDecks = useMemo(
     () => rankedRulesReady
-      ? (decks as DeckRecord[]).filter((deck) => deckIsLegalForFormat(deck, "competitive", rankedRestrictions, rankedDeckSize!))
+      ? (decks as DeckRecord[]).filter((deck) => deckIsLegalForFormat(deck, "competitive", rankedRestrictions, rankedDeckSize!) && deckAllowedInMeta("battle-brawlers", deck))
       : [],
     [decks, rankedRulesReady, rankedDeckSize, rankedRestrictions, catalogueRevision],
   );
