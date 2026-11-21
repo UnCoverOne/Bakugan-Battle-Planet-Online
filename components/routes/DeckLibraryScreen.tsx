@@ -5,18 +5,16 @@ import { builderScope, clearBuilderDraft } from "../../lib/builder-session";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { legalDeckFormats, validateDeck, type DeckFormat, type DeckRecord } from "../../lib/data";
-import type { DeckValidationResult } from "../../lib/deck-validation";
 import { DECK_LIMIT, decodeDeckCode, deckTextList, encodeDeckCode, uniqueDeckName } from "../../lib/deck-transfer";
 import { deckSetName } from "../../lib/deck-set";
 import { PROFILE_SHOWCASE_LIMIT, toggleShowcaseId } from "../../lib/profile-customization";
 import { useAppFields } from "../application/AppProvider";
-import { copyText, downloadTextFile, formatTimestamp } from "../application/ui";
-import { ActionButton, CardGrid, StatusChip, Surface } from "../design-system/primitives";
-import { DeckCreatorIdentity } from "../profile/DeckCreatorIdentity";
-import styles from "./DeckRoutes.module.css";
-import { type LibraryView, type DeckFormatFilter, DeckAreaHeader, DeckLibrarySkeleton, DeckToolbar } from "./DeckLibraryPresentation";
+import { copyText, downloadTextFile } from "../application/ui";
+import { ActionButton } from "../design-system/primitives";
+import library from "./DeckLibrary.module.css";
+import { type LibraryView, type DeckFormatFilter, DeckLibraryHeader, DeckLibrarySkeleton, DeckToolbar, DeckLibraryEmpty } from "./DeckLibraryPresentation";
 import { DeckGalleryBody } from "./DeckGalleryCard";
-import { deckFormatLabel, useCompetitiveRules, clone, blankDraft, useOnlineStatus, DeckState } from "./DeckRouteShared";
+import { useCompetitiveRules, clone, blankDraft, useOnlineStatus, DeckState } from "./DeckRouteShared";
 
 export function DeckLibraryScreen() {
   const router = useRouter();
@@ -27,15 +25,13 @@ export function DeckLibraryScreen() {
     setDecks,
     deckQuery,
     setDeckQuery,
-    selectedDeckId,
-    setSelectedDeckId,
     setBuilderDeck,
     storageHealth,
     notify,
     profile,
     setProfile,
     authUser,
-  } = useAppFields(["ready", "decks", "setDecks", "deckQuery", "setDeckQuery", "selectedDeckId", "setSelectedDeckId", "setBuilderDeck", "storageHealth", "notify", "profile", "setProfile", "authUser"]);
+  } = useAppFields(["ready", "decks", "setDecks", "deckQuery", "setDeckQuery", "setBuilderDeck", "storageHealth", "notify", "profile", "setProfile", "authUser"]);
   const [faction, setFaction] = useState("All");
   const [legality, setLegality] = useState("All");
   const [formatFilter, setFormatFilter] = useState<DeckFormatFilter>("all");
@@ -46,15 +42,6 @@ export function DeckLibraryScreen() {
   const competitiveRules = useCompetitiveRules();
   const competitiveDeckSize = competitiveRules.deckSize;
 
-  const reports = useMemo(
-    () => new Map<string, DeckValidationResult>(
-      decks.map((deck: DeckRecord): [string, DeckValidationResult] => [
-        deck.id,
-        validateDeck(deck, competitiveRules.restrictions, competitiveRules.deckSize),
-      ]),
-    ),
-    [competitiveRules.deckSize, competitiveRules.restrictions, decks],
-  );
   const compatibility = useMemo(
     () => new Map<string, DeckFormat[]>(
       decks.map((deck: DeckRecord): [string, DeckFormat[]] => [
@@ -103,7 +90,6 @@ export function DeckLibraryScreen() {
       const report = validateDeck(imported, [], competitiveDeckSize);
       if (!report.isLegal) throw new Error(report.issues[0].message);
       setDecks((items: DeckRecord[]) => [imported, ...items]);
-      setSelectedDeckId(imported.id);
       setImportCode("");
       setImportError("");
       notify(`Imported ${imported.name}.`);
@@ -128,7 +114,6 @@ export function DeckLibraryScreen() {
   const remove = (deck: DeckRecord) => {
     if (!globalThis.confirm(`Delete “${deck.name}”? This cannot be undone.`)) return;
     setDecks((items: DeckRecord[]) => items.filter((item) => item.id !== deck.id));
-    if (selectedDeckId === deck.id) setSelectedDeckId("");
     notify(`${deck.name} deleted.`);
   };
   const toggleDeckShowcase = (deck: DeckRecord) => {
@@ -152,184 +137,77 @@ export function DeckLibraryScreen() {
   };
 
   return (
-    <div className={styles.route}>
-      <DeckAreaHeader
-        section="mine"
-        count={decks.length}
-        legalCount={legalCount}
-        action={<ActionButton onClick={create}>+ Create Deck</ActionButton>}
-      />
-      {!online && (
-        <DeckState
-          tone="offline"
-          role="status"
-          title="Working offline"
-          copy="You can inspect and edit device-local decks. Cloud sync and public deck updates will resume when reconnected."
-        />
-      )}
-      {storageHealth.status === "error" && (
-        <DeckState
-          tone="error"
-          role="alert"
-          title="Deck storage needs attention"
-          copy={storageHealth.message}
-          action={<ActionButton tone="quiet" onClick={() => location.reload()}>Retry storage</ActionButton>}
-        />
-      )}
-      <DeckToolbar
-        query={deckQuery}
-        setQuery={setDeckQuery}
-        faction={faction}
-        setFaction={setFaction}
-        legality={legality}
-        setLegality={setLegality}
-        formatFilter={formatFilter}
-        setFormatFilter={setFormatFilter}
-        sort={sort}
-        setSort={setSort}
-        view={view}
-        setView={setView}
-        count={visible.length}
-      />
-      <details className={styles.importDrawer}>
-        <summary>Import a deck code</summary>
-        <div>
-          <textarea
-            aria-label="Deck import code"
-            value={importCode}
-            onChange={(event) => setImportCode(event.target.value)}
-            placeholder="BBP1.…"
-          />
-          {importError && <p className={styles.errorMessage} role="alert">{importError}</p>}
-          <ActionButton tone="secondary" disabled={!importCode.trim()} onClick={importDeck}>Validate & Import</ActionButton>
+    <div className={library.route}>
+      <div className={library.shell}>
+        <DeckLibraryHeader section="mine" action={<button type="button" className={library.newButton} onClick={create} disabled={decks.length >= DECK_LIMIT}>+ New Deck</button>} />
+        {!online && <DeckState tone="offline" role="status" title="Working offline"
+          copy="Device-local decks remain available. Cloud sync resumes when reconnected." />}
+        {storageHealth.status === "error" && <DeckState tone="error" role="alert" title="Deck storage needs attention"
+          copy={storageHealth.message} action={<ActionButton tone="quiet" onClick={() => location.reload()}>Retry storage</ActionButton>} />}
+        <DeckToolbar query={deckQuery} setQuery={setDeckQuery} faction={faction} setFaction={setFaction}
+          legality={legality} setLegality={setLegality} formatFilter={formatFilter} setFormatFilter={setFormatFilter}
+          sort={sort} setSort={setSort} view={view} setView={setView} />
+        <div className={library.libraryMeta}>
+          <p className={library.count}>{decks.length} saved · {legalCount} legal · {decks.length - legalCount} need attention{visible.length !== decks.length ? ` · ${visible.length} shown` : ""}</p>
+          <details className={library.importWrap}>
+            <summary className={library.importToggle}>Import deck code</summary>
+            <div className={library.importPanel}>
+              <h3>Import a deck</h3>
+              <p>Paste a compatible BBP1 deck code to add it to your library.</p>
+              <textarea aria-label="Deck import code" value={importCode} onChange={(event) => setImportCode(event.target.value)} placeholder="BBP1.…"/>
+              {importError && <p className={library.importError} role="alert">{importError}</p>}
+              <div className={library.importActions}><button type="button" disabled={!importCode.trim() || decks.length >= DECK_LIMIT} onClick={importDeck}>Validate & Import</button></div>
+            </div>
+          </details>
         </div>
-      </details>
-      {decks.length === 0 ? (
-        <DeckState
-          title="Build your first battle deck"
-          copy={`Choose three Character cards, their six BakuCores, and a legal 40-card Standard or ${competitiveDeckSize}-card Competitive Main Deck.`}
-          action={<ActionButton onClick={create}>Create Deck</ActionButton>}
-        />
-      ) : visible.length === 0 ? (
-        <DeckState
-          title="No decks match these filters"
-          copy="Change the search, faction, format, legality, or sort controls to return to your arsenal."
-          action={<ActionButton tone="quiet" onClick={() => { setDeckQuery(""); setFaction("All"); setFormatFilter("all"); setLegality("All"); }}>Clear filters</ActionButton>}
-        />
-      ) : (
-        <CardGrid className={`${styles.deckGrid} ${styles[`deckGrid_${view}`]}`} minCardWidth="30rem">
-          {visible.map((deck: DeckRecord) => (
-            <DeckTile
-              key={deck.id}
-              deck={deck}
-              report={reports.get(deck.id)!}
-              legalFormats={compatibility.get(deck.id) ?? []}
-              competitiveDeckSize={competitiveDeckSize}
-              selected={selectedDeckId === deck.id}
-              showcased={
-                deck.visibility === "Public" &&
-                (profile.showcaseDeckIds ?? []).includes(deck.id)
-              }
-              creatorUserId={deck.sourceDeckId ? deck.sourceCreatorUserId : authUser?.id}
-              creatorDisplayName={deck.sourceDeckId ? deck.sourceCreator ?? "Community Brawler" : profile.name}
-              view={view}
-              onOpen={() => router.push(`/decks/${encodeURIComponent(deck.id)}`)}
-              onSelect={() => {
-                setSelectedDeckId(deck.id);
-                notify(`${deck.name} selected for Play.`);
-              }}
-              onEdit={() => router.push(`/builder/${encodeURIComponent(deck.id)}`)}
-              onDuplicate={() => duplicate(deck)}
-              onDelete={() => remove(deck)}
-              onToggleShowcase={() => toggleDeckShowcase(deck)}
-            />
-          ))}
-        </CardGrid>
-      )}
+        {decks.length === 0 ? <DeckLibraryEmpty title="Build your first deck" message="Choose three Character cards, their BakuCores, and a Main Deck."
+          action={<button type="button" onClick={create}>Create a deck</button>} />
+        : visible.length === 0 ? <DeckLibraryEmpty title="No decks match" message="Try another search or remove some filters."
+          action={<button type="button" onClick={() => {setDeckQuery("");setFaction("All");setFormatFilter("all");setLegality("All");}}>Clear all filters</button>} />
+        : <div className={`${library.grid} ${view === "list" ? library.gridList : ""}`}>
+          {visible.map((deck: DeckRecord) => <DeckTile
+            key={deck.id} deck={deck} legalFormats={compatibility.get(deck.id) ?? []}
+            showcased={deck.visibility === "Public" && (profile.showcaseDeckIds ?? []).includes(deck.id)}
+            creatorUserId={deck.sourceDeckId ? deck.sourceCreatorUserId : authUser?.id}
+            creatorDisplayName={deck.sourceDeckId ? deck.sourceCreator ?? "Community Brawler" : profile.name}
+            onEdit={() => router.push(`/builder/${encodeURIComponent(deck.id)}`)}
+            onDuplicate={() => duplicate(deck)} onDelete={() => remove(deck)}
+            onToggleShowcase={() => toggleDeckShowcase(deck)} />
+          )}
+        </div>}
+      </div>
     </div>
   );
 }
 
 function DeckTile({
-  deck,
-  report,
-  legalFormats,
-  competitiveDeckSize = 50,
-  selected,
-  showcased,
-  creatorUserId,
-  creatorDisplayName,
-  view,
-  onOpen,
-  onSelect,
-  onEdit,
-  onDuplicate,
-  onDelete,
-  onToggleShowcase,
+  deck, legalFormats, showcased, onEdit, onDuplicate, onDelete, onToggleShowcase,
 }: {
-  deck: DeckRecord;
-  report: DeckValidationResult;
-  legalFormats: DeckFormat[];
-  competitiveDeckSize?: number;
-  selected: boolean;
-  showcased: boolean;
-  creatorUserId?: string;
-  creatorDisplayName: string;
-  view: LibraryView;
-  onOpen: () => void;
-  onSelect: () => void;
-  onEdit: () => void;
-  onDuplicate: () => void;
-  onDelete: () => void;
+  deck: DeckRecord; legalFormats: DeckFormat[]; showcased: boolean;
+  creatorUserId?: string; creatorDisplayName: string;
+  onEdit: () => void; onDuplicate: () => void; onDelete: () => void;
   onToggleShowcase: () => void;
 }) {
-  return (
-    <Surface
-      as="article"
-      className={`${styles.deckCard} ${styles[`deckCard_${view}`]} ${selected ? styles.deckCardSelected : ""}`}
-      data-selected-for-play={selected || undefined}
-      elevation={selected ? "overlay" : "raised"}
-    >
-      <button
-        className={styles.showcaseDeckToggle}
-        type="button"
-        aria-pressed={showcased}
-        disabled={deck.visibility !== "Public"}
-        title={
-          deck.visibility === "Public"
-            ? showcased
-              ? "Remove from Profile showcase"
-              : "Showcase on Profile"
-            : "Only Public decks can be showcased"
-        }
-        onClick={onToggleShowcase}
-      >
-        <span aria-hidden="true">{showcased ? "★" : "☆"}</span>
-        {showcased ? "Showcased" : "Showcase"}
-      </button>
-      {selected && <div className={styles.selectedBanner}><span /> Selected for Play</div>}
-      <DeckGalleryBody
-        deck={deck}
-        href={`/decks/${encodeURIComponent(deck.id)}`}
-        creatorName={creatorDisplayName}
-        creatorUserId={creatorUserId}
-        legalFormats={legalFormats}
-      />
-      <div className={styles.deckCardActions}>
-        <button onClick={onSelect} disabled={!legalFormats.length || selected}>
-          {selected ? "Selected" : legalFormats.length ? "Select for Play" : "Fix to select"}
-        </button>
-        <button onClick={onEdit}>Edit</button>
-        <details>
-          <summary aria-label={`More actions for ${deck.name}`}>•••</summary>
-          <div>
-            <button onClick={onDuplicate}>Duplicate</button>
-            <button onClick={() => downloadTextFile(`${deck.name}.txt`, deckTextList(deck))}>Export text list</button>
-            <button onClick={() => void copyText(encodeDeckCode(deck))}>Copy deck code</button>
-            <button className={styles.dangerText} onClick={onDelete}>Delete</button>
+  const href = `/decks/${encodeURIComponent(deck.id)}`;
+  return <article className={library.card}>
+    <div className={library.cardMain}><DeckGalleryBody deck={deck} href={href} legalFormats={legalFormats}
+      creatorName="" personal /></div>
+    <footer className={library.cardFooter}>
+      <span className={library.cardHint}>{deck.visibility}</span>
+      <div className={library.cardActions}>
+        <a href={href}>View</a>
+        <button type="button" className={library.editAction} onClick={onEdit}>Edit</button>
+        <details className={library.moreWrap}>
+          <summary className={library.moreToggle} aria-label={`More actions for ${deck.name}`}>⋯</summary>
+          <div className={library.moreMenu}>
+            <button type="button" onClick={onDuplicate}>Duplicate</button>
+            <button type="button" onClick={() => downloadTextFile(`${deck.name}.txt`, deckTextList(deck))}>Export text list</button>
+            <button type="button" onClick={() => void copyText(encodeDeckCode(deck))}>Copy deck code</button>
+            {deck.visibility === "Public" && <button type="button" onClick={onToggleShowcase}>{showcased ? "Remove from showcase" : "Showcase on Profile"}</button>}
+            <button type="button" className={library.danger} onClick={onDelete}>Delete</button>
           </div>
         </details>
       </div>
-    </Surface>
-  );
+    </footer>
+  </article>;
 }

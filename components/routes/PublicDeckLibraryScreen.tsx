@@ -3,19 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { legalDeckFormats, validateDeck, type DeckFormat, type DeckRecord } from "../../lib/data";
-import type { DeckValidationResult } from "../../lib/deck-validation";
 import { rememberAccountIntent } from "../../lib/account-intent";
 import { DECK_LIMIT, uniqueDeckName } from "../../lib/deck-transfer";
 import { invalidateResponse } from "../../lib/response-cache";
 import { deckSetName } from "../../lib/deck-set";
 import { useAppFields } from "../application/AppProvider";
-import { formatTimestamp } from "../application/ui";
-import { CardGrid, StatusChip, Surface } from "../design-system/primitives";
-import styles from "./DeckRoutes.module.css";
-import { MotionValue } from "../design-system/MotionValue";
-import { type LibraryView, type DeckFormatFilter, DeckAreaHeader, DeckLibrarySkeleton, DeckToolbar } from "./DeckLibraryPresentation";
+
+import library from "./DeckLibrary.module.css";
+import { type LibraryView, type DeckFormatFilter, DeckLibraryHeader, DeckLibrarySkeleton, DeckToolbar, DeckLibraryEmpty } from "./DeckLibraryPresentation";
 import { DeckGalleryBody } from "./DeckGalleryCard";
-import { deckFormatLabel, useCompetitiveRules, clone, useOnlineStatus, DeckState } from "./DeckRouteShared";
+import { useCompetitiveRules, clone, useOnlineStatus, DeckState } from "./DeckRouteShared";
 import { type PublicDeckFavoriteMetadata, usePublicDeckCatalogue } from "./PublicDeckCatalogue";
 
 export function PublicDeckLibraryScreen() {
@@ -39,19 +36,10 @@ export function PublicDeckLibraryScreen() {
   if (!ready || catalogue.status === "loading") return <DeckLibrarySkeleton />;
   if (catalogue.status === "error") {
     return (
-      <div className={styles.route}>
-        <DeckAreaHeader section="public" count={0} legalCount={0} />
-        <DeckState tone="error" role="alert" title="Public decks are unavailable" copy={catalogue.error ?? "Reconnect and try again."} />
-      </div>
+      <div className={library.route}><div className={library.shell}><DeckLibraryHeader section="public" /><DeckState tone="error" role="alert" title="Public decks are unavailable" copy={catalogue.error ?? "Reconnect and try again."} /></div></div>
     );
   }
 
-  const reports = new Map<string, DeckValidationResult>(
-    allPublic.map((deck): [string, DeckValidationResult] => [
-      deck.id,
-      validateDeck(deck, competitiveRules.restrictions, competitiveRules.deckSize),
-    ]),
-  );
   const compatibility = new Map<string, DeckFormat[]>(
     allPublic.map((deck): [string, DeckFormat[]] => [
       deck.id,
@@ -142,106 +130,51 @@ export function PublicDeckLibraryScreen() {
     router.push(`/decks/${encodeURIComponent(copy.id)}`);
   };
 
-  return (
-    <div className={styles.route}>
-      <DeckAreaHeader
-        section="public"
-        count={allPublic.length}
-        legalCount={[...compatibility.values()].filter((formats) => formats.length > 0).length}
-      />
-      {catalogue.status === "offline" && (
-        <DeckState
-          tone="offline"
-          role="status"
-          title="Showing offline fallback decks"
-          copy="These are the latest administrator-managed fallback decks cached on this device. They are not part of the online Public Deck library."
-        />
-      )}
-      <DeckToolbar
-        query={query}
-        setQuery={setQuery}
-        faction={faction}
-        setFaction={setFaction}
-        legality={legality}
-        setLegality={setLegality}
-        formatFilter={formatFilter}
-        setFormatFilter={setFormatFilter}
-        sort={sort}
-        setSort={setSort}
-        view={view}
-        setView={setView}
-        count={visible.length}
-        sortOptions={["Updated", "Name", "Set", "Most Favorited"]}
-        favoritesOnly={favoritesOnly}
-        setFavoritesOnly={setFavoritesOnly}
-        favoritesEnabled={catalogue.status === "online" && Boolean(authUser)}
-      />
-      {visible.length ? (
-        <CardGrid className={`${styles.deckGrid} ${styles[`deckGrid_${view}`]}`} minCardWidth="30rem">
-          {visible.map((deck) => (
-            <PublicDeckTile
-              key={deck.id}
-              deck={deck}
-              report={reports.get(deck.id)!}
-              legalFormats={compatibility.get(deck.id) ?? []}
-              view={view}
-              favorite={catalogue.favorites[deck.id] ?? { favoriteCount: 0, viewerHasFavorited: false }}
-              favoriteAvailable={catalogue.status === "online"}
-              favoritePending={pendingFavoriteIds.has(deck.id)}
-              onFavorite={() => void toggleFavorite(deck)}
-              onOpen={() => router.push(`/decks/public/${encodeURIComponent(deck.id)}`)}
-              onCopy={() => copyDeck(deck)}
-            />
-          ))}
-        </CardGrid>
-      ) : (
-        <DeckState title="No public decks found" copy="Try a broader search or clear the current filters." />
-      )}
+  return <div className={library.route}><div className={library.shell}>
+    <DeckLibraryHeader section="public" />
+    {catalogue.status === "offline" && <DeckState tone="offline" role="status" title="Offline public decks"
+      copy="Showing cached or bundled fallback decks rather than the live community catalogue." />}
+    <DeckToolbar query={query} setQuery={setQuery} faction={faction} setFaction={setFaction}
+      legality={legality} setLegality={setLegality} formatFilter={formatFilter} setFormatFilter={setFormatFilter}
+      sort={sort} setSort={setSort} view={view} setView={setView}
+      sortOptions={["Updated", "Name", "Set", "Most Favorited"]}
+      favoritesOnly={favoritesOnly} setFavoritesOnly={setFavoritesOnly}
+      favoritesEnabled={catalogue.status === "online" && Boolean(authUser)} />
+    <div className={library.libraryMeta}>
+      <p className={library.count}>{allPublic.length} public decks{visible.length !== allPublic.length ? ` · ${visible.length} shown` : ""}</p>
     </div>
-  );
+    {visible.length ? <div className={`${library.grid} ${view === "list" ? library.gridList : ""}`}>
+      {visible.map((deck) => <PublicDeckTile key={deck.id} deck={deck}
+        legalFormats={compatibility.get(deck.id) ?? []}
+        favorite={catalogue.favorites[deck.id] ?? { favoriteCount: 0, viewerHasFavorited: false }}
+        favoriteAvailable={catalogue.status === "online"} favoritePending={pendingFavoriteIds.has(deck.id)}
+        onFavorite={() => void toggleFavorite(deck)}
+        onCopy={() => copyDeck(deck)} />)}
+    </div> : <DeckLibraryEmpty title="No public decks found" message="Try another search or clear your filters."
+      action={<button type="button" onClick={() => { setQuery("");setFaction("All");setLegality("All");setFormatFilter("all");setFavoritesOnly(false); }}>Clear filters</button>} />}
+  </div></div>;
 }
 
 function PublicDeckTile({
-  deck,
-  report,
-  legalFormats,
-  view,
-  favorite,
-  favoriteAvailable,
-  favoritePending,
-  onFavorite,
-  onOpen,
-  onCopy,
+  deck, legalFormats, favorite, favoriteAvailable, favoritePending, onFavorite, onCopy,
 }: {
-  deck: DeckRecord;
-  report: DeckValidationResult;
-  legalFormats: DeckFormat[];
-  view: LibraryView;
-  favorite: PublicDeckFavoriteMetadata;
-  favoriteAvailable: boolean;
-  favoritePending: boolean;
-  onFavorite: () => void;
-  onOpen: () => void;
-  onCopy: () => void;
+  deck: DeckRecord; legalFormats: DeckFormat[];
+  favorite: PublicDeckFavoriteMetadata; favoriteAvailable: boolean;
+  favoritePending: boolean; onFavorite: () => void; onCopy: () => void;
 }) {
-  return (
-    <Surface as="article" className={`${styles.deckCard} ${styles.publicDeckCard} ${styles[`deckCard_${view}`]}`}>
-      <DeckGalleryBody
-        deck={deck}
-        href={`/decks/public/${encodeURIComponent(deck.id)}`}
-        creatorName={deck.creator ?? "Community Brawler"}
-        creatorUserId={(deck as DeckRecord & { creatorUserId?: string }).creatorUserId}
-        legalFormats={legalFormats}
-        likes={favorite.favoriteCount}
-        liked={favorite.viewerHasFavorited}
-        onLike={favoriteAvailable ? onFavorite : undefined}
-        likeDisabled={favoritePending}
-      />
-      <div className={`${styles.deckCardActions} ${styles.publicDeckActions}`}>
-        <button onClick={onOpen}>View Deck</button>
-        <button onClick={onCopy} disabled={!legalFormats.length} title="Copy to My Decks">Copy</button>
-
+  const href = `/decks/public/${encodeURIComponent(deck.id)}`;
+  return <article className={library.card}>
+    <div className={library.cardMain}><DeckGalleryBody deck={deck} href={href}
+      creatorName={deck.creator ?? "Community Brawler"}
+      creatorUserId={(deck as DeckRecord & { creatorUserId?: string }).creatorUserId}
+      legalFormats={legalFormats} likes={favorite.favoriteCount} liked={favorite.viewerHasFavorited}
+      onLike={favoriteAvailable ? onFavorite : undefined} likeDisabled={favoritePending} /></div>
+    <footer className={library.cardFooter}>
+      <span className={library.cardHint}>Community deck</span>
+      <div className={library.cardActions}>
+        <a href={href}>View deck</a>
+        <button type="button" onClick={onCopy} disabled={!legalFormats.length} title="Copy to My Decks">Copy</button>
       </div>
-    </Surface>
-  );
+    </footer>
+  </article>;
 }

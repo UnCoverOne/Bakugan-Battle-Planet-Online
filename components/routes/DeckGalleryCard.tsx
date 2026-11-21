@@ -51,11 +51,12 @@ type Props = {
   liked?: boolean;
   onLike?: () => void;
   likeDisabled?: boolean;
+  personal?: boolean;
 };
 
 export function DeckGalleryBody({
   deck, href, legalFormats, creatorName, creatorUserId, featured = false,
-  views, likes, liked = false, onLike, likeDisabled = false,
+  views, likes, liked = false, onLike, likeDisabled = false, personal = false,
 }: Props) {
   // Historic deck records only contain updatedAt; never call that a creation date.
   const createdAt = (deck as DeckRecord & { createdAt?: string }).createdAt;
@@ -71,15 +72,17 @@ export function DeckGalleryBody({
     </Link>
     <div className={styles.info}>
       <Link href={href} className={styles.name} title={deck.name}>{deck.name}</Link>
-      <div className={styles.creator}><DeckCreatorIdentity userId={creatorUserId} displayName={creatorName} /></div>
+      {personal && <span className={legalFormats.length ? styles.statusReady : styles.statusInvalid}>{legalFormats.length ? `Legal in ${legalFormats.length} ${legalFormats.length === 1 ? "format" : "formats"}` : "Needs attention"}</span>}
+      {!personal && <div className={styles.creator}><DeckCreatorIdentity userId={creatorUserId} displayName={creatorName} /></div>}
       <div className={styles.factions} aria-label={`Factions: ${factionNames.join(", ")}`}>
         {factionNames.map(faction => FACTION_SYMBOLS[faction]
           ? <OriginalImage key={faction} src={FACTION_SYMBOLS[faction]} alt={faction} title={faction} loading="lazy" />
           : null)}
       </div>
       {featured && <p className={styles.description}>{deck.description || ""}</p>}
-      <div className={styles.tags} aria-label="Latest set and legal formats">
+      <div className={styles.tags} aria-label="Set, legal formats and visibility">
         <span className={styles.setTag} title={`Latest set: ${deckSetName(deck)}`}>{deckSetName(deck)}</span>
+        {personal && <span className={styles.formatTag}>{deck.visibility}</span>}
         {legalFormats.length
           ? legalFormats.map(format => <span className={styles.formatTag} key={format}>{formatLabels[format]}</span>)
           : <span className={styles.invalidTag}>No legal formats</span>}

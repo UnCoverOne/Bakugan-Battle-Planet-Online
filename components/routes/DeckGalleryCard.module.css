@@ -36,3 +36,8 @@
 @media (max-width:600px){.body{grid-template-columns:minmax(0,27%) minmax(0,1fr);padding:9px;gap:8px}.info{gap:5px}.engagement{gap:5px}.footer{gap:3px}.bodyFeatured{grid-template-columns:minmax(0,27%) minmax(0,1fr)}}
 
 @media (max-width:360px){.body{grid-template-columns:minmax(0,25%) minmax(0,1fr);padding:7px;gap:6px}.info{gap:4px}.tags{gap:3px}.setTag,.formatTag,.invalidTag{padding-inline:3px}.footer{font-size:9px}}
+
+/* Library legality is informational, not a pre-selected play state. */
+.statusReady,.statusInvalid{display:block;font:600 11px/1.35 var(--bb-font-interface)}
+.statusReady{color:var(--bb-success)}
+.statusInvalid{color:var(--bb-deck-warning-text)}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { validateDeck, type DeckRecord } from "../../lib/data";
+import { type DeckRecord } from "../../lib/data";
 import { encodeDeckCode } from "../../lib/deck-transfer";
 import { useAppFields } from "../application/AppProvider";
 import { copyText } from "../application/ui";
@@ -11,11 +11,10 @@ import { DeckDetailPresentation, DeckSharePanel, MissingDeck } from "./DeckDetai
 
 export function DeckDetailScreen({ id }: { id: string }) {
   const router = useRouter();
-  const { decks, setBuilderDeck, setSelectedDeckId, notify, profile, authUser, catalogueRevision } = useAppFields(["decks", "setBuilderDeck", "setSelectedDeckId", "notify", "profile", "authUser", "catalogueRevision"]);
+  const { decks, setBuilderDeck, notify, profile, authUser, catalogueRevision } = useAppFields(["decks", "setBuilderDeck", "notify", "profile", "authUser", "catalogueRevision"]);
   void catalogueRevision;
   const deck = decks.find((item: DeckRecord) => item.id === id);
   if (!deck) return <MissingDeck id={id} />;
-  const report = validateDeck(deck);
   return (
     <DeckDetailPresentation
       deck={deck}
@@ -31,14 +30,6 @@ export function DeckDetailScreen({ id }: { id: string }) {
             setBuilderDeck(clone(deck));
             router.push(`/builder/${encodeURIComponent(deck.id)}`);
           }}>Edit Deck</ActionButton>
-          <ActionButton
-            tone="secondary"
-            disabled={!report.isLegal}
-            onClick={() => {
-              setSelectedDeckId(deck.id);
-              notify(`${deck.name} selected for Play.`);
-            }}
-          >Select for Play</ActionButton>
           <ActionButton tone="quiet" onClick={() => void copyText(encodeDeckCode(deck)).then(() => notify("Deck code copied."))}>Copy Code</ActionButton>
         </>
       )}
