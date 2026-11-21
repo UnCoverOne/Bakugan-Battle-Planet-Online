@@ -113,24 +113,6 @@ export function CharacterFan({ deck }: { deck: DeckRecord }) {
   </div>;
 }
 
-export function DeckFactionSymbols({ factions }: { factions: string[] }) {
-  const visibleFactions = factions.filter((faction) => Boolean(FACTION_SYMBOLS[faction]));
-  if (!visibleFactions.length) return <span className={styles.factionSymbols}>No factions selected</span>;
-  return (
-    <span className={styles.factionSymbols} aria-label={`Factions: ${visibleFactions.join(", ")}`}>
-      {visibleFactions.map((faction) => (
-        <OriginalImage
-          key={faction}
-          src={FACTION_SYMBOLS[faction]}
-          alt=""
-          aria-hidden="true"
-          title={faction}
-        />
-      ))}
-    </span>
-  );
-}
-
 export function DeckFactionTags({ factions }: { factions: string[] }) {
   const visibleFactions = factions.filter((faction) => Boolean(FACTION_SYMBOLS[faction]));
   if (!visibleFactions.length) return <span className={styles.emptyFactionTag}>No factions</span>;

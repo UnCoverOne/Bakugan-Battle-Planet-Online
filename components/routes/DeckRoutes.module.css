@@ -131,21 +131,9 @@
 
 
 
-.factionSymbols {
-  min-height: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: .4rem;
 
 
-}
 
-.factionSymbols img {
-  width: 1.45rem;
-  height: 1.45rem;
-  object-fit: contain;
-
-}
 
 .factionTags {
   display: flex;

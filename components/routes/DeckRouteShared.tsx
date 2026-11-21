@@ -1,16 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { STARTER_DECKS, type DeckFormat, type DeckRecord } from "../../lib/data";
+import { STARTER_DECKS, type DeckRecord } from "../../lib/data";
 import type { DeckRestriction } from "../../lib/deck-validation";
 import { uniqueDeckName } from "../../lib/deck-transfer";
 
 import { Surface } from "../design-system/primitives";
 import styles from "./DeckRoutes.module.css";
-
-export const deckFormatLabel = (format: DeckFormat) => (
-  format === "singleton" ? "Singleton" : format === "competitive" ? "Competitive" : "Standard"
-);
 
 export function useCompetitiveRules() {
   const [attempt, setAttempt] = useState(0);
