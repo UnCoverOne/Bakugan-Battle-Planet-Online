@@ -7,26 +7,14 @@ import { BUILDER_GALLERY_PAGE_SIZE, paginateBuilderGallery } from "../lib/builde
 
 const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("Deck Library includes the complete responsive library composition", async () => {
-  const [route, css] = await Promise.all([
-    deckRouteSource(),
-    read("components/routes/DeckRoutes.module.css"),
-  ]);
-  for (const contract of [
-    "DeckAreaHeader",
-    "DeckToolbar",
-    "CharacterFan",
-    "Selected for Play",
-    "DeckLibrarySkeleton",
-    "Working offline",
-    "Deck storage needs attention",
-    "No decks match these filters",
-    "Build your first battle deck",
-    'type LibraryView = "grid" | "list"',
-  ]) assert.match(route, new RegExp(contract.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  assert.match(css, /\.toolbar\s*\{[^}]*position:\s*sticky/s);
-  assert.match(css, /\.deckGrid_list/);
-  assert.match(css, /\.deckCardSelected/);
+test("Deck Library uses a separate compact stylesheet and preserves deck previews", async () => {
+  const [route, css] = await Promise.all([deckRouteSource(), read("components/routes/DeckLibrary.module.css")]);
+  for (const contract of ["DeckLibraryHeader", "DeckToolbar", "DeckGalleryBody", "DeckLibrarySkeleton", "Working offline", "Deck storage needs attention", "No decks match", "Build your first deck"]) {
+    assert.match(route, new RegExp(contract));
+  }
+  assert.match(css, /\.gridList\{grid-template-columns:minmax\(0,1fr\)/);
+  assert.match(css, /\.cardFooter\{/);
+  assert.doesNotMatch(route, /Selected for Play|Select for Play/);
 });
 
 test("Deck Builder uses independently scrolling desktop columns and two mobile tabs", async () => {
