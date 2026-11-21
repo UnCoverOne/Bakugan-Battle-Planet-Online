@@ -5,7 +5,7 @@ import Link from "next/link";
 import { type ReactNode } from "react";
 import { FACTIONS, FACTION_SYMBOLS } from "../../lib/card-filters";
 import { cardArtSource } from "../../lib/content/card-art";
-import { BAKUGAN, deckLeadCard, type DeckFormat, type DeckRecord } from "../../lib/data";
+import { BAKUGAN, type DeckFormat, type DeckRecord } from "../../lib/data";
 import { CardArt } from "../cards/CardArt";
 import styles from "./DeckRoutes.module.css";
 import library from "./DeckLibrary.module.css";
@@ -15,6 +15,7 @@ export type DeckFormatFilter = "all" | DeckFormat;
 
 export function DeckLibraryHeader({ section, action }: { section: "mine" | "public"; action?: ReactNode }) {
   return <header className={library.topbar}>
+    <h1 className={library.srOnly}>{section === "mine" ? "My Decks" : "Public Decks"}</h1>
     <nav className={library.tabs} aria-label="Deck library sections">
       <Link className={library.tab} aria-current={section === "mine" ? "page" : undefined} href="/decks">My Decks</Link>
       <Link className={library.tab} aria-current={section === "public" ? "page" : undefined} href="/decks/public">Public Decks</Link>
@@ -99,56 +100,17 @@ export function DeckToolbar({
   </div>;
 }
 
-export function CharacterFan({
-  deck,
-  compact = false,
-  featured = false,
-}: {
-  deck: DeckRecord;
-  compact?: boolean;
-  featured?: boolean;
-}) {
-  const characters = deck.bakuganIds
-    .map((id) => BAKUGAN.find((candidate) => candidate.id === id))
-    .filter(Boolean);
-  const featuredCard = featured ? deckLeadCard(deck) : undefined;
-  const featuredPreviewCard = featuredCard && !characters.some(
-    (character) => character?.character.catalogId === featuredCard.catalogId,
-  ) ? featuredCard : undefined;
-  return (
-    <div
-      className={`${styles.characterFan} ${featuredPreviewCard ? styles.characterFanFeatured : ""} ${compact ? styles.characterFanCompact : ""}`}
-      data-featured-preview={featuredPreviewCard ? "true" : undefined}
-    >
-      {Array.from({ length: 3 }, (_, index) => {
-        const character = characters[index];
-        return character ? (
-          <CardArt
-            key={character.id}
-            src={cardArtSource(character.character, "full")}
-            cardType={character.character.type}
-            presentation="readable"
-            loading="lazy"
-            decoding="async"
-            alt={character.name}
-          />
-        ) : (
-          <div className={styles.characterPlaceholder} key={`empty-${index}`} aria-label="Empty Character slot">?</div>
-        );
-      })}
-      {featuredPreviewCard && (
-        <CardArt
-          className={styles.featuredPreviewCard}
-          src={cardArtSource(featuredPreviewCard, "full")}
-          cardType={featuredPreviewCard.type}
-          presentation="readable"
-          loading="lazy"
-          decoding="async"
-          alt={`Featured card: ${featuredPreviewCard.displayName}`}
-        />
-      )}
-    </div>
-  );
+/** Deck-detail team visual. Library tiles use DeckPreview's three portraits and featured card. */
+export function CharacterFan({ deck }: { deck: DeckRecord }) {
+  const characters = deck.bakuganIds.map((id) => BAKUGAN.find((candidate) => candidate.id === id));
+  return <div className={styles.characterFan}>
+    {Array.from({ length: 3 }, (_, index) => {
+      const character = characters[index];
+      return character ? <CardArt key={character.id} src={cardArtSource(character.character, "full")}
+        cardType={character.character.type} presentation="readable" loading="lazy" decoding="async" alt={character.name}/>
+      : <div className={styles.characterPlaceholder} key={`empty-${index}`} aria-label="Empty Character slot">?</div>;
+    })}
+  </div>;
 }
 
 export function DeckFactionSymbols({ factions }: { factions: string[] }) {

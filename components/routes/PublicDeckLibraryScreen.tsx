@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { legalDeckFormats, validateDeck, type DeckFormat, type DeckRecord } from "../../lib/data";
+import { legalDeckFormats, type DeckFormat, type DeckRecord } from "../../lib/data";
 import { rememberAccountIntent } from "../../lib/account-intent";
 import { DECK_LIMIT, uniqueDeckName } from "../../lib/deck-transfer";
 import { invalidateResponse } from "../../lib/response-cache";
@@ -172,7 +173,7 @@ function PublicDeckTile({
     <footer className={library.cardFooter}>
       <span className={library.cardHint}>Community deck</span>
       <div className={library.cardActions}>
-        <a href={href}>View deck</a>
+        <Link href={href}>View deck</Link>
         <button type="button" onClick={onCopy} disabled={!legalFormats.length} title="Copy to My Decks">Copy</button>
       </div>
     </footer>

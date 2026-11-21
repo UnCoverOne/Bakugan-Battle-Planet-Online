@@ -4,90 +4,16 @@
   padding-bottom: var(--space-9);
 }
 
-.routeHero {
-  --deck-blue: #35c9ff;
-}
-
-.heroUtilities {
-  min-width: min(34rem, 100%);
-  display: grid;
-  justify-items: end;
-  gap: var(--space-4);
-}
-
-.toolbar {
-  position: sticky;
-  z-index: 20;
-  top: 76px;
-  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
-  margin: var(--space-5) auto;
-  display: grid;
-  grid-template-columns: minmax(16rem, 2fr) repeat(4, minmax(8rem, .7fr)) auto;
-  align-items: end;
-  gap: var(--space-3);
-  padding: var(--space-4);
-
-
-}
-
-.search {
-  min-width: 14rem;
-}
-
-.viewControls {
-  display: flex;
-  align-items: end;
-  justify-content: flex-end;
-  gap: var(--space-3);
-}
-
-.viewControls > span {
-  min-width: max-content;
-  padding-bottom: .8rem;
-
-
-}
-
-.importDrawer {
-  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
-  margin: 0 auto var(--space-5);
-
-
-
-}
-
-.importDrawer summary {
-  cursor: pointer;
-  padding: var(--space-4);
 
 
 
 
 
 
-}
-
-.importDrawer > div {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: var(--space-3);
-  padding: 0 var(--space-4) var(--space-4);
-}
-
-.importDrawer textarea {
-  min-height: 5rem;
-  padding: var(--space-3);
 
 
 
-  resize: vertical;
-}
 
-.errorMessage {
-  grid-column: 1 / -1;
-  margin: 0;
-
-}
 
 .state {
   width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
@@ -138,67 +64,6 @@
 
 }
 
-.deckGrid {
-  margin-top: var(--space-5);
-}
-
-.deckGrid_list {
-  grid-template-columns: 1fr !important;
-}
-
-.deckCard {
-  min-height: 20.5rem;
-  overflow: visible;
-
-}
-
-.showcaseDeckToggle {
-  position: absolute;
-  z-index: 5;
-  top: .75rem;
-  right: .75rem;
-  display: inline-flex;
-  align-items: center;
-  gap: .4rem;
-  min-height: 2rem;
-  padding: 0 .65rem;
-
-
-
-
-
-
-  cursor: pointer;
-}
-
-.showcaseDeckToggle[aria-pressed="true"] {
-
-
-}
-
-.showcaseDeckToggle:disabled {
-  cursor: not-allowed;
-
-}
-
-.deckCard_list {
-  min-height: 11rem;
-}
-
-
-.deckCardSelected {
-
-}
-
-.selectedBanner {
-  position: absolute;
-  z-index: 3;
-  top: .75rem;
-  left: .75rem;
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-  padding: .4rem .75rem;
 
 
 
@@ -209,33 +74,7 @@
 
 
 
-}
 
-.selectedBanner span {
-  width: .55rem;
-  height: .55rem;
-
-
-
-}
-
-.deckCardMain {
-  width: 100%;
-  min-height: 16.75rem;
-  display: grid;
-  grid-template-rows: 10.75rem auto;
-  padding: 0;
-
-
-
-  text-align: left;
-}
-
-.deckCard_list .deckCardMain {
-  min-height: 9rem;
-  grid-template-columns: 14rem minmax(0, 1fr);
-  grid-template-rows: 1fr;
-}
 
 .characterFan {
   position: relative;
@@ -256,52 +95,23 @@
 
 }
 
-.characterFan:not(.characterFanFeatured) img:nth-child(1) {
+.characterFan img:nth-child(1) {
   transform: translate(15%, 8%) rotate(-7deg);
 }
 
-.characterFan:not(.characterFanFeatured) img:nth-child(2) {
+.characterFan img:nth-child(2) {
   z-index: 2;
   transform: translateY(-3%);
 }
 
-.characterFan:not(.characterFanFeatured) img:nth-child(3) {
+.characterFan img:nth-child(3) {
   transform: translate(-15%, 8%) rotate(7deg);
 }
 
-.characterFanFeatured > img,
-.characterFanFeatured > .characterPlaceholder {
-  position: absolute;
-  bottom: .25rem;
-  width: min(31%, 7.6rem);
-}
 
-.characterFanFeatured > :nth-child(1) {
-  z-index: 1;
-  left: 3%;
-  transform: translateY(6%) rotate(-9deg);
-}
 
-.characterFanFeatured > :nth-child(2) {
-  z-index: 2;
-  left: 25%;
-  transform: translateY(1%) rotate(-3deg);
-}
 
-.characterFanFeatured > :nth-child(3) {
-  z-index: 3;
-  left: 47%;
-  transform: translateY(1%) rotate(3deg);
-}
 
-.characterFanFeatured > .featuredPreviewCard {
-  z-index: 4;
-  right: 3%;
-  bottom: .25rem;
-  width: min(31%, 7.6rem);
-  transform: translateY(6%) rotate(9deg);
-
-}
 
 .characterPlaceholder {
   display: grid;
@@ -313,58 +123,13 @@
 
 }
 
-.characterFanCompact {
-  min-height: 8.5rem;
-  padding-top: 1rem;
-}
-
-.characterFanCompact img {
-  max-height: 8rem;
-}
-
-.deckCardCopy {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: .4rem;
-  padding: var(--space-3) var(--space-4) var(--space-4);
-}
-
-.deckTitleRow {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.deckTitleRow h2 {
-  margin: 0;
-  display: -webkit-box;
-  overflow: hidden;
 
 
-  overflow-wrap: anywhere;
-
-  line-height: 1.08;
-}
-
-.deckCardCopy p,
-.deckCardCopy small {
-  margin: 0;
 
 
-  line-height: 1.4;
-}
 
-.deckCardCopy small:last-child {
-}
 
-.chipRow {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
+
 
 .factionSymbols {
   min-height: 1.5rem;
@@ -415,21 +180,6 @@
 
 }
 
-.deckCardActions {
-  position: relative;
-  min-height: 3.15rem;
-  display: flex;
-  align-items: center;
-  gap: .4rem;
-  padding: .7rem var(--space-4) var(--space-4);
-
-}
-
-.deckCardActions > button,
-.deckCardActions summary,
-.deckCardActions details div button {
-  min-height: 2.75rem;
-  padding: .5rem .72rem;
 
 
 
@@ -439,73 +189,9 @@
 
 
 
-  white-space: nowrap;
-}
-
-.deckCardActions > button:first-child {
-  flex: 1;
-
-}
-
-.publicDeckActions > button:nth-child(2) {
-  flex: 1;
-}
-
-.favoriteButton {
-  flex: 0 0 auto !important;
-  min-width: 4.25rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: .4rem;
-}
-
-.favoriteButton > span:first-child {
-  line-height: 1;
-}
-
-.favoriteButton[aria-pressed="true"] {
-
-
-}
-
-.deckCardActions button:disabled {
-  cursor: not-allowed;
-
-
-}
-
-.deckCardActions details {
-  position: relative;
-}
-
-.deckCardActions summary {
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  list-style: none;
-}
-
-.deckCardActions details div {
-  position: absolute;
-  z-index: 12;
-  right: 0;
-  bottom: calc(100% + .35rem);
-  width: 13rem;
-  display: grid;
-  padding: .35rem;
 
 
 
-}
-
-.deckCardActions details div button {
-  width: 100%;
-  text-align: left;
-}
-
-.dangerText {
-}
 
 .textAction {
   min-height: 2.875rem;
@@ -2207,42 +1893,11 @@
   display: none;
 }
 
-.heroSkeleton,
-.toolbarSkeleton,
-.deckSkeleton {
 
 
-}
 
-.heroSkeleton {
-  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
-  height: 12rem;
-  margin: auto;
-}
 
-.toolbarSkeleton {
-  width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
-  height: 5.5rem;
-  margin: var(--space-5) auto;
-}
 
-.deckSkeleton {
-  height: 23rem;
-  padding: var(--space-5);
-}
-
-.deckSkeleton div {
-  height: 12rem;
-  margin-bottom: var(--space-4);
-
-}
-
-.deckSkeleton span {
-  height: .75rem;
-  display: block;
-  margin-top: var(--space-3);
-
-}
 
 @keyframes skeletonPulse {
   to { }
@@ -2263,13 +1918,8 @@
 }
 
 @media (max-width: 1180px) {
-  .toolbar {
-    grid-template-columns: minmax(15rem, 1fr) repeat(3, minmax(7rem, .5fr));
-  }
 
-  .viewControls {
-    grid-column: 1 / -1;
-  }
+
 
   .builderLayout {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2289,42 +1939,14 @@
 }
 
 @media (max-width: 800px) {
-  .heroUtilities {
-    min-width: 0;
-    width: 100%;
-    justify-items: stretch;
-  }
 
-  .toolbar {
-    position: relative;
-    top: auto;
-    width: min(calc(100% - (2 * var(--space-4))), var(--content-wide));
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 
-  .search {
-    grid-column: 1 / -1;
-  }
 
-  .viewControls {
-    align-items: stretch;
-    flex-direction: column;
-  }
 
-  .viewControls > span {
-    padding: 0;
-  }
-
-  .importDrawer,
-  .state,
-  .detailMeta,
-  .detailLayout {
+.state, .detailMeta, .detailLayout {
     width: min(calc(100% - (2 * var(--space-4))), var(--content-wide));
   }
 
-  .deckCard_list .deckCardMain {
-    grid-template-columns: 10rem minmax(0, 1fr);
-  }
 
   .detailHero .characterFan {
     width: 100%;
@@ -2556,17 +2178,8 @@
 }
 
 @media (max-width: 540px) {
-  .toolbar {
-    grid-template-columns: 1fr;
-  }
 
-  .search,
-  .viewControls {
-    grid-column: auto;
-  }
-
-  .importDrawer > div,
-  .state {
+.state {
     grid-template-columns: 1fr;
   }
 
@@ -2574,24 +2187,9 @@
     display: none;
   }
 
-  .deckCard,
-  .deckCard_list {
-    min-height: 22rem;
-  }
 
-  .deckCard_list .deckCardMain {
-    min-height: 18rem;
-    grid-template-columns: 1fr;
-    grid-template-rows: 11rem auto;
-  }
 
-  .deckCardActions {
-    flex-wrap: wrap;
-  }
 
-  .deckCardActions > button {
-    flex: 1;
-  }
 
   .detailTeam {
     grid-template-columns: 1fr;
@@ -2764,13 +2362,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .heroSkeleton,
-  .toolbarSkeleton,
-  .deckSkeleton {
-  }
+
 }
 
-/* Horizontal gallery tiles now size to their contents; reserve space for personal deck controls. */
-.deckCard:has(.deckCardActions){min-height:0}
-.deckCard:has(.showcaseDeckToggle){padding-top:30px}
-.deckCard:has(.selectedBanner){padding-top:38px}
+
+

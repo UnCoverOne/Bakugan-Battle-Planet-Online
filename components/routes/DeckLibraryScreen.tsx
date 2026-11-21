@@ -2,6 +2,7 @@
 
 import { builderScope, clearBuilderDraft } from "../../lib/builder-session";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { legalDeckFormats, validateDeck, type DeckFormat, type DeckRecord } from "../../lib/data";
@@ -139,7 +140,7 @@ export function DeckLibraryScreen() {
   return (
     <div className={library.route}>
       <div className={library.shell}>
-        <DeckLibraryHeader section="mine" action={<button type="button" className={library.newButton} onClick={create} disabled={decks.length >= DECK_LIMIT}>+ New Deck</button>} />
+        <DeckLibraryHeader section="mine" action={<button type="button" className={library.newButton} onClick={create} disabled={decks.length >= DECK_LIMIT} title={decks.length >= DECK_LIMIT ? `Deck limit reached (${DECK_LIMIT})` : "Create a deck"}>+ New Deck</button>} />
         {!online && <DeckState tone="offline" role="status" title="Working offline"
           copy="Device-local decks remain available. Cloud sync resumes when reconnected." />}
         {storageHealth.status === "error" && <DeckState tone="error" role="alert" title="Deck storage needs attention"
@@ -168,8 +169,6 @@ export function DeckLibraryScreen() {
           {visible.map((deck: DeckRecord) => <DeckTile
             key={deck.id} deck={deck} legalFormats={compatibility.get(deck.id) ?? []}
             showcased={deck.visibility === "Public" && (profile.showcaseDeckIds ?? []).includes(deck.id)}
-            creatorUserId={deck.sourceDeckId ? deck.sourceCreatorUserId : authUser?.id}
-            creatorDisplayName={deck.sourceDeckId ? deck.sourceCreator ?? "Community Brawler" : profile.name}
             onEdit={() => router.push(`/builder/${encodeURIComponent(deck.id)}`)}
             onDuplicate={() => duplicate(deck)} onDelete={() => remove(deck)}
             onToggleShowcase={() => toggleDeckShowcase(deck)} />
@@ -184,7 +183,6 @@ function DeckTile({
   deck, legalFormats, showcased, onEdit, onDuplicate, onDelete, onToggleShowcase,
 }: {
   deck: DeckRecord; legalFormats: DeckFormat[]; showcased: boolean;
-  creatorUserId?: string; creatorDisplayName: string;
   onEdit: () => void; onDuplicate: () => void; onDelete: () => void;
   onToggleShowcase: () => void;
 }) {
@@ -195,7 +193,7 @@ function DeckTile({
     <footer className={library.cardFooter}>
       <span className={library.cardHint}>{deck.visibility}</span>
       <div className={library.cardActions}>
-        <a href={href}>View</a>
+        <Link href={href}>View</Link>
         <button type="button" className={library.editAction} onClick={onEdit}>Edit</button>
         <details className={library.moreWrap}>
           <summary className={library.moreToggle} aria-label={`More actions for ${deck.name}`}>⋯</summary>
