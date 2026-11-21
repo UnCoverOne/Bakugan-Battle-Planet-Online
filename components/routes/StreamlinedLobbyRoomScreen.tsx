@@ -571,9 +571,9 @@ export function LobbyRoomScreen() {
             <section className={styles.loadoutPanel}>
               <div className={styles.loadoutHeading}>
                 <div><span>YOUR DECK</span><h2>Battle loadout</h2></div>
-                <button type="button" onClick={() => setDeckPickerOpen(true)} disabled={seriesLocked || busy === "deck" || !me || Boolean(ranked)}>
+                {!ranked && <button type="button" onClick={() => setDeckPickerOpen(true)} disabled={seriesLocked || busy === "deck" || !me}>
                   <span>{seriesLocked ? "SERIES DECK LOCKED" : "SELECT YOUR DECK"}</span><ChevronArrow />
-                </button>
+                </button>}
               </div>
 
               {currentDeck ? (
