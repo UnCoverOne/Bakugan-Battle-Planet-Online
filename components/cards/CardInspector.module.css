@@ -126,17 +126,47 @@
 .dots { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .dots span { width: 5px; height: 5px; border-radius: 50%; background: var(--bb-border-hover); }
 .dots span[data-active="true"] { width: 7px; height: 7px; background: var(--bb-focus); }
-.fusionToggle {
-  border: 0;
-  background: transparent;
-  color: var(--bb-link);
-  cursor: pointer;
-  font: 600 .8rem/1.5 var(--bb-font-interface);
-  padding: 5px 8px;
+.faceSelector {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  width: min(100%, 280px);
+  margin-top: 2px;
 }
-.fusionToggle:hover { text-decoration: underline; text-underline-offset: 3px; }
-.fusionToggle { border: 1px solid var(--bb-border); color: var(--bb-text-soft); }
-.fusionToggle:hover { border-color: var(--bb-border-hover); }
+.faceLabel {
+  color: var(--bb-text-tertiary);
+  font: 700 .68rem/1.2 var(--bb-font-interface);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.faceOptions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+  width: 100%;
+  padding: 3px;
+  border: 1px solid var(--bb-border);
+  background: var(--bb-panel);
+}
+.faceOption {
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--bb-text-tertiary);
+  font: 600 .82rem/1.25 var(--bb-font-interface);
+  cursor: pointer;
+}
+.faceOption:not(.faceOptionActive):hover {
+  background: var(--bb-panel-hover);
+  color: var(--bb-text);
+}
+.faceOptionActive {
+  border-color: var(--bb-border-hover);
+  background: var(--bb-panel-inset);
+  color: var(--bb-text);
+}
+.faceOption:focus-visible { outline: 2px solid var(--bb-focus); outline-offset: 2px; }
 .infoColumn {
   display: flex;
   flex-direction: column;

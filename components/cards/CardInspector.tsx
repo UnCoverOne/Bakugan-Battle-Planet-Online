@@ -390,11 +390,19 @@ export function CardInspector(props: InspectorProps) {
                 presentation="inspector" alt={label} />}
               {displayedCore && <BakuCoreArt core={displayedCore} alt={label} />}
             </button>
-            {hasFusion && <button type="button" className={styles.fusionToggle}
-              aria-pressed={fusionFace === "b"}
-              onClick={() => setFusionFace(face => face === "a" ? "b" : "a")}>
-              {fusionFace === "a" ? "Show fused face" : "Show unfused face"}
-            </button>}
+            {hasFusion && <div className={styles.faceSelector} role="group" aria-label="Card face">
+              <span className={styles.faceLabel} aria-hidden="true">Card face</span>
+              <div className={styles.faceOptions}>
+                <button type="button"
+                  className={fusionFace === "a" ? `${styles.faceOption} ${styles.faceOptionActive}` : styles.faceOption}
+                  aria-pressed={fusionFace === "a"}
+                  onClick={() => setFusionFace("a")}>Unfused</button>
+                <button type="button"
+                  className={fusionFace === "b" ? `${styles.faceOption} ${styles.faceOptionActive}` : styles.faceOption}
+                  aria-pressed={fusionFace === "b"}
+                  onClick={() => setFusionFace("b")}>Fused</button>
+              </div>
+            </div>}
           </div>
           {hasMultiple && <button type="button" className={styles.next}
             onClick={() => navigatePrinting(1)} disabled={slideIndex === slides.length - 1}
