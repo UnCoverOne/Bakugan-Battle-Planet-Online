@@ -24,7 +24,13 @@
 .heading h2 {
   margin: 0 0 12px;
   font: 700 clamp(1.3rem, 2.4vw, 1.85rem)/1.23 var(--bb-font-display);
+  height: 2.46em; /* Reserve exactly two lines, even for one-line names. */
+  overflow: hidden;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 .tags { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
 .headerActions { display: flex; flex: none; gap: 7px; }

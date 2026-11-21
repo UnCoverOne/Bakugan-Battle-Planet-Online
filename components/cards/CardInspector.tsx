@@ -365,7 +365,7 @@ export function CardInspector(props: InspectorProps) {
   const contents = <>
     <header className={styles.header}>
       <div className={styles.heading}>
-        <h2 id={id + "-title"}>{label}</h2>
+        <h2 id={id + "-title"} title={label}>{label}</h2>
         <div className={styles.tags} aria-label="Card details">{identityTags}</div>
       </div>
       <div className={styles.headerActions}>
