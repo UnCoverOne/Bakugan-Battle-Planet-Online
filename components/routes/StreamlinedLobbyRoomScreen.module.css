@@ -1032,3 +1032,15 @@
     padding: .55rem;
   }
 }
+
+/* Ranked roster preparation happens inside the lobby, not match creation. */
+.rankedRoster{display:grid;gap:14px;padding:16px 0}
+.rankedRoster p{margin:0;color:var(--bb-muted);font:400 13px/1.5 var(--bb-font-content)}
+.rankedRosterChoices{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:9px}
+.rankedRosterChoices label{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-height:58px;padding:10px;border:1px solid var(--bb-border);background:var(--bb-panel);cursor:pointer}
+.rankedRosterChoices label.rankedRosterChecked{border-color:var(--bb-aquos);background:var(--bb-panel-inset)}
+.rankedRosterChoices input{accent-color:var(--bb-selection);width:18px;height:18px}
+.rankedRosterChoices strong{font:600 13px var(--bb-font-interface)}
+.rankedRosterChoices small{flex-basis:100%;padding-left:26px;font:400 11px var(--bb-font-interface);color:var(--bb-muted)}
+.rankedRoster>button{width:fit-content;min-height:44px;padding:0 16px;border:1px solid var(--bb-selection);background:var(--bb-selection);color:var(--bb-white);font:700 13px var(--bb-font-interface);cursor:pointer}
+.rankedRoster>button:disabled{opacity:.5;cursor:not-allowed}

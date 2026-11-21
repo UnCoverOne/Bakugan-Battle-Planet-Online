@@ -531,7 +531,25 @@ export function LobbyRoomScreen() {
 
             {ranked ? <section className={styles.rankedPanel}>
               <header><div><span>RANKED SERIES · RULESET V{ranked.rulesetVersion}</span><h2>{ranked.stage === "ban" ? "Ban one opposing deck" : ranked.stage === "select" ? `Select your deck for game ${match.gameNumber + (match.phase === "result" ? 1 : 0)}` : ranked.stage === "ready" ? "Round decks locked" : ranked.stage === "complete" ? "Series complete" : "Three-deck Conquest"}</h2></div><Badge tone="gold">{ranked.stage.toUpperCase()}</Badge></header>
-              {ranked.stage === "ban" && opponentRanked ? <>
+              {ranked.stage === "deck-lock" ? <div className={styles.rankedRoster}>
+                 {myRanked?.decks.length === 3 ? <p>Your three-deck roster is locked. Waiting for the other Brawler.</p> : <>
+                   <p>Choose three different legal Competitive decks. Rosters lock here in the lobby before bans begin.</p>
+                   <div className={styles.rankedRosterChoices}>
+                     {compatibleDecks.map((deck) => {
+                       const checked = rankedRosterIds.includes(deck.id);
+                       return <label key={deck.id} className={checked ? styles.rankedRosterChecked : ""}>
+                         <input type="checkbox" checked={checked} disabled={!checked && rankedRosterIds.length >= 3}
+                           onChange={() => setRankedRosterIds((ids) => checked ? ids.filter((id) => id !== deck.id) : [...ids, deck.id])}/>
+                         <strong>{deck.name}</strong><small>{deck.factions.join(" • ")}</small>
+                       </label>;
+                     })}
+                   </div>
+                   <button type="button" disabled={rankedRosterIds.length !== 3 || busy === "roster"}
+                     onClick={() => void lockRankedRoster()}>{busy === "roster" ? "LOCKING…" : `LOCK ROSTER (${rankedRosterIds.length}/3)`}</button>
+                   {compatibleDecks.length < 3 ? <p>Build three legal Competitive decks to lock a Ranked roster.</p> : null}
+                 </>}
+               </div> : null}
+               {ranked.stage === "ban" && opponentRanked ? <>
                 <p>Deck lists remain hidden. Your ban is revealed only after both Brawlers lock a choice.</p>
                 <div className={styles.rankedDecks}>{opponentRanked.decks.map((deck) => <button type="button" key={deck.id} disabled={Boolean(myRanked?.bannedDeckId) || busy === "ban"} onClick={() => void banRankedDeck(deck.id)}>
                   <span className={styles.rankedCharacters}>{deckPreviewCards(deck).slice(0, 3).map((card) => <CardArt key={card.catalogId} src={cardArtSource(card, "thumbnail")} cardType={card.type} presentation="readable" alt="" />)}</span>
