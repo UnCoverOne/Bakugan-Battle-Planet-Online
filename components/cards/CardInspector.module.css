@@ -135,15 +135,8 @@
 .faceSelector {
   display: grid;
   justify-items: center;
-  gap: 7px;
   width: min(100%, 280px);
   margin-top: 2px;
-}
-.faceLabel {
-  color: var(--bb-text-tertiary);
-  font: 700 .68rem/1.2 var(--bb-font-interface);
-  letter-spacing: .06em;
-  text-transform: uppercase;
 }
 .faceOptions {
   display: grid;

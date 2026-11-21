@@ -391,7 +391,6 @@ export function CardInspector(props: InspectorProps) {
               {displayedCore && <BakuCoreArt core={displayedCore} alt={label} />}
             </button>
             {hasFusion && <div className={styles.faceSelector} role="group" aria-label="Card face">
-              <span className={styles.faceLabel} aria-hidden="true">Card face</span>
               <div className={styles.faceOptions}>
                 <button type="button"
                   className={fusionFace === "a" ? `${styles.faceOption} ${styles.faceOptionActive}` : styles.faceOption}
