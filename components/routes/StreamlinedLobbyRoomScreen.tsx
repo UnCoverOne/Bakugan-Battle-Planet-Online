@@ -20,6 +20,7 @@ import { cardArtSource } from "../../lib/content/card-art";
 import type { GameCard, MatchState, PlayerState } from "../../lib/game";
 import {
   lobbyConfig,
+  playerHasChosenLobbyDeck,
   playerLobbyDeckFormat,
   playerLobbyDeckName,
   requiredDeckFormat,
@@ -46,8 +47,8 @@ import {
 } from "../game-screen-v2/matchStore";
 import styles from "./StreamlinedLobbyRoomScreen.module.css";
 
-type RoomCommand = "lobby-ready" | "start-match" | "lobby-settings" | "lobby-deck" | "ranked-ban" | "ranked-select" | "chat";
-type BusyAction = "ready" | "start" | "settings" | "deck" | "ban" | "select" | "chat" | "";
+type RoomCommand = "lobby-ready" | "start-match" | "lobby-settings" | "lobby-deck" | "ranked-roster" | "ranked-ban" | "ranked-select" | "chat";
+type BusyAction = "ready" | "start" | "settings" | "deck" | "roster" | "ban" | "select" | "chat" | "";
 
 function roomTime(at: number) {
   return new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -139,6 +140,7 @@ export function LobbyRoomScreen() {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [deckPickerOpen, setDeckPickerOpen] = useState(false);
+  const [rankedRosterIds, setRankedRosterIds] = useState<string[]>([]);
   const chatScroll = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -181,10 +183,10 @@ export function LobbyRoomScreen() {
       && deckAllowedInMeta(selectedMeta, deck)
   ));
   const compatibleDeckIds = new Set(compatibleDecks.map((deck) => deck.id));
-  const currentDeck = playerDecks.find((deck) => deckMatchesPlayer(deck, me)) ?? null;
+  const currentDeck = me && playerHasChosenLobbyDeck(me) ? playerDecks.find((deck) => deckMatchesPlayer(deck, me)) ?? null : null;
   const currentDeckCards = currentDeck ? deckPreviewCards(currentDeck) : [];
   const currentDeckTags = currentDeck ? deckTags(currentDeck) : [];
-  const myDeckFormatMatches = Boolean(me && playerLobbyDeckFormat(me) === requiredFormat);
+  const myDeckFormatMatches = Boolean(me && playerHasChosenLobbyDeck(me) && playerLobbyDeckFormat(me) === requiredFormat);
   const myDeckMetaMatches = Boolean(currentDeck && deckAllowedInMeta(selectedMeta, currentDeck));
 
   useEffect(() => {
@@ -223,6 +225,7 @@ export function LobbyRoomScreen() {
     payload: Record<string, unknown> | undefined,
     label: BusyAction,
     selection?: CanonicalPlayerSelection,
+    rankedDecks?: CanonicalPlayerSelection[],
   ) => {
     if (busy) return null;
     setBusy(label);
@@ -246,6 +249,7 @@ export function LobbyRoomScreen() {
             expectedVersion: expectedState.version,
             payload,
             selection,
+            rankedDecks,
           }),
         });
         const data = await response.json().catch(() => ({})) as { state?: MatchState; error?: string };
@@ -325,6 +329,16 @@ export function LobbyRoomScreen() {
     } finally {
       setBusy("");
     }
+  };
+
+  const lockRankedRoster = async () => {
+    if (!me || !ranked || ranked.stage !== "deck-lock" || myRanked?.decks.length || rankedRosterIds.length !== 3) return;
+    const avatar = (me as PlayerState & { avatar?: string }).avatar ?? profile.avatar ?? "";
+    const selections = rankedRosterIds.map((id) => playerDecks.find((deck) => deck.id === id))
+      .filter((deck): deck is DeckRecord => Boolean(deck))
+      .map((deck) => canonicalSelectionForFormat(canonicalSelection(localPlayerId, me.name, deck, avatar), "competitive"));
+    if (selections.length !== 3) return;
+    await sendRoomCommand("ranked-roster", undefined, "roster", undefined, selections);
   };
 
   const banRankedDeck = async (deckId: string) => {
@@ -501,7 +515,7 @@ export function LobbyRoomScreen() {
                       </div>
                       <ProfileAvatar className={styles.avatar} profile={{ name: player.name, avatar: local ? profile.avatar : storedAvatar }} />
                       <h3>{ranked?.players[player.id]?.userId ? <PlayerPreview userId={ranked.players[player.id].userId} displayName={player.name} /> : player.name}</h3>
-                      <p>{deckName || player.bakugan.map((bakugan) => bakugan.name).join(" • ")}</p>
+                      <p>{playerHasChosenLobbyDeck(player) ? (deckName || player.bakugan.map((bakugan) => bakugan.name).join(" • ")) : "Deck not selected"}</p>
                       <div className={styles.readyState} data-ready={player.ready ? "true" : "false"}>
                         <span aria-hidden="true" />{player.ready ? "READY" : "NOT READY"}
                       </div>
@@ -570,7 +584,7 @@ export function LobbyRoomScreen() {
                 </div>
               )}
 
-              {!myDeckFormatMatches ? <p className={styles.deckWarning}>Your current seat deck does not match this lobby format. Select a compatible deck before readying.</p> : null}
+              {me && playerHasChosenLobbyDeck(me) && !myDeckFormatMatches ? <p className={styles.deckWarning}>Your current seat deck does not match this lobby format. Select a compatible deck before readying.</p> : null}
               {myDeckFormatMatches && !myDeckMetaMatches ? <p className={styles.deckWarning}>Your current deck contains cards outside the {metaName(config.meta)} meta. Select a compatible deck before readying.</p> : null}
               {!compatibleDecks.length ? <Link className={styles.createDeckLink} href="/decks">CREATE A COMPATIBLE DECK</Link> : null}
             </section>
