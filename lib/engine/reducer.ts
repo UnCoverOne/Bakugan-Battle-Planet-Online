@@ -22,7 +22,7 @@ import {
   startLobbyMatch,
   updateLobbySettings,
 } from "../lobby";
-import { beginRankedIntermission, rankedSeries, selectRankedDeck, submitRankedBan } from "../ranked-lobby";
+import { beginRankedIntermission, rankedSeries, selectRankedDeck, submitRankedBan, submitRankedRoster } from "../ranked-lobby";
 import { confirmRoll, selectRollTarget } from "../rolling";
 import { drawTurnCard } from "../turnStart";
 import { drawPendingCard } from "../drawQueue";
@@ -130,6 +130,7 @@ function dispatchCommand(input: MatchState, actorId: string, command: GameComman
       if (player) captureOriginalDeckManifest(state, player);
       return state;
     }
+    case "RANKED_SUBMIT_ROSTER": return submitRankedRoster(input, actorId, command.selections);
     case "RANKED_BAN_DECK": return submitRankedBan(input, actorId, command.deckId);
     case "RANKED_SELECT_DECK": return selectRankedDeck(input, actorId, command.deckId, command.restrictions);
     case "BEGIN_CORE_PLACEMENT": return beginCorePlacement(input, issuedAt);

@@ -109,7 +109,8 @@ export function createTrainingLobbyState(
   // Training uses Standard construction even when a saved deck is marked Competitive.
   const normalizedDeck = { ...playerDeck, format: "standard" as const };
   const initialRulesFormat = "standard";
-  const human = tagLobbyPlayerDeck(makePlayer(playerId, playerName, normalizedDeck), normalizedDeck);
+  // An engine-valid temporary deck occupies the seat; the player must explicitly choose a deck in the lobby.
+  const human = tagLobbyPlayerDeck(makePlayer(playerId, playerName, normalizedDeck), normalizedDeck, false);
   const trainingAiDeck = cloneDeck(selectedAiDeck);
   const aiDeck = trainingOpponentDeck(initialRulesFormat, trainingAiDeck, DEFAULT_META);
   const bot = tagLobbyPlayerDeck(makePlayer("training-bot", "Mira Nova • Training AI", aiDeck), aiDeck);

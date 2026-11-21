@@ -2,6 +2,7 @@ import { cloneMatch, setReady, type MatchState, type PlayerState } from "./game"
 import {
   applyLobbyConfig,
   lobbyConfig,
+  playerHasChosenLobbyDeck,
   playerLobbyDeckFormat,
   requiredDeckFormat,
   type LobbyMeta,
@@ -25,7 +26,7 @@ export function lobbyCanStart(state: MatchState) {
   return Boolean(
     state.phase === "lobby"
       && state.players.length === 2
-      && state.players.every((player) => player.ready)
+      && state.players.every((player) => player.ready && playerHasChosenLobbyDeck(player))
       && (!rankedSeries(state) || rankedSeries(state)?.stage === "ready"),
   );
 }
@@ -51,6 +52,7 @@ export function setLobbyReadyOrStart(input: MatchState, playerId: string) {
   if (!player) throw new Error("Unknown player.");
 
   if (!player.ready) {
+    if (!playerHasChosenLobbyDeck(player)) throw new Error("Choose a deck in this lobby before readying.");
     const config = lobbyConfig(input);
     if (!playerAllowedInMeta(player, config.meta)) throw new Error(`Select a deck legal in ${metaName(config.meta)} before readying.`);
     const otherReady = input.players.find((candidate) => candidate.id !== playerId && candidate.ready);
@@ -158,6 +160,7 @@ export function setLobbyReady(input: MatchState, playerId: string, ready: boolea
   if (player.ready === ready) throw new Error(ready ? "You are already ready." : "You are already not ready.");
 
   if (ready) {
+    if (!playerHasChosenLobbyDeck(player)) throw new Error("Choose a deck in this lobby before readying.");
     const config = lobbyConfig(input);
     const required = requiredDeckFormat(config.rulesFormat);
     if (playerLobbyDeckFormat(player) !== required) {

@@ -21,6 +21,7 @@ type ConfiguredMatch = MatchState & {
 type ConfiguredPlayer = PlayerState & {
   lobbyDeckFormat?: LobbyDeckFormat;
   lobbyDeckName?: string;
+  lobbyDeckChosen?: boolean;
 };
 
 const validMode = (value: unknown): value is LobbyMode =>
@@ -53,10 +54,12 @@ export function requiredDeckFormat(rulesFormat: LobbyRulesFormat): LobbyDeckForm
 export function tagLobbyPlayerDeck<T extends PlayerState>(
   player: T,
   deck: { format?: LobbyDeckFormat; name?: string },
+  chosen = true,
 ): T {
   const configured = player as T & ConfiguredPlayer;
   configured.lobbyDeckFormat = deck.format === "singleton" || deck.format === "competitive" ? deck.format : "standard";
   configured.lobbyDeckName = typeof deck.name === "string" ? deck.name : "";
+  configured.lobbyDeckChosen = chosen;
   return player;
 }
 
@@ -65,6 +68,10 @@ export function playerLobbyDeckFormat(player: PlayerState): LobbyDeckFormat {
   return format === "singleton" || format === "competitive" ? format : "standard";
 }
 
+export function playerHasChosenLobbyDeck(player: PlayerState) {
+  return (player as ConfiguredPlayer).lobbyDeckChosen !== false;
+}
+
 export function playerLobbyDeckName(player: PlayerState) {
-  return (player as ConfiguredPlayer).lobbyDeckName ?? "";
+  return playerHasChosenLobbyDeck(player) ? (player as ConfiguredPlayer).lobbyDeckName ?? "" : "";
 }

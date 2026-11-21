@@ -1,5 +1,6 @@
 import type { CardChoices, MatchState, PlayerState } from "../game";
 import type { DeckRestriction } from "../deck-validation";
+import type { CanonicalPlayerSelection } from "../data";
 import type { LobbyMeta } from "../meta-formats";
 import { APPLICATION_VERSION, CARD_CATALOGUE_VERSION, CONTENT_SCHEMA_VERSION, DIGITAL_ADAPTATION_VERSION, GAME_ENGINE_VERSION, RULES_PROFILE_VERSION, type GameVersionProfile } from "../content/versions";
 
@@ -18,6 +19,7 @@ export type GameCommand =
   | { type: "START_MATCH" }
   | { type: "UPDATE_LOBBY_SETTINGS"; rulesFormat: "standard" | "singleton" | "competitive"; meta: LobbyMeta }
   | { type: "UPDATE_LOBBY_DECK"; player: PlayerState }
+  | { type: "RANKED_SUBMIT_ROSTER"; selections: CanonicalPlayerSelection[] }
   | { type: "RANKED_BAN_DECK"; deckId: string }
   | { type: "RANKED_SELECT_DECK"; deckId: string; restrictions: DeckRestriction[] }
   | { type: "BEGIN_CORE_PLACEMENT" }

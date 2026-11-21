@@ -1,4 +1,5 @@
 import type { CardChoices, PlayerState } from "../game";
+import type { CanonicalPlayerSelection } from "../data";
 import type { LobbyMeta } from "../meta-formats";
 import type { GameCommand } from "./types";
 
@@ -8,6 +9,7 @@ export type ApiAction =
   | "start-match"
   | "lobby-settings"
   | "lobby-deck"
+  | "ranked-roster"
   | "ranked-ban"
   | "ranked-select"
   | "begin-placement"
@@ -60,6 +62,7 @@ export function apiActionToCommand(
       meta: stringValue(payload.meta) as LobbyMeta,
     };
     case "lobby-deck": return { type: "UPDATE_LOBBY_DECK", player: payload.player as PlayerState };
+    case "ranked-roster": return { type: "RANKED_SUBMIT_ROSTER", selections: payload.selections as CanonicalPlayerSelection[] };
     case "ranked-ban": return { type: "RANKED_BAN_DECK", deckId: stringValue(payload.deckId) };
     case "ranked-select": return {
       type: "RANKED_SELECT_DECK",

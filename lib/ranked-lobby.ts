@@ -81,7 +81,7 @@ export function initializeRankedLobby(
     restrictions: restrictions.map((restriction) => ({ ...restriction })),
     stage: "deck-lock",
     players: {
-      [playerId]: { userId, displayName, decks: validateThreeDecks(selections, restrictions, deckSize), wonDeckIds: [] },
+      [playerId]: { userId, displayName, decks: selections.length ? validateThreeDecks(selections, restrictions, deckSize) : [], wonDeckIds: [] },
     },
     currentDeckIds: {},
   };
@@ -100,8 +100,24 @@ export function joinRankedLobby(
   const ranked = state.ranked;
   if (!ranked) throw new Error("This is not a Ranked lobby.");
   if (Object.values(ranked.players).some((player) => player.userId === userId)) throw new Error("An account cannot occupy both Ranked seats.");
-  ranked.players[playerId] = { userId, displayName, decks: validateThreeDecks(selections, restrictions, ranked.deckSize ?? 50), wonDeckIds: [] };
-  ranked.stage = "ban";
+  ranked.players[playerId] = { userId, displayName, decks: selections.length ? validateThreeDecks(selections, restrictions, ranked.deckSize ?? 50) : [], wonDeckIds: [] };
+  ranked.stage = Object.values(ranked.players).length === 2 && Object.values(ranked.players).every((player) => player.decks.length === 3) ? "ban" : "deck-lock";
+  return state;
+}
+
+/** Each Ranked roster is locked in the lobby before the ban phase. */
+export function submitRankedRoster(input: MatchState, playerId: string, selections: CanonicalPlayerSelection[]) {
+  const state = cloneMatch(input) as RankedMatchState;
+  const ranked = state.ranked;
+  if (!ranked || state.phase !== "lobby" || ranked.stage !== "deck-lock") throw new Error("Ranked rosters cannot be submitted now.");
+  const player = ranked.players[playerId];
+  if (!player) throw new Error("Unknown Ranked seat.");
+  if (player.decks.length) throw new Error("This Ranked roster is already locked.");
+  if (selections.some((selection) => selection.playerId !== playerId)) throw new Error("You can only submit your own Ranked decks.");
+  player.decks = validateThreeDecks(selections, ranked.restrictions, ranked.deckSize ?? 50);
+  if (Object.values(ranked.players).length === 2 && Object.values(ranked.players).every((candidate) => candidate.decks.length === 3)) ranked.stage = "ban";
+  state.version += 1;
+  state.log.push({ id: `${Date.now()}-ranked-roster-${state.version}`, at: Date.now(), kind: "system", message: `${state.players.find((seat) => seat.id === playerId)?.name ?? "Brawler"} locked a Ranked roster.` });
   return state;
 }
 

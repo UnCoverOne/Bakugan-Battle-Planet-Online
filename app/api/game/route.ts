@@ -174,7 +174,7 @@ const encoder = new TextEncoder();
 const COMMAND_ID_HEADER = "x-command-id";
 const ACTIONS = new Set([
   "create", "join", "get", "ready", "lobby-ready", "start-match", "lobby-settings", "lobby-deck",
-  "ranked-ban", "ranked-select",
+  "ranked-roster", "ranked-ban", "ranked-select",
   "begin-placement", "place", "draw", "energize", "tap-energy", "select", "target", "roll", "reroll",
   "prepare-play", "play", "choice", "cancel-choice", "order-triggers", "pass", "complete-coin-flip", "flip-damage", "damage",
   "hand-limit", "chat", "concede", "next-turn", "ack-game-result", "undo",
@@ -258,6 +258,7 @@ async function commandIdentity(request: Request, body: Body, code: string, playe
     action: body.action,
     format: body.format,
     selection: body.selection,
+    rankedDecks: body.rankedDecks,
     payload: body.payload ?? {},
   }));
   const supplied = body.commandId ?? request.headers.get(COMMAND_ID_HEADER);
@@ -425,7 +426,6 @@ export async function POST(request: Request) {
       const account = await getSessionUser(request);
       if (requestedRanked && !account) throw new AuthorizationError("Sign in to create a Ranked lobby.");
       if (requestedRanked && body.format !== "bo3") throw new ValidationError("Ranked is locked to Best of Three.");
-      if (requestedRanked && body.rankedDecks?.[0]?.deck.id !== body.selection.deck.id) throw new ValidationError("The active Ranked deck must be one of the submitted decks.");
       const ruleset = requestedRanked ? await getActiveRankedRuleset(database) : null;
       const submittedSelection = requestedRanked ? { ...body.selection, name: account!.displayName } : body.selection;
       const effectiveSelection = canonicalSelectionForFormat(submittedSelection, requestedRanked ? "competitive" : "standard");
@@ -434,6 +434,7 @@ export async function POST(request: Request) {
           ? makeCanonicalPlayerWithRestrictions(effectiveSelection, ruleset!.restrictions, ruleset!.deckSize)
           : makeCanonicalPlayer(effectiveSelection),
         effectiveSelection.deck,
+        false,
       );
       const issuedAt = Date.now();
       const identity = await commandIdentity(request, body, "NEW", player.id, 0);
@@ -550,7 +551,6 @@ export async function POST(request: Request) {
       const account = await getSessionUser(request);
       if (ranked && !account) throw new AuthorizationError("Sign in to join a Ranked lobby.");
       if (ranked && body.format !== "bo3") throw new ValidationError("Ranked is locked to Best of Three.");
-      if (ranked && body.rankedDecks?.[0]?.deck.id !== body.selection.deck.id) throw new ValidationError("The active Ranked deck must be one of the submitted decks.");
       if (!ranked && body.rankedDecks) throw new ValidationError("This is not a Ranked lobby.");
       const submittedSelection = ranked ? { ...body.selection, name: account!.displayName } : body.selection;
       const requiredFormat = requiredDeckFormat(lobbyConfig(state).rulesFormat);
@@ -558,6 +558,7 @@ export async function POST(request: Request) {
       const player = tagLobbyPlayerDeck(
         ranked ? makeCanonicalPlayerWithRestrictions(effectiveSelection, ranked.restrictions, ranked.deckSize ?? 50) : makeCanonicalPlayer(effectiveSelection),
         effectiveSelection.deck,
+        false,
       );
       if (account) {
         const occupied = await (await getDatabase()).prepare(
@@ -655,6 +656,12 @@ export async function POST(request: Request) {
     if (expectedVersion !== state.version) return latestConflict(code, body.playerId, correlationId);
 
     let payload = body.payload ?? {};
+    if (body.action === "ranked-roster") {
+      if (!rankedSeries(state)) throw new ValidationError("Ranked rosters can only be submitted in Ranked lobbies.");
+      if (!body.rankedDecks) throw new ValidationError("Select exactly three Ranked decks.");
+      const seatName = state.players.find((candidate) => candidate.id === body.playerId)?.name ?? "";
+      payload = { ...payload, selections: body.rankedDecks.map((selection) => ({ ...selection, name: seatName })) };
+    }
     if (body.action === "lobby-deck") {
       if (rankedSeries(state)) throw new ValidationError("Ranked deck changes use the locked series selection.");
       if (!body.selection) throw new ValidationError("Canonical player selection required.");
