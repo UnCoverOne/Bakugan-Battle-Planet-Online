@@ -60,10 +60,8 @@
 }
 .section {
   padding: 21px 0 15px;
-  border-bottom: 1px solid var(--bb-border-row);
   scroll-margin-top: 200px;
 }
-.section:last-child { border-bottom: 0; }
 .sectionHeader { margin: 0 0 11px; }
 .sectionHeader h3 {
   margin: 0;

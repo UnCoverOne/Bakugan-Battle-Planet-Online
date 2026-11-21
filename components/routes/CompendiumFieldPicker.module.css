@@ -3,7 +3,7 @@
   position:relative;
   display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:4px;
   width:100%;min-height:66px;padding:7px 12px;
-  border:1px solid var(--bb-border);background:var(--bb-panel);color:var(--bb-text);
+  border:1px solid transparent;background:var(--bb-panel);color:var(--bb-text);
   text-align:left;cursor:pointer;
 }
 .trigger:hover,.trigger[aria-expanded="true"]{background:var(--bb-panel-hover);border-color:var(--bb-border-hover)}

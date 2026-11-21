@@ -14,7 +14,7 @@
 .iconGrid { grid-template-columns:repeat(auto-fit,minmax(min(100%,165px),1fr));
   column-gap:clamp(12px,1.6vw,22px); grid-auto-rows:1fr; align-items:stretch; }
 .entry, .iconEntry { display:flex; flex-direction:column; min-width:0; gap:9px;
-  padding:15px 0 17px; border-bottom:1px solid var(--bb-border-row);
+  padding:15px 0 17px;
   scroll-margin-top:200px; overflow-wrap:break-word; }
 .iconEntry { height:100%; box-sizing:border-box; }
 .entry:target, .iconEntry:target { outline:2px solid var(--bb-focus); outline-offset:-2px; }

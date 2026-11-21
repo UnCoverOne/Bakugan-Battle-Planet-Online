@@ -2,7 +2,7 @@
 .navigation {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 2px;
+  gap: 0;
   width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
   margin: 0 auto;
   min-width: 0;
@@ -20,9 +20,9 @@
   height: 56px;
   padding: 4px 0;
   border: 0;
-  border-bottom: 3px solid var(--bb-border);
+  border-bottom: 3px solid transparent;
   border-radius: 0;
-  background: var(--bb-nav);
+  background: transparent;
   color: var(--bb-muted);
   font: 600 13px/1 var(--bb-font-interface);
   cursor: pointer;
@@ -40,7 +40,6 @@
   .button:not([aria-current="page"]):hover {
     background: var(--bb-panel-hover);
     color: var(--bb-text);
-    border-bottom-color: var(--bb-border-hover);
   }
 }
 .button:focus-visible { outline: 2px solid var(--bb-focus); outline-offset: -3px; z-index: 1; }
