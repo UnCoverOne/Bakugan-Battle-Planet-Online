@@ -312,13 +312,13 @@ test("public deck details expose creator identity through the established Brawle
 test("all legality boundaries delegate to the centralized engine", async () => {
   const [data, play, server, decks] = await Promise.all([
     read("lib/data.ts"),
-    read("components/routes/PlayRoutes.tsx"),
+    read("components/routes/MatchCreationScreen.tsx"),
     read("lib/user-data-server.ts"),
     deckRouteSource(),
   ]);
   assert.match(data, /validateDeckConstruction/);
-  assert.match(play, /validateDeck\(chosenDeck\)/);
-  assert.match(play, /playSetupStartBlockers/);
+  assert.match(play, /deckIsLegalForFormat\(deck, "standard"\)/);
+  assert.match(play, /deckIsLegalForFormat\(deck, "competitive"/);
   assert.match(server, /validateDeck\(deck as unknown as DeckRecord\)/);
   assert.match(server, /firstIssue\.code/);
   assert.match(decks, /const report = useMemo\(\(\) => validateDeck\(deck(?:,|\))/);

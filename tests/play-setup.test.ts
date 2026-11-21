@@ -1,4 +1,3 @@
-import { deckRouteSource } from "./route-source";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -95,34 +94,16 @@ test("session restoration preserves choices but never restores a stale launch st
   assert.equal(normalizeRoomCode("bpo1-7k3m"), "BP7K3M");
 });
 
-test("the Play route distinguishes starting training from creating or joining a room", async () => {
-  const [route, css, decks] = await Promise.all([
-    readFile(new URL("../components/routes/PlayRoutes.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../components/routes/PlayRoutes.module.css", import.meta.url), "utf8"),
-    Promise.resolve(deckRouteSource()),
+test("active Play route defers deck choice and Ranked roster locking to the lobby", async () => {
+  const [page, creation, lobby] = await Promise.all([
+    readFile(new URL("../app/(workspace)/play/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/routes/MatchCreationScreen.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/routes/StreamlinedLobbyRoomScreen.tsx", import.meta.url), "utf8"),
   ]);
-  for (const contract of [
-    "Mode",
-    "Loadout",
-    "Ready",
-    "playSetupReducer",
-    "playSetupStartBlockers",
-    "LoadoutVisual",
-    "Six BakuCores",
-    "Create Room",
-    "Join Room",
-    "Connection failed",
-    "Authentication failed",
-    "Creating private room…",
-    "Joining room",
-  ]) assert.match(route, new RegExp(contract.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  assert.match(route, /setup\.mode === "solo" \? "START MATCH" : setup\.mode === "online" \? "CREATE ROOM" : "JOIN ROOM"/);
-  assert.match(route, /setup\.mode === "solo" \? "Start Match" : setup\.mode === "online" \? "Create Room" : "Join Room"/);
-  assert.doesNotMatch(route, /deckLeadCard|confirmation-lead/);
-  assert.match(route, /cardArtSource\(character\.character,\s*"full"\)/);
-  assert.match(route, /returnTo=.*step=loadout/);
-  assert.match(css, /\.launchDock\s*\{[^}]*position:\s*fixed/s);
-  assert.match(css, /\.stepRail/);
-  assert.match(decks, /router\.push\(returnTo \?\?/);
-  assert.match(decks, /← Match setup/);
+  assert.match(page, /MatchCreationScreen/);
+  assert.match(creation, /Create Lobby/);
+  assert.match(creation, /Join Lobby/);
+  assert.doesNotMatch(creation, /setSelectedDeckId|rankedDeckIds/);
+  assert.match(lobby, /Select your deck/);
+  assert.match(lobby, /ranked-roster/);
 });

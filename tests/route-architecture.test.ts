@@ -93,7 +93,7 @@ test("both completed-match exits share guarded persistence and result rendering 
   const gameplay = source("components/game-screen-v2/GameplayClient.tsx");
   const store = source("components/game-screen-v2/matchStore.ts");
   const provider = source("components/application/AppProvider.jsx");
-  const routes = source("components/routes/PlayRoutes.tsx");
+  const routes = source("app/(workspace)/play/page.tsx");
 
   assert.match(coordinator, /finalizeCompletedMatchExit\(\)/);
   assert.match(gameplay, /finalizeCompletedMatchExit\(\)/);
@@ -101,7 +101,6 @@ test("both completed-match exits share guarded persistence and result rendering 
   assert.match(store, /persistCurrentMatch\(\)/);
   assert.match(store, /writeStorage\(localStorage, ROUTE_KEY, "result"\)/);
   assert.match(provider, /addEventListener\(MATCH_UPDATE_EVENT, listener\)/);
-  assert.match(routes, /match\.phase !== "result"/);
-  assert.match(routes, /history\.find\(\(record: any\) => record\.id === recordId\)/);
-  assert.doesNotMatch(routes, /replay \?\? history|history\[0\]/);
+  assert.match(routes, /MatchCreationScreen/);
+  assert.doesNotMatch(routes, /PlayRoutes/);
 });

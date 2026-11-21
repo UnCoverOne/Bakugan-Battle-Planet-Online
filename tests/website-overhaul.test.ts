@@ -162,7 +162,7 @@ test("secondary routes use shared primitives and route-owned CSS Modules", () =>
   for (const primitive of ["Surface", "RouteHero", "ActionButton", "StatusChip", "Tabs", "Field", "CardGrid"]) {
     assert.match(primitives, new RegExp(`export function ${primitive}`));
   }
-  for (const route of ["DeckRoutes", "PlayRoutes", "CompendiumScreen"]) {
+  for (const route of ["DeckRoutes", "MatchCreationScreen", "CompendiumScreen"]) {
     assert.equal(existsSync(`components/routes/${route}.module.css`), true);
     assert.match(route === "DeckRoutes" ? deckRouteSource() : source(`components/routes/${route}.tsx`), new RegExp(`import styles from ["']\\.\\/${route}\\.module\\.css["']`));
   }
@@ -173,13 +173,13 @@ test("secondary routes use shared primitives and route-owned CSS Modules", () =>
 });
 
 test("large secondary-route card scans use lossless full assets", () => {
-  const play = source("components/routes/PlayRoutes.tsx");
+  const play = source("components/routes/StreamlinedLobbyRoomScreen.tsx");
   const compendium = source("components/routes/CompendiumScreen.tsx");
   const responsiveCardImage = source("components/cards/ResponsiveCardImage.tsx");
   const gameplayCardImage = source("components/game-screen-v2/ResponsiveCardImage.tsx");
   const originalImage = source("components/media/OriginalImage.tsx");
   const decks = deckRouteSource();
-  assert.doesNotMatch(play, /cardArtSource\([^)]*,\s*"thumbnail"\)/);
+  assert.match(play, /cardArtSource\(card, "full"\)/);
   assert.match(compendium, /ResponsiveCardImage/);
   assert.match(responsiveCardImage, /const full = cardArtSource\(card,\s*"full"\)/);
   assert.match(responsiveCardImage, /<CardArt/);
