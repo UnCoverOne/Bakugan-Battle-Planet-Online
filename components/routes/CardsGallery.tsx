@@ -1,6 +1,7 @@
 "use client";
 
 import type { GameCard } from "../../lib/game";
+import type { ReactNode } from "react";
 import type { CompendiumDensity } from "../../lib/compendium";
 import { CARD_SET_INFO, cardSetCode } from "../../lib/content/catalogue";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
@@ -14,38 +15,42 @@ type CardsGalleryProps = {
   density: CompendiumDensity;
   selectedId?: string;
   onSelect: (card: GameCard, trigger: HTMLButtonElement) => void;
+  /** Optional builder controls are outside the artwork/inspect button. */
+  renderControls?: (card: GameCard) => ReactNode;
+  resolveCard?: (card: GameCard) => GameCard;
 };
 
 /** The Cards catalogue's two visual modes, independent of BakuCores and the inspector. */
-export function CardsGallery({ cards, density, selectedId, onSelect }: CardsGalleryProps) {
+export function CardsGallery({ cards, density, selectedId, onSelect, renderControls, resolveCard }: CardsGalleryProps) {
   const compact = density === "compact";
 
   return <div data-ui="card-grid" data-cards-gallery data-cards-view={compact ? "compact" : "detailed"}
     className={`${styles.gallery} ${compact ? styles.compact : ""}`}
     aria-label={compact ? "Compact card previews" : "Detailed card previews"}>
     {cards.map(card => {
-      const factions = [...new Set(card.factions.length ? card.factions : [card.faction])];
-      const set = cardSetCode(card);
+      const displayed = resolveCard?.(card) ?? card;
+      const factions = [...new Set(displayed.factions.length ? displayed.factions : [displayed.faction])];
+      const set = cardSetCode(displayed);
       const setName = CARD_SET_INFO[set].name;
-      const rolling = bakuganRollingValues(card);
+      const rolling = bakuganRollingValues(displayed);
 
-      return <button key={card.catalogId} type="button" className={styles.tile}
-        aria-label={`Inspect ${card.displayName}, ${factions.join(" / ")}, ${card.type}, ${setName}${rolling ? `, Roll Accuracy ${rolling.rollAccuracy}%, Double Core Chance ${rolling.doubleCoreChance}%` : ""}`}
-        aria-pressed={selectedId === card.catalogId}
-        onClick={event => onSelect(card, event.currentTarget)}>
+      const tile = <button key={card.catalogId} type="button" className={styles.tile}
+        aria-label={`Inspect ${displayed.displayName}, ${factions.join(" / ")}, ${displayed.type}, ${setName}${rolling ? `, Roll Accuracy ${rolling.rollAccuracy}%, Double Core Chance ${rolling.doubleCoreChance}%` : ""}`}
+        aria-pressed={selectedId === displayed.catalogId}
+        onClick={event => onSelect(displayed, event.currentTarget)}>
         <span className={styles.artwork} data-card-preview>
-          <ResponsiveCardImage card={card} presentation="tile" alt="" />
+          <ResponsiveCardImage card={displayed} presentation="tile" alt="" />
         </span>
         {!compact && <span className={styles.details} data-card-details>
-          <strong className={styles.name} data-card-name title={card.displayName}>{card.displayName}</strong>
+          <strong className={styles.name} data-card-name title={displayed.displayName}>{displayed.displayName}</strong>
           <span className={`${styles.metadata} ${rolling ? styles.metadataWithRolling : ""}`} data-card-meta>
             <span className={styles.factions} aria-label={factions.join(" / ")}>
               {factions.map(faction => <CardFactionTag key={faction} faction={faction} />)}
             </span>
             <span className={`${styles.tag} ${styles.typeTag}`}
-              title={card.type === "Character" ? "Character Card" : card.type}
-              aria-label={card.type === "Character" ? "Character Card" : card.type}>
-              {card.type === "Character" ? "CC" : card.type}
+              title={displayed.type === "Character" ? "Character Card" : displayed.type}
+              aria-label={displayed.type === "Character" ? "Character Card" : displayed.type}>
+              {displayed.type === "Character" ? "CC" : displayed.type}
             </span>
             <span className={styles.tag} title={setName} aria-label={setName}>{set}</span>
             {rolling && <>
@@ -55,6 +60,7 @@ export function CardsGallery({ cards, density, selectedId, onSelect }: CardsGall
           </span>
         </span>}
       </button>;
+      return renderControls ? <div key={card.catalogId} className={styles.entry}>{tile}{renderControls(displayed)}</div> : tile;
     })}
   </div>;
 }

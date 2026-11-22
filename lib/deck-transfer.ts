@@ -6,7 +6,7 @@ export const DECK_CODE_PREFIX = "BBP1.";
 type DeckCodePayload = {
   schema: 1;
   exportedAt: string;
-  deck: Pick<DeckRecord, "name" | "bakuganIds" | "coreIds" | "cardIds" | "visibility" | "format" | "leadCardId" | "description">;
+  deck: Pick<DeckRecord, "name" | "bakuganIds" | "coreIds" | "cardIds" | "visibility" | "format" | "leadCardId" | "description" | "printingPreferences">;
 };
 
 const textEncoder = new TextEncoder();
@@ -43,6 +43,21 @@ function cleanIds(value: unknown, label: string, allowed: Set<string>, exact?: n
   return ids;
 }
 
+function cleanDeckPrintingPreferences(value: unknown): Record<string, string> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const result: Record<string, string> = {};
+  const entries = Object.entries(value);
+  if (entries.length > 120) return undefined;
+  for (const [key, id] of entries) {
+    if (key.length > 300 || typeof id !== "string" || id.length > 160) continue;
+    if (key.startsWith("card:") && CARD_BY_ID.has(id)) result[key] = id;
+    else if (key.startsWith("core:") && CORES.some(core =>
+      key === `core:${core.id}` && (id === (core.catalogId ?? core.id) || core.printings?.some(print => print.id === id))
+    )) result[key] = id;
+  }
+  return Object.keys(result).length ? result : undefined;
+}
+
 export function encodeDeckCode(deck: DeckRecord) {
   const payload: DeckCodePayload = {
     schema: 1,
@@ -56,6 +71,7 @@ export function encodeDeckCode(deck: DeckRecord) {
       format: deck.format ?? "standard",
       leadCardId: deck.leadCardId,
       description: deck.description,
+      printingPreferences: deck.printingPreferences,
     },
   };
   return `${DECK_CODE_PREFIX}${bytesToBase64Url(textEncoder.encode(JSON.stringify(payload)))}`;
@@ -91,6 +107,7 @@ export function decodeDeckCode(code: string, createId: () => string): DeckRecord
     revision: 1,
     leadCardId: typeof payload.deck.leadCardId === "string" && payload.deck.cardIds.includes(payload.deck.leadCardId) ? payload.deck.leadCardId : payload.deck.cardIds[0],
     description: typeof payload.deck.description === "string" ? payload.deck.description.slice(0, 500) : undefined,
+    printingPreferences: cleanDeckPrintingPreferences(payload.deck.printingPreferences),
   };
 }
 

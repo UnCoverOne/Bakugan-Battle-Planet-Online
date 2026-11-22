@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Core } from "../../lib/game";
 import type { CoreCompendiumDensity } from "../../lib/compendium";
 import { coreEffects, coreForSet, type CoreEffect } from "../../lib/core-preview";
@@ -14,6 +14,8 @@ type CoresGalleryProps = {
   density: CoreCompendiumDensity;
   selectedId?: string;
   onSelect: (core: Core, trigger: HTMLButtonElement) => void;
+  renderControls?: (core: Core) => ReactNode;
+  resolveCore?: (core: Core) => Core;
 };
 
 /** Keep every effect on one line; replace whole hidden tags with a +N badge. */
@@ -66,18 +68,20 @@ function EffectStrip({ effects }: { effects: readonly CoreEffect[] }) {
   </span>;
 }
 
-function CoreTile({ core, selectedSets, compact, selected, onSelect }: {
+function CoreTile({ core, selectedSets, compact, selected, onSelect, renderControls, resolveCore }: {
   core: Core;
   selectedSets: readonly string[];
   compact: boolean;
   selected: boolean;
   onSelect: CoresGalleryProps["onSelect"];
+  renderControls?: CoresGalleryProps["renderControls"];
+  resolveCore?: CoresGalleryProps["resolveCore"];
 }) {
-  const displayedCore = coreForSet(core, selectedSets);
+  const displayedCore = resolveCore?.(core) ?? coreForSet(core, selectedSets);
   const effects = useMemo(() => coreEffects(core), [core]);
   const setName = displayedCore.set ?? "Battle Brawlers";
   const setCode = setName === "Armored Alliance" ? "AA" : "BB";
-  return <button type="button" className={styles.tile} aria-pressed={selected}
+  const tile = <button type="button" className={styles.tile} aria-pressed={selected}
     aria-label={`Inspect ${core.type}, ${setName} #${displayedCore.number}${effects.length ? ", " + effects.map((effect) => effect.label).join("; ") : ""}`}
     onClick={(event) => onSelect(core, event.currentTarget)}>
     <span className={styles.artwork} data-core-preview>
@@ -93,15 +97,17 @@ function CoreTile({ core, selectedSets, compact, selected, onSelect }: {
       </span>
     </span>}
   </button>;
+  return renderControls ? <div className={styles.entry}>{tile}{renderControls(core)}</div> : tile;
 }
 
 /** BakuCore-specific gallery with the same frameless density modes as Cards. */
-export function CoresGallery({ cores, selectedSets, density, selectedId, onSelect }: CoresGalleryProps) {
+export function CoresGallery({ cores, selectedSets, density, selectedId, onSelect, renderControls, resolveCore }: CoresGalleryProps) {
   const compact = density === "compact";
   return <div className={`${styles.gallery} ${compact ? styles.compact : ""}`}
     data-ui="core-grid" data-cores-gallery data-cores-view={compact ? "compact" : "detailed"}
     aria-label={compact ? "Compact BakuCore previews" : "Detailed BakuCore previews"}>
     {cores.map((core) => <CoreTile key={core.id} core={core} selectedSets={selectedSets} compact={compact}
-      selected={selectedId === core.id} onSelect={onSelect} />)}
+      selected={selectedId === core.id} onSelect={onSelect}
+      renderControls={renderControls} resolveCore={resolveCore} />)}
   </div>;
 }

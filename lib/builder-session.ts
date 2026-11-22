@@ -18,7 +18,7 @@ export const builderBase = (deck?: DeckRecord) => deck ? JSON.stringify({
   id: deck.id, name: deck.name, description: deck.description, visibility: deck.visibility,
   format: deck.format, revision: deck.revision, updatedAt: deck.updatedAt,
   bakuganIds: deck.bakuganIds, coreIds: deck.coreIds, cardIds: deck.cardIds,
-  leadCardId: deck.leadCardId, notes: deck.notes, tags: deck.tags,
+  leadCardId: deck.leadCardId, printingPreferences: deck.printingPreferences, notes: deck.notes, tags: deck.tags,
 }) : "";
 
 export function shouldConfirmBuilderExit(deck: DeckRecord, saved?: DeckRecord) {

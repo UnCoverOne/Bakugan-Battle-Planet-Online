@@ -257,6 +257,8 @@ export type DeckRecord = {
   bakuganIds: string[];
   coreIds: string[];
   cardIds: string[];
+  /** Preferred artwork for each shared card identity or canonical BakuCore. */
+  printingPreferences?: Record<string, string>;
   updatedAt: string;
   visibility: "Draft" | "Private" | "Public";
   format?: DeckFormat;

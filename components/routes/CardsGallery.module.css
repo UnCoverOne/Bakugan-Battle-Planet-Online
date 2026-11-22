@@ -189,3 +189,6 @@
 @media (prefers-reduced-motion: reduce) {
   .artwork::after { transition: none; }
 }
+
+/* Builder-only extension: retain every Compendium tile and metadata detail. */
+.entry{min-width:0;display:grid;align-content:start;gap:7px}

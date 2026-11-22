@@ -175,3 +175,6 @@
 @media (prefers-reduced-motion: reduce) {
   .artwork::after { transition: none; }
 }
+
+/* Builder-only extension, without changing the Compendium presentation. */
+.entry{min-width:0;display:grid;align-content:start;gap:7px}
