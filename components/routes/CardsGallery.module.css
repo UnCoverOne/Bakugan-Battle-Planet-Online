@@ -45,6 +45,10 @@
   max-width: 100%;
   object-fit: contain;
   object-position: center;
+  /* Clip the visible gallery image and its sheen identically, including in the
+     clean-slate shell where legacy card-art-transparency.css is not imported. */
+  border-radius: 4.6% / 3.3%;
+  clip-path: inset(0.85% round 4.6% / 3.3%);
 }
 /* Light travels diagonally over the preview; the card and metadata never move. */
 .artwork::after {

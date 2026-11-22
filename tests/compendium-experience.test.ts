@@ -838,7 +838,8 @@ test("Card and BakuCore gallery hover effects follow the physical artwork silhou
   const roundedClip = "clip-path: inset(0.85% round 4.6% / 3.3%)";
   const hexClip = "clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)";
   assert.ok(cardImage.includes(roundedClip));
-  assert.ok(cards.includes(roundedClip));
+  assert.equal(cards.split(roundedClip).length - 1, 2,
+    "Both the active gallery image and its sheen must use the same clip");
   assert.ok(cores.includes(hexClip));
   assert.match(cards, /\.tile:focus-visible \.artwork::before/);
   assert.match(cores, /\.tile:focus-visible \.artwork > span/);
