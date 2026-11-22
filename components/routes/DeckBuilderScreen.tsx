@@ -33,6 +33,7 @@ import styles from "./DeckBuilder.module.css";
 import { CardsGallery } from "./CardsGallery";
 import { CoresGallery } from "./CoresGallery";
 import { MotionValue } from "../design-system/MotionValue";
+import { LucideIcon } from "../design-system/LucideIcon";
 import { builderScope, builderBase, readBuilderDraft, writeBuilderDraft, setActiveBuilder, clearBuilderDraft, shouldConfirmBuilderExit, type BuilderDraft } from "../../lib/builder-session";
 import { useCompetitiveRules, clone, blankDraft, DeckState } from "./DeckRouteShared";
 
@@ -636,7 +637,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   return (
     <section className={styles.builder} data-ui="deck-builder">
       <header className={styles.header}>
-        <Link href={returnTo ?? "/decks"} onClick={exitBuilder} className={styles.back} aria-label="Back to decks">←</Link>
+        <Link href={returnTo ?? "/decks"} onClick={exitBuilder} className={styles.back} aria-label="Back to decks"><LucideIcon name="arrow-left" /></Link>
         <input className={styles.deckName} aria-label="Deck name" value={saveName} maxLength={60}
           onChange={event => setSaveName(event.target.value)} />
         <select className={styles.format} aria-label="Deck format" value={deck.format ?? "standard"}
@@ -646,7 +647,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
         {saveState === "error" && <span className={styles.saveError} role="status" title={storageHealth.message}>Draft unavailable</span>}
         <button type="button" className={styles.saveButton} onClick={openSaveDialog}
           title={report.isLegal ? "Deck is legal" : report.issues.map(issue => issue.message).join("\n")}>
-          <span aria-hidden="true" className={report.isLegal ? styles.legal : styles.unready}>{report.isLegal ? "✓" : "!"}</span>
+          <span className={report.isLegal ? styles.legal : styles.unready}><LucideIcon name={report.isLegal ? "check" : "circle-alert"} size={16} /></span>
           Save
         </button>
       </header>
@@ -671,7 +672,9 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
               onSort={() => setActiveMenu({ surface: "gallery", panel: "sort" })} />
             <button type="button" className={styles.density} aria-label={galleryDensity === "detailed" ? "Compact cards" : "Detailed cards"}
               title={galleryDensity === "detailed" ? "Compact cards" : "Detailed cards"}
-              onClick={() => setGalleryDensity(value => value === "detailed" ? "compact" : "detailed")}>▦</button>
+              onClick={() => setGalleryDensity(value => value === "detailed" ? "compact" : "detailed")}>
+              <LucideIcon name={galleryDensity === "detailed" ? "layout-list" : "layout-grid"} />
+            </button>
           </div>
           <BuilderActiveFilterChips ariaLabel="Active filters" filters={galleryFilters} facets={galleryFilterFacets}
             options={galleryFilterOptions} factionLabel={factionFilterAuto ? "Team faction" : undefined}
@@ -701,10 +704,10 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
             <span>{galleryPagination.start}–{galleryPagination.end} of {galleryItems.length}</span>
             <div>
               <button type="button" disabled={galleryPagination.page === 1} onClick={() => changeGalleryPage(galleryPagination.page - 1)}
-                aria-label="Previous page">‹</button>
+                aria-label="Previous page"><LucideIcon name="chevron-left" /></button>
               <span>{galleryPagination.page} / {galleryPagination.pageCount}</span>
               <button type="button" disabled={galleryPagination.page === galleryPagination.pageCount}
-                onClick={() => changeGalleryPage(galleryPagination.page + 1)} aria-label="Next page">›</button>
+                onClick={() => changeGalleryPage(galleryPagination.page + 1)} aria-label="Next page"><LucideIcon name="chevron-right" /></button>
             </div>
           </nav>}
         </section>
@@ -712,7 +715,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
         <aside className={`${styles.deck} ${builderView !== "deck" ? styles.mobileHidden : ""}`} aria-label="Current deck">
           <div className={styles.sectionHeading}>
             <h2>Team</h2>
-            <span>{deck.bakuganIds.length}/3 · ◇ {deck.coreIds.length}/6</span>
+            <span>{deck.bakuganIds.length}/3 <span aria-hidden="true">·</span> <LucideIcon name="hexagon" size={14} /> {deck.coreIds.length}/6</span>
           </div>
           <div className={styles.teamGrid}>
             {Array.from({ length: 3 }, (_, index) => {
@@ -726,10 +729,10 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                       <BakuganRollingOverlay card={character.character} />
                     </button>
                     <button type="button" className={styles.removeCharacter} onClick={() => toggleCharacter(character.id)}
-                      aria-label={`Remove ${character.name}`}>×</button>
+                      aria-label={`Remove ${character.name}`}><LucideIcon name="x" size={17} /></button>
                   </div>
                   : <button type="button" className={styles.emptyCharacter}
-                    aria-label="Add Character" onClick={() => { setGalleryQuery(""); changeGalleryCategory("characters"); setBuilderView("gallery"); }}>＋</button>}
+                    aria-label="Add Character" onClick={() => { setGalleryQuery(""); changeGalleryCategory("characters"); setBuilderView("gallery"); }}><LucideIcon name="plus" size={28} /></button>}
                 <div className={styles.pairedCores}>
                   {[0, 1].map(offset => {
                     const slot = index * 2 + offset;
@@ -742,12 +745,12 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                         <button type="button" title={type && core.type !== type ? `Requires ${type}` : core.name} aria-label={`Inspect ${core.name}`}
                           onClick={() => inspectCore(core.id)}><BakuCoreArt core={displayCore} alt={core.name} /></button>
                         <button type="button" className={styles.removeCore} onClick={() => adjustCore(core.id, -1)}
-                          aria-label={`Remove ${core.name}`}>×</button>
+                          aria-label={`Remove ${core.name}`}><LucideIcon name="x" size={14} /></button>
                       </div>
                     : <button type="button" className={styles.emptyCore} key={slot} disabled={!type}
                         title={type ?? "Select a Character"} aria-label={type ? `Choose ${type} BakuCore` : "Select a Character first"}
                         onClick={() => { if (type) chooseCoreSlot(type); }}>
-                        {type ? <BakuCoreBack type={type} /> : "＋"}
+                        {type ? <BakuCoreBack type={type} /> : <LucideIcon name="plus" size={18} />}
                       </button>;
                   })}
                 </div>
@@ -763,7 +766,9 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
               filterCount={activeDeckFilterCount} onFilter={() => setActiveMenu({ surface: "deck", panel: "filter" })}
               onSort={() => setActiveMenu({ surface: "deck", panel: "sort" })} />
             <button type="button" className={styles.density} aria-label={galleryDensity === "detailed" ? "Compact cards" : "Detailed cards"}
-              onClick={() => setGalleryDensity(value => value === "detailed" ? "compact" : "detailed")}>▦</button>
+              onClick={() => setGalleryDensity(value => value === "detailed" ? "compact" : "detailed")}>
+              <LucideIcon name={galleryDensity === "detailed" ? "layout-list" : "layout-grid"} />
+            </button>
           </div>}
           <BuilderActiveFilterChips ariaLabel="Main Deck filters" filters={deckFilters}
             facets={BUILDER_MAIN_DECK_FILTER_FACETS} options={cardFilterOptions} onChange={setDeckFilters} />
@@ -778,7 +783,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                 restriction={cardControls.restrictionLabel(card.catalogId)} issue={issueForCard(card)}
                 onAdd={() => adjustCard(card.catalogId, 1)} onRemove={() => adjustCard(card.catalogId, -1)} />} />
             : <div className={styles.empty}>
-              {deck.cardIds.length ? "No matches" : <button type="button" onClick={() => { setGalleryQuery(""); changeGalleryCategory("cards"); setBuilderView("gallery"); }}>＋ Add cards</button>}
+              {deck.cardIds.length ? "No matches" : <button type="button" onClick={() => { setGalleryQuery(""); changeGalleryCategory("cards"); setBuilderView("gallery"); }}><LucideIcon name="plus" size={17} /> Add cards</button>}
             </div>}
         </aside>
       </div>
@@ -908,10 +913,11 @@ function BuilderToolbar({
     <div className={styles.builderToolbar} role="search" aria-label={`${label} tools`}>
       <label>
         <span className={styles.srOnly}>Search {label}</span>
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${label.toLowerCase()}…`} />
+        <LucideIcon name="search" size={18} className={styles.searchIcon} />
+        <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${label.toLowerCase()}…`} />
       </label>
-      <button type="button" onClick={onSort} aria-label={`Sort ${label}`}>↕ <span>Sort</span></button>
-      <button type="button" onClick={onFilter} aria-label={`Filter ${label}`}>◇ <span>Filter{filterCount ? ` (${filterCount})` : ""}</span></button>
+      <button type="button" onClick={onSort} aria-label={`Sort ${label}`}><LucideIcon name="arrow-down-up" size={19} /> <span>Sort</span></button>
+      <button type="button" onClick={onFilter} aria-label={`Filter ${label}`}><LucideIcon name="sliders-horizontal" size={19} /> <span>Filter{filterCount ? ` (${filterCount})` : ""}</span></button>
     </div>
   );
 }
@@ -946,7 +952,7 @@ function BuilderActiveFilterChips({
               [facet]: filters[facet].filter((candidate) => candidate !== value),
             }, facet)}
           >
-            {facetLabel}: {option?.label ?? value} ×
+            {facetLabel}: {option?.label ?? value} <LucideIcon name="x" size={13} />
           </button>
         );
       }))}
@@ -964,10 +970,10 @@ function BuilderQuantity({ name, count, canAdd, canRemove, onAdd, onRemove, rest
 }) {
   return <div className={styles.quantity} role="group" aria-label={`Copies of ${name}${issue ? `; ${issue}` : ""}`}
     data-invalid={issue ? "true" : undefined} title={issue}>
-    <button type="button" onClick={onRemove} disabled={!canRemove} aria-label={`Remove ${name}`}>−</button>
+    <button type="button" onClick={onRemove} disabled={!canRemove} aria-label={`Remove ${name}`}><LucideIcon name="minus" /></button>
     <strong aria-label={`${count} copies`}><MotionValue value={count} /></strong>
     <button type="button" onClick={onAdd} disabled={!canAdd} aria-label={`Add ${name}`}
-      title={!canAdd ? restriction ?? "Limit reached" : undefined}>+</button>
+      title={!canAdd ? restriction ?? "Limit reached" : undefined}><LucideIcon name="plus" /></button>
   </div>;
 }
 
@@ -1029,7 +1035,7 @@ function BuilderMenuDialog({
       if (event.target === event.currentTarget) onClose();
     }}>
       <section ref={dialogRef} className={styles.builderMenuDialog} role="dialog" aria-modal="true" aria-label={title}>
-        <header><div><span>{eyebrow}</span><h2>{title}</h2></div><button type="button" onClick={onClose} aria-label={`Close ${title}`}>×</button></header>
+        <header><div><span>{eyebrow}</span><h2>{title}</h2></div><button type="button" onClick={onClose} aria-label={`Close ${title}`}><LucideIcon name="x" /></button></header>
         <div className={styles.builderMenuBody}>{children}</div>
         {footer && <footer>{footer}</footer>}
       </section>
