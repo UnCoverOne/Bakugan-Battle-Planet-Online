@@ -115,7 +115,9 @@ test("Team removal controls use dark circular backings and appear on hover or fo
   const removeCharacter = character.getByRole("button", { name: /^Remove / });
   await expect(removeCharacter.locator("svg")).toBeVisible();
   await expect(removeCharacter).toHaveCSS("background-color", "rgba(2, 12, 17, 0.85)");
-  await expect(removeCharacter).toHaveCSS("border-top-width", "1px");
+  await expect(removeCharacter).toHaveCSS("border-top-width", "0px");
+  await expect(removeCharacter).toHaveCSS("top", "4px");
+  await expect(removeCharacter).toHaveCSS("right", "4px");
   await expect(removeCharacter).toHaveCSS("border-radius", "50%");
   await expect(removeCharacter.locator("svg")).toHaveCSS("filter", "none");
   await character.hover();
@@ -125,6 +127,9 @@ test("Team removal controls use dark circular backings and appear on hover or fo
   await coreSlot.hover();
   await expect.poll(() => removeCore.evaluate(el => getComputedStyle(el).opacity)).toBe("1");
   await expect(removeCore).toHaveCSS("background-color", "rgba(2, 12, 17, 0.85)");
+  await expect(removeCore).toHaveCSS("border-top-width", "0px");
+  await expect(removeCore).toHaveCSS("top", "3px");
+  await expect(removeCore).toHaveCSS("right", "3px");
   await expect(removeCore).toHaveCSS("border-radius", "50%");
   await expect(removeCore.locator("svg")).toHaveCSS("filter", "none");
 });

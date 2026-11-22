@@ -62,9 +62,9 @@
 .teamRollingStats>span{max-width:100%;box-sizing:border-box}
 /* Contextual Lucide minus with a subtle circular contrast backing. */
 .removeCharacter,.removeCore{
-  position:absolute;right:0;top:0;z-index:2;
+  position:absolute;right:4px;top:4px;z-index:2;
   display:grid;place-items:center;width:32px;height:32px;padding:0;
-  border:1px solid rgba(255,255,255,.25);
+  border:0;
   border-radius:50%;background:rgba(2,12,17,.85);color:var(--bb-white);
   cursor:pointer;
 }
@@ -91,7 +91,7 @@
 .pairedCores{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
 .coreSlot{position:relative;min-width:0}
 .coreSlot>button:first-child{width:100%;cursor:pointer}
-.removeCore{top:0;right:0;width:28px;height:28px}
+.removeCore{top:3px;right:3px;width:28px;height:28px}
 .emptyCore{display:grid;place-items:center;aspect-ratio:240/209;min-width:0;padding:5px;background:var(--bb-panel);border:1px dashed var(--bb-border-hover);color:var(--bb-muted);cursor:pointer}
 .emptyCore img{display:block;width:100%;height:100%;object-fit:contain;opacity:.67}
 .emptyCore:disabled{cursor:default;opacity:.5}

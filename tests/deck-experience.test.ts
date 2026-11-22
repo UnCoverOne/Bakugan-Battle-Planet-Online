@@ -291,7 +291,9 @@ test("Team removal uses high-contrast circular Lucide buttons and remains availa
   assert.match(icons, /"circle-minus": <><circle cx="12" cy="12" r="10"\/><path d="M8 12h8"\/><\/>/);
   assert.match(builder, /className=\{styles\.removeCharacter\} onClick=\{\(\) => toggleCharacter\(character\.id\)\}/);
   assert.match(builder, /className=\{styles\.removeCore\} onClick=\{\(\) => adjustCore\(core\.id, -1\)\}/);
-  assert.match(style, /\.removeCharacter,\.removeCore\{[\s\S]*?border:1px solid rgba\(255,255,255,\.25\)/);
+  assert.match(style, /\.removeCharacter,\.removeCore\{[\s\S]*?position:absolute;right:4px;top:4px;z-index:2/);
+  assert.match(style, /border:0;\s*border-radius:50%;background:rgba\(2,12,17,\.85\)/);
+  assert.match(style, /\.removeCore\{top:3px;right:3px;width:28px;height:28px\}/);
   assert.match(style, /border-radius:50%;background:rgba\(2,12,17,\.85\);color:var\(--bb-white\)/);
   assert.match(style, /\.removeCharacter:hover,\.removeCore:hover\{[\s\S]*?background:rgba\(15,45,58,\.95\)/);
   assert.doesNotMatch(style, /\.removeCharacter svg,\.removeCore svg\{\s*filter:drop-shadow/);
