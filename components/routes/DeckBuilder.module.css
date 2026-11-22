@@ -93,7 +93,6 @@
 .visibility legend{width:100%}
 .visibility label{display:flex;align-items:center;gap:7px;font:500 13px var(--bb-font-interface);cursor:pointer}
 .visibility input{accent-color:var(--bb-selection)}
-.visibility input:disabled+span{opacity:.5}
 .saveDetails{border-top:1px solid var(--bb-border);padding-top:12px}
 .saveDetails summary{cursor:pointer;font:600 13px var(--bb-font-interface);margin-bottom:12px}
 .saveDetails>div,.saveDetails fieldset{margin-top:14px}

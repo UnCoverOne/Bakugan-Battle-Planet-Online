@@ -5,7 +5,7 @@ import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type MouseEvent } from "react";
-import { activeCardFilterCount, CARD_FILTER_LABELS, CORE_SET_OPTIONS, cardMatchesFilters, clearCardFilterFacets, coreMatchesFilters, createCardFilterOptionCatalogue, createEmptyCardFilters, FACTION_SYMBOLS, restrictCardFilters, type CardFilterFacet, type CardFilterOptionCatalogue, type CardFilterState } from "../../lib/card-filters";
+import { activeCardFilterCount, CARD_FILTER_LABELS, CORE_SET_OPTIONS, cardMatchesFilters, clearCardFilterFacets, coreMatchesFilters, createCardFilterOptionCatalogue, createEmptyCardFilters, restrictCardFilters, type CardFilterFacet, type CardFilterOptionCatalogue, type CardFilterState } from "../../lib/card-filters";
 import { cardArtSource } from "../../lib/content/card-art";
 import { createBuilderCardControls } from "../../lib/builder-card-selection";
 import { createCoreAdditionGuard } from "../../lib/builder-core-selection";
@@ -849,7 +849,10 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
               <legend>Featured card</legend>
               <div>
                 {grouped.map(({ card }) => <button type="button" key={card.catalogId}
-                  aria-pressed={saveLeadCardId === card.catalogId} onClick={() => setSaveLeadCardId(card.catalogId)}>
+                  aria-pressed={(() => {
+                    const lead = CARD_BY_ID.get(saveLeadCardId);
+                    return Boolean(lead && deckConstructionIdentity(lead) === deckConstructionIdentity(card));
+                  })()} onClick={() => setSaveLeadCardId(card.catalogId)}>
                   <CardArt src={cardArtSource(card, "thumbnail")} cardType={card.type} presentation="readable" alt="" />
                   <span>{card.displayName}</span>
                 </button>)}
