@@ -227,3 +227,43 @@ test("Builder uses Lucide icons throughout its controls without text-symbol fall
   assert.match(builder, /<BakuCoreBack type=\{type\} \/>/);
   assert.match(builder, /<BakuCoreArt core=\{displayCore\}/);
 });
+
+test("Team Characters retain both Compendium rolling-stat tags beneath their artwork", async () => {
+  const [builder, gallery, stats, css] = await Promise.all([
+    read("components/routes/DeckBuilderScreen.tsx"),
+    read("components/routes/CardsGallery.tsx"),
+    read("components/cards/BakuganRollingStats.tsx"),
+    read("components/routes/DeckBuilder.module.css"),
+  ]);
+  assert.match(builder, /const rolling = character && bakuganRollingValues\(character\.character\)/);
+  assert.match(builder, /className=\{styles\.teamRollingStats\}/);
+  assert.match(builder, /<BakuganRollingStat kind="rollAccuracy" value=\{rolling\.rollAccuracy\} plain \/>/);
+  assert.match(builder, /<BakuganRollingStat kind="doubleCoreChance" value=\{rolling\.doubleCoreChance\} plain \/>/);
+  assert.match(builder, /cardTileStyles\.tag/);
+  assert.match(builder, /cardTileStyles\.rollingTag/);
+  assert.match(gallery, /BakuganRollingStat kind="rollAccuracy"/);
+  assert.match(gallery, /BakuganRollingStat kind="doubleCoreChance"/);
+  assert.match(stats, /const label = isRollAccuracy \? "Roll Accuracy" : "Double Core Chance"/);
+  assert.doesNotMatch(builder, /BakuganRollingOverlay/);
+  assert.match(css, /\.teamRollingStats\{display:flex;flex-wrap:wrap/);
+});
+
+test("Team inspection uses the same pointer cursor, sheen and focus behavior as Compendium tiles", async () => {
+  const [builder, css, cardCss, coreCss] = await Promise.all([
+    read("components/routes/DeckBuilderScreen.tsx"),
+    read("components/routes/DeckBuilder.module.css"),
+    read("components/routes/CardsGallery.module.css"),
+    read("components/routes/CoresGallery.module.css"),
+  ]);
+  assert.match(builder, /className=\{cardTileStyles\.tile\}/);
+  assert.match(builder, /className=\{coreTileStyles\.tile\}/);
+  assert.match(builder, /className=\{cardTileStyles\.artwork\}/);
+  assert.match(builder, /className=\{coreTileStyles\.artwork\}/);
+  assert.match(cardCss, /\.tile:hover \.artwork::after/);
+  assert.match(coreCss, /\.tile:hover \.artwork::after/);
+  assert.match(cardCss, /\.tile:focus-visible \.artwork/);
+  assert.match(coreCss, /\.tile:focus-visible \.artwork/);
+  assert.doesNotMatch(css, /cursor:zoom-in/);
+  assert.match(css, /\.teamCharacter>button:first-child\{width:100%;cursor:pointer\}/);
+  assert.match(css, /\.coreSlot>button:first-child\{width:100%;cursor:pointer\}/);
+});

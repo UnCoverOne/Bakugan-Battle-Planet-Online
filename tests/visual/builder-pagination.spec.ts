@@ -70,3 +70,32 @@ test("A missing core slot opens a core-type-filtered gallery", async ({ page }) 
   await expect(builder.getByRole("navigation", { name: "Card types" }).getByRole("button", { name: "BakuCores" }))
     .toHaveAttribute("aria-current", "page");
 });
+
+test("Team cards display rolling tags below the art and use Compendium hover treatment", async ({ page }) => {
+  await page.goto("/builder/deck-pyrus");
+  const builder = page.locator('[data-ui="deck-builder"]');
+  const tabs = builder.getByRole("navigation", { name: "Builder views" });
+  if (await tabs.isVisible()) await tabs.getByRole("button", { name: "Deck", exact: true }).click();
+  const team = builder.locator('aside[aria-label="Current deck"]');
+  const character = team.locator('[class*="teamCharacter"]').first();
+  const inspectCharacter = character.getByRole("button", { name: /^Inspect / });
+  const rollingTags = character.locator('[class*="teamRollingStats"]');
+  await expect(inspectCharacter).toBeVisible({ timeout: 20_000 });
+  await expect(rollingTags.getByRole("img", { name: /^Roll Accuracy:/ })).toBeVisible();
+  await expect(rollingTags.getByRole("img", { name: /^Double Core Chance:/ })).toBeVisible();
+  const artwork = inspectCharacter.locator('[class*="artwork"]');
+  const artworkBounds = await artwork.boundingBox();
+  const statsBounds = await rollingTags.boundingBox();
+  expect(artworkBounds).not.toBeNull();
+  expect(statsBounds).not.toBeNull();
+  expect(statsBounds!.y).toBeGreaterThanOrEqual(artworkBounds!.y + artworkBounds!.height - 1);
+  await expect(inspectCharacter).toHaveCSS("cursor", "pointer");
+  await inspectCharacter.hover();
+  await expect.poll(async () => artwork.evaluate(element =>
+    getComputedStyle(element, "::after").opacity)).toBe("1");
+  const coreInspect = team.locator('[class*="coreSlot"] button[aria-label^="Inspect"]').first();
+  await expect(coreInspect).toHaveCSS("cursor", "pointer");
+  await coreInspect.hover();
+  await expect.poll(async () => coreInspect.locator('[class*="artwork"]').evaluate(element =>
+    getComputedStyle(element, "::after").opacity)).toBe("1");
+});

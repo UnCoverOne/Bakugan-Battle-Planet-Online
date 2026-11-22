@@ -26,12 +26,15 @@ import { CardArt } from "../cards/CardArt";
 import { copyText } from "../application/ui";
 import { CardInspector } from "../cards/CardInspector";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
-import { BakuganRollingOverlay } from "../cards/BakuganRollingStats";
+import { BakuganRollingStat } from "../cards/BakuganRollingStats";
+import { bakuganRollingValues } from "../../lib/bakugan-rolling";
 import { ActionButton, Field } from "../design-system/primitives";
 import { CardFilterPanel } from "../filters/CardFilterPanel";
 import styles from "./DeckBuilder.module.css";
 import { CardsGallery } from "./CardsGallery";
+import cardTileStyles from "./CardsGallery.module.css";
 import { CoresGallery } from "./CoresGallery";
+import coreTileStyles from "./CoresGallery.module.css";
 import { MotionValue } from "../design-system/MotionValue";
 import { LucideIcon } from "../design-system/LucideIcon";
 import { builderScope, builderBase, readBuilderDraft, writeBuilderDraft, setActiveBuilder, clearBuilderDraft, shouldConfirmBuilderExit, type BuilderDraft } from "../../lib/builder-session";
@@ -721,15 +724,26 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
             {Array.from({ length: 3 }, (_, index) => {
               const character = BAKUGAN.find(candidate => candidate.id === deck.bakuganIds[index]);
               const display = character && preferredCardPrinting(character.character, deck.printingPreferences);
+              const rolling = character && bakuganRollingValues(character.character);
               return <div className={styles.teamGroup} key={character?.id ?? index}>
                 {character && display ?
                   <div className={styles.teamCharacter}>
-                    <button type="button" onClick={() => inspectCard(character.character)}
-                      aria-label={`Inspect ${character.name}`}><ResponsiveCardImage card={display} presentation="tile" alt={character.name} />
-                      <BakuganRollingOverlay card={character.character} />
+                    <button type="button" className={cardTileStyles.tile} onClick={() => inspectCard(character.character)}
+                      aria-label={`Inspect ${character.name}`}>
+                      <span className={cardTileStyles.artwork}>
+                        <ResponsiveCardImage card={display} presentation="tile" alt={character.name} />
+                      </span>
                     </button>
                     <button type="button" className={styles.removeCharacter} onClick={() => toggleCharacter(character.id)}
                       aria-label={`Remove ${character.name}`}><LucideIcon name="x" size={17} /></button>
+                    {rolling && <div className={styles.teamRollingStats}>
+                      <span className={`${cardTileStyles.tag} ${cardTileStyles.rollingTag}`}>
+                        <BakuganRollingStat kind="rollAccuracy" value={rolling.rollAccuracy} plain />
+                      </span>
+                      <span className={`${cardTileStyles.tag} ${cardTileStyles.rollingTag}`}>
+                        <BakuganRollingStat kind="doubleCoreChance" value={rolling.doubleCoreChance} plain />
+                      </span>
+                    </div>}
                   </div>
                   : <button type="button" className={styles.emptyCharacter}
                     aria-label="Add Character" onClick={() => { setGalleryQuery(""); changeGalleryCategory("characters"); setBuilderView("gallery"); }}><LucideIcon name="plus" size={28} /></button>}
@@ -742,8 +756,13 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                     const displayCore = core && preferredCorePrinting(core, deck.printingPreferences);
                     return core && displayCore ?
                       <div className={styles.coreSlot} key={slot} data-invalid={type && core.type !== type ? "true" : undefined}>
-                        <button type="button" title={type && core.type !== type ? `Requires ${type}` : core.name} aria-label={`Inspect ${core.name}`}
-                          onClick={() => inspectCore(core.id)}><BakuCoreArt core={displayCore} alt={core.name} /></button>
+                        <button type="button" className={coreTileStyles.tile}
+                          title={type && core.type !== type ? `Requires ${type}` : core.name}
+                          aria-label={`Inspect ${core.name}`} onClick={() => inspectCore(core.id)}>
+                          <span className={coreTileStyles.artwork}>
+                            <BakuCoreArt core={displayCore} alt={core.name} />
+                          </span>
+                        </button>
                         <button type="button" className={styles.removeCore} onClick={() => adjustCore(core.id, -1)}
                           aria-label={`Remove ${core.name}`}><LucideIcon name="x" size={14} /></button>
                       </div>
