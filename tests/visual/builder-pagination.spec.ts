@@ -74,7 +74,7 @@ test("A missing core slot opens a core-type-filtered gallery", async ({ page }) 
     .toHaveAttribute("aria-current", "page");
 });
 
-test("Team cards display rolling tags below the art and use Compendium hover treatment", async ({ page }) => {
+test("Team cards display left-aligned full-size faction and rolling tags below the art", async ({ page }) => {
   await page.goto("/builder/deck-pyrus");
   const builder = page.locator('[data-ui="deck-builder"]');
   const tabs = builder.getByRole("navigation", { name: "Builder views" });
@@ -82,16 +82,32 @@ test("Team cards display rolling tags below the art and use Compendium hover tre
   const team = builder.locator('aside[aria-label="Current deck"]');
   const character = team.locator('[class*="teamCharacter"]').first();
   const inspectCharacter = character.getByRole("button", { name: /^Inspect / });
-  const rollingTags = character.locator('[class*="teamRollingStats"]');
+  const tags = character.locator('[data-ui="team-character-tags"]');
   await expect(inspectCharacter).toBeVisible({ timeout: 20_000 });
-  await expect(rollingTags.getByRole("img", { name: /^Roll Accuracy:/ })).toBeVisible();
-  await expect(rollingTags.getByRole("img", { name: /^Double Core Chance:/ })).toBeVisible();
+  const faction = tags.locator('[role="img"][title]').first();
+  const rollAccuracy = tags.getByRole("img", { name: /^Roll Accuracy:/ });
+  const doubleCore = tags.getByRole("img", { name: /^Double Core Chance:/ });
+  await expect(faction).toBeVisible();
+  await expect(rollAccuracy).toBeVisible();
+  await expect(doubleCore).toBeVisible();
+  await expect(tags).toHaveCSS("justify-content", "flex-start");
+  await expect(tags).toHaveCSS("flex-wrap", "wrap");
   const artwork = inspectCharacter.locator('[class*="artwork"]');
   const artworkBounds = await artwork.boundingBox();
-  const statsBounds = await rollingTags.boundingBox();
+  const tagsBounds = await tags.boundingBox();
+  const factionBounds = await faction.boundingBox();
   expect(artworkBounds).not.toBeNull();
-  expect(statsBounds).not.toBeNull();
-  expect(statsBounds!.y).toBeGreaterThanOrEqual(artworkBounds!.y + artworkBounds!.height - 1);
+  expect(tagsBounds).not.toBeNull();
+  expect(factionBounds).not.toBeNull();
+  expect(tagsBounds!.y).toBeGreaterThanOrEqual(artworkBounds!.y + artworkBounds!.height - 1);
+  expect(Math.abs(tagsBounds!.x - artworkBounds!.x)).toBeLessThanOrEqual(1);
+  expect(factionBounds!.height).toBe(24);
+  expect(factionBounds!.width).toBe(24);
+  for (const tag of [rollAccuracy, doubleCore]) {
+    const tagBounds = await tag.locator("..").boundingBox();
+    expect(tagBounds).not.toBeNull();
+    expect(tagBounds!.height).toBe(24);
+  }
   await expect(inspectCharacter).toHaveCSS("cursor", "pointer");
   await inspectCharacter.hover();
   await expect.poll(async () => artwork.evaluate(element =>
@@ -132,4 +148,26 @@ test("Team removal controls use dark circular backings and appear on hover or fo
   await expect(removeCore).toHaveCSS("right", "3px");
   await expect(removeCore).toHaveCSS("border-radius", "50%");
   await expect(removeCore.locator("svg")).toHaveCSS("filter", "none");
+});
+
+test("Team Character tags stay full-size and left aligned at narrow mobile widths", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto("/builder/deck-pyrus");
+  const tabs = page.getByRole("navigation", { name: "Builder views" });
+  if (await tabs.isVisible()) await tabs.getByRole("button", { name: "Deck", exact: true }).click();
+  const character = page.locator('aside[aria-label="Current deck"] [class*="teamCharacter"]').first();
+  const tags = character.locator('[data-ui="team-character-tags"]');
+  await expect(tags).toBeVisible();
+  await expect(tags).toHaveCSS("flex-wrap", "wrap");
+  await expect(tags).toHaveCSS("justify-content", "flex-start");
+  const faction = tags.locator('[role="img"][title]').first();
+  await expect(faction).toBeVisible();
+  const badgeSize = await faction.boundingBox();
+  expect(badgeSize?.height).toBe(24);
+  expect(badgeSize?.width).toBe(24);
+  for (const label of [/^Roll Accuracy:/, /^Double Core Chance:/]) {
+    const stat = tags.getByRole("img", { name: label });
+    await expect(stat).toBeVisible();
+    expect((await stat.locator("..").boundingBox())?.height).toBe(24);
+  }
 });

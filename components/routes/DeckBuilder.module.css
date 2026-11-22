@@ -58,8 +58,9 @@
 .teamGroup{min-width:0;display:grid;align-content:start;gap:6px}
 .teamCharacter{position:relative;min-width:0}
 .teamCharacter>button:first-child{width:100%;cursor:pointer}
-.teamRollingStats{display:flex;flex-wrap:wrap;justify-content:center;align-items:start;gap:4px;min-width:0;padding-top:6px}
-.teamRollingStats>span{max-width:100%;box-sizing:border-box}
+/* Same 24px faction and rolling tags as the Compendium, left-aligned beneath
+   each Character. Wrap the tags rather than shrinking them on narrow screens. */
+.teamCharacterTags{display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:4px;min-width:0;width:100%;padding-top:8px}
 /* Contextual Lucide minus with a subtle circular contrast backing. */
 .removeCharacter,.removeCore{
   position:absolute;right:4px;top:4px;z-index:2;

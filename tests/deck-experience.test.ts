@@ -228,15 +228,19 @@ test("Builder uses Lucide icons throughout its controls without text-symbol fall
   assert.match(builder, /<BakuCoreArt core=\{displayCore\}/);
 });
 
-test("Team Characters retain both Compendium rolling-stat tags beneath their artwork", async () => {
-  const [builder, gallery, stats, css] = await Promise.all([
+test("Team Characters display full-size Compendium faction and rolling tags beneath their artwork", async () => {
+  const [builder, gallery, stats, css, galleryCss] = await Promise.all([
     read("components/routes/DeckBuilderScreen.tsx"),
     read("components/routes/CardsGallery.tsx"),
     read("components/cards/BakuganRollingStats.tsx"),
     read("components/routes/DeckBuilder.module.css"),
+    read("components/routes/CardsGallery.module.css"),
   ]);
   assert.match(builder, /const rolling = character && bakuganRollingValues\(character\.character\)/);
-  assert.match(builder, /className=\{styles\.teamRollingStats\}/);
+  assert.match(builder, /const factions = display \? \[\.\.\.new Set\(display\.factions\.length \? display\.factions : \[display\.faction\]\)\] : \[\]/);
+  assert.match(builder, /className=\{styles\.teamCharacterTags\} data-ui="team-character-tags"/);
+  assert.match(builder, /className=\{cardTileStyles\.factions\}/);
+  assert.match(builder, /factions\.map\(faction => <CardFactionTag key=\{faction\} faction=\{faction\} \/>\)/);
   assert.match(builder, /<BakuganRollingStat kind="rollAccuracy" value=\{rolling\.rollAccuracy\} plain \/>/);
   assert.match(builder, /<BakuganRollingStat kind="doubleCoreChance" value=\{rolling\.doubleCoreChance\} plain \/>/);
   assert.match(builder, /cardTileStyles\.tag/);
@@ -245,7 +249,10 @@ test("Team Characters retain both Compendium rolling-stat tags beneath their art
   assert.match(gallery, /BakuganRollingStat kind="doubleCoreChance"/);
   assert.match(stats, /const label = isRollAccuracy \? "Roll Accuracy" : "Double Core Chance"/);
   assert.doesNotMatch(builder, /BakuganRollingOverlay/);
-  assert.match(css, /\.teamRollingStats\{display:flex;flex-wrap:wrap/);
+  assert.match(css, /\.teamCharacterTags\{display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:4px/);
+  assert.doesNotMatch(css, /\.teamRollingStats|justify-content:center/);
+  assert.match(galleryCss, /\.faction \{[\s\S]*?width: 24px;\s*height: 24px/);
+  assert.match(galleryCss, /\.tag \{[\s\S]*?padding: 3px 6px;[\s\S]*?font: 500 10px\/16px/);
 });
 
 test("Team inspection uses the same pointer cursor, sheen and focus behavior as Compendium tiles", async () => {

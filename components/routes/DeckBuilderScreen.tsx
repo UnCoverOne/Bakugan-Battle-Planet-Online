@@ -32,6 +32,7 @@ import { ActionButton, Field } from "../design-system/primitives";
 import { CardFilterPanel } from "../filters/CardFilterPanel";
 import styles from "./DeckBuilder.module.css";
 import { CardsGallery } from "./CardsGallery";
+import { CardFactionTag } from "./CardFactionTag";
 import cardTileStyles from "./CardsGallery.module.css";
 import { CoresGallery } from "./CoresGallery";
 import coreTileStyles from "./CoresGallery.module.css";
@@ -731,6 +732,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
               const character = BAKUGAN.find(candidate => candidate.id === deck.bakuganIds[index]);
               const display = character && preferredCardPrinting(character.character, deck.printingPreferences);
               const rolling = character && bakuganRollingValues(character.character);
+              const factions = display ? [...new Set(display.factions.length ? display.factions : [display.faction])] : [];
               return <div className={styles.teamGroup} key={character?.id ?? index}>
                 {character && display ?
                   <div className={styles.teamCharacter}>
@@ -742,14 +744,19 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                     </button>
                     <button type="button" className={styles.removeCharacter} onClick={() => toggleCharacter(character.id)}
                       aria-label={`Remove ${character.name}`} title={`Remove ${character.name}`}><LucideIcon name="circle-minus" size={17} /></button>
-                    {rolling && <div className={styles.teamRollingStats}>
-                      <span className={`${cardTileStyles.tag} ${cardTileStyles.rollingTag}`}>
-                        <BakuganRollingStat kind="rollAccuracy" value={rolling.rollAccuracy} plain />
+                    <div className={styles.teamCharacterTags} data-ui="team-character-tags">
+                      <span className={cardTileStyles.factions} aria-label={factions.join(" / ")}>
+                        {factions.map(faction => <CardFactionTag key={faction} faction={faction} />)}
                       </span>
-                      <span className={`${cardTileStyles.tag} ${cardTileStyles.rollingTag}`}>
-                        <BakuganRollingStat kind="doubleCoreChance" value={rolling.doubleCoreChance} plain />
-                      </span>
-                    </div>}
+                      {rolling && <>
+                        <span className={`${cardTileStyles.tag} ${cardTileStyles.rollingTag}`}>
+                          <BakuganRollingStat kind="rollAccuracy" value={rolling.rollAccuracy} plain />
+                        </span>
+                        <span className={`${cardTileStyles.tag} ${cardTileStyles.rollingTag}`}>
+                          <BakuganRollingStat kind="doubleCoreChance" value={rolling.doubleCoreChance} plain />
+                        </span>
+                      </>}
+                    </div>
                   </div>
                   : <button type="button" className={styles.emptyCharacter}
                     aria-label="Add Character" onClick={() => { setGalleryQuery(""); changeGalleryCategory("characters"); setBuilderView("gallery"); }}><LucideIcon name="plus" size={28} /></button>}
