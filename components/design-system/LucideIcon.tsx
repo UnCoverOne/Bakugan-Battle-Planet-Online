@@ -9,7 +9,8 @@ export type LucideIconName =
   | "arrow-left" | "arrow-down-up" | "check" | "circle-alert"
   | "layout-list" | "layout-grid" | "sliders-horizontal" | "list"
   | "search" | "hexagon" | "rectangle-vertical" | "circle-minus"
-  | "plus" | "minus" | "x" | "chevron-left" | "chevron-right";
+  | "plus" | "minus" | "x" | "chevron-left" | "chevron-right"
+  | "file-pen-line" | "link" | "globe" | "image";
 
 const glyphs: Record<LucideIconName, ReactNode> = {
   "arrow-left": <><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></>,
@@ -29,6 +30,11 @@ const glyphs: Record<LucideIconName, ReactNode> = {
   "x": <><path d="M18 6 6 18"/><path d="m6 6 12 12"/></>,
   "chevron-left": <path d="m15 18-6-6 6-6"/>,
   "chevron-right": <path d="m9 18 6-6-6-6"/>,
+  "file-pen-line": <><path d="M12 20h9"/><path d="M5 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/><path d="m17 5 2 2"/><path d="m14 16 4.8-4.8a2.1 2.1 0 0 0-3-3L11 13l-1 4z"/></>,
+  "link": <><path d="M10 13a5 5 0 0 0 7.1 0l3-3a5 5 0 0 0-7.1-7.1l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.1 0l-3 3a5 5 0 1 0 7.1 7.1l1.7-1.7"/></>,
+  "globe": <><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></>,
+  "image": <><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></>,
+
 };
 
 export function LucideIcon({ name, size = 20, ...props }: Omit<SVGProps<SVGSVGElement>, "children"> & {
