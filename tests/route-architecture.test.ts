@@ -104,3 +104,11 @@ test("both completed-match exits share guarded persistence and result rendering 
   assert.match(routes, /MatchCreationScreen/);
   assert.doesNotMatch(routes, /PlayRoutes/);
 });
+
+test("match route uses the live runtime without importing deleted PlayRoutes", () => {
+  const page = source("app/(workspace)/play/match/page.tsx");
+  assert.match(page, /import \{ MatchRuntime \} from ["'][^"']*\/MatchRuntime["']/);
+  assert.match(page, /return <MatchRuntime \/>/);
+  assert.doesNotMatch(page, /PlayRoutes|MatchHostScreen/);
+  assert.equal(existsSync("components/routes/PlayRoutes.tsx"), false);
+});
