@@ -189,3 +189,41 @@ test("Obsolete Deck Builder presentation code, layout overrides and status rail 
   assert.doesNotMatch(current, /\.builderStatus|\.builderIssueList|\.builderRequirementHeader/);
   assert.match(page, /<DeckBuilderScreen id=\{decodedId\}/);
 });
+
+test("Builder and Compendium use the same Lucide glyphs for view and filter controls", async () => {
+  const [builder, compendium, iconSource, css] = await Promise.all([
+    read("components/routes/DeckBuilderScreen.tsx"),
+    read("components/routes/CompendiumToolbar.tsx"),
+    read("components/design-system/LucideIcon.tsx"),
+    read("components/routes/DeckBuilder.module.css"),
+  ]);
+  assert.match(builder, /import \{ LucideIcon \} from "\.\.\/design-system\/LucideIcon"/);
+  assert.match(compendium, /import \{ LucideIcon \} from "\.\.\/design-system\/LucideIcon"/);
+  for (const icon of ["layout-list", "layout-grid", "sliders-horizontal", "search"]) {
+    assert.match(builder, new RegExp('"' + icon + '"'));
+    assert.match(compendium, new RegExp('"' + icon + '"'));
+    assert.match(iconSource, new RegExp('"' + icon + '":'));
+  }
+  assert.match(builder, /galleryDensity === "detailed" \? "layout-list" : "layout-grid"/);
+  assert.match(compendium, /density === "gallery" \? "layout-list" : "layout-grid"/);
+  assert.match(iconSource, /stroke="currentColor" strokeWidth=\{2\}/);
+  assert.match(iconSource, /aria-hidden="true" focusable="false"/);
+  assert.match(css, /\.searchIcon\{position:absolute/);
+});
+
+test("Builder uses Lucide icons throughout its controls without text-symbol fallbacks", async () => {
+  const [builder, icons] = await Promise.all([
+    read("components/routes/DeckBuilderScreen.tsx"),
+    read("components/design-system/LucideIcon.tsx"),
+  ]);
+  for (const icon of [
+    "arrow-left", "arrow-down-up", "check", "circle-alert", "layout-list",
+    "layout-grid", "sliders-horizontal", "search", "hexagon", "plus", "minus",
+    "x", "chevron-left", "chevron-right",
+  ]) assert.match(icons, new RegExp('"' + icon + '":'));
+  for (const icon of ["arrow-left", "chevron-left", "chevron-right", "hexagon", "plus", "minus", "x"])
+    assert.match(builder, new RegExp('name="' + icon + '"'));
+  assert.doesNotMatch(builder, /[←✓▦↕◇＋×‹›−]/);
+  assert.match(builder, /<BakuCoreBack type=\{type\} \/>/);
+  assert.match(builder, /<BakuCoreArt core=\{displayCore\}/);
+});
