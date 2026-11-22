@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { DeckBuilderPresentationBridge } from "../../../../components/routes/DeckBuilderPresentationBridge";
 import { DeckBuilderScreen } from "../../../../components/routes/DeckBuilderScreen";
 import { getSessionUser } from "../../../../lib/account-server";
-import styles from "./presentation-fix.module.css";
 
 export const metadata: Metadata = { title: "Deck Builder", description: "Build and validate a complete Battle Planet deck." };
 
@@ -23,10 +21,5 @@ export default async function BuilderPage({
     if (!user?.roles.includes("administrator")) redirect("/");
   }
   const returnTo = typeof query.returnTo === "string" ? query.returnTo : undefined;
-  return (
-    <div className={styles.builderScope}>
-      <DeckBuilderScreen id={decodedId} returnTo={returnTo} />
-      <DeckBuilderPresentationBridge />
-    </div>
-  );
+  return <DeckBuilderScreen id={decodedId} returnTo={returnTo} />;
 }
