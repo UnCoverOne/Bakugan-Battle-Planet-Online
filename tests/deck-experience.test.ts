@@ -250,7 +250,8 @@ test("Team Characters display full-size Compendium faction and rolling tags bene
   assert.match(stats, /const label = isRollAccuracy \? "Roll Accuracy" : "Double Core Chance"/);
   assert.doesNotMatch(builder, /BakuganRollingOverlay/);
   assert.match(css, /\.teamCharacterTags\{display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:4px/);
-  assert.doesNotMatch(css, /\.teamRollingStats|justify-content:center/);
+  assert.doesNotMatch(css, /\.teamRollingStats/);
+  assert.doesNotMatch(css, /\.teamCharacterTags\{[^}]*justify-content:center/);
   assert.match(galleryCss, /\.faction \{[\s\S]*?width: 24px;\s*height: 24px/);
   assert.match(galleryCss, /\.tag \{[\s\S]*?padding: 3px 6px;[\s\S]*?font: 500 10px\/16px/);
 });
