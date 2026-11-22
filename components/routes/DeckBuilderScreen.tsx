@@ -718,7 +718,13 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
         <aside className={`${styles.deck} ${builderView !== "deck" ? styles.mobileHidden : ""}`} aria-label="Current deck">
           <div className={styles.sectionHeading}>
             <h2>Team</h2>
-            <span>{deck.bakuganIds.length}/3 <span aria-hidden="true">·</span> <LucideIcon name="hexagon" size={14} /> {deck.coreIds.length}/6</span>
+            <span className={styles.teamCounts} aria-label={`${deck.bakuganIds.length} of 3 Characters, ${deck.coreIds.length} of 6 BakuCores`}>
+              <LucideIcon name="rectangle-vertical" size={16} />
+              {deck.bakuganIds.length}/3
+              <span className={styles.teamCountDivider} aria-hidden="true" />
+              <LucideIcon name="hexagon" size={16} />
+              {deck.coreIds.length}/6
+            </span>
           </div>
           <div className={styles.teamGrid}>
             {Array.from({ length: 3 }, (_, index) => {
@@ -735,7 +741,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                       </span>
                     </button>
                     <button type="button" className={styles.removeCharacter} onClick={() => toggleCharacter(character.id)}
-                      aria-label={`Remove ${character.name}`}><LucideIcon name="x" size={17} /></button>
+                      aria-label={`Remove ${character.name}`} title={`Remove ${character.name}`}><LucideIcon name="circle-minus" size={17} /></button>
                     {rolling && <div className={styles.teamRollingStats}>
                       <span className={`${cardTileStyles.tag} ${cardTileStyles.rollingTag}`}>
                         <BakuganRollingStat kind="rollAccuracy" value={rolling.rollAccuracy} plain />
@@ -764,7 +770,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                           </span>
                         </button>
                         <button type="button" className={styles.removeCore} onClick={() => adjustCore(core.id, -1)}
-                          aria-label={`Remove ${core.name}`}><LucideIcon name="x" size={14} /></button>
+                          aria-label={`Remove ${core.name}`} title={`Remove ${core.name}`}><LucideIcon name="circle-minus" size={16} /></button>
                       </div>
                     : <button type="button" className={styles.emptyCore} key={slot} disabled={!type}
                         title={type ?? "Select a Character"} aria-label={type ? `Choose ${type} BakuCore` : "Select a Character first"}

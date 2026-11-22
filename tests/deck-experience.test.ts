@@ -267,3 +267,35 @@ test("Team inspection uses the same pointer cursor, sheen and focus behavior as 
   assert.match(css, /\.teamCharacter>button:first-child\{width:100%;cursor:pointer\}/);
   assert.match(css, /\.coreSlot>button:first-child\{width:100%;cursor:pointer\}/);
 });
+
+test("Team counts use a matching Lucide card and BakuCore icon", async () => {
+  const [builder, icons, style] = await Promise.all([
+    read("components/routes/DeckBuilderScreen.tsx"),
+    read("components/design-system/LucideIcon.tsx"),
+    read("components/routes/DeckBuilder.module.css"),
+  ]);
+  assert.match(builder, /name="rectangle-vertical" size=\{16\}/);
+  assert.match(builder, /name="hexagon" size=\{16\}/);
+  assert.match(builder, /className=\{styles\.teamCountDivider\}/);
+  assert.match(icons, /"rectangle-vertical": <rect width="12" height="20" x="6" y="2" rx="2"\/>/);
+  assert.match(style, /\.teamCountDivider\{display:block/);
+});
+
+test("Team removal uses Lucide circle-minus without square buttons and remains available on touch and keyboard", async () => {
+  const [builder, icons, style] = await Promise.all([
+    read("components/routes/DeckBuilderScreen.tsx"),
+    read("components/design-system/LucideIcon.tsx"),
+    read("components/routes/DeckBuilder.module.css"),
+  ]);
+  assert.equal((builder.match(/name="circle-minus"/g) ?? []).length, 2);
+  assert.match(icons, /"circle-minus": <><circle cx="12" cy="12" r="10"\/><path d="M8 12h8"\/><\/>/);
+  assert.match(builder, /className=\{styles\.removeCharacter\} onClick=\{\(\) => toggleCharacter\(character\.id\)\}/);
+  assert.match(builder, /className=\{styles\.removeCore\} onClick=\{\(\) => adjustCore\(core\.id, -1\)\}/);
+  assert.match(style, /\.removeCharacter,\.removeCore\{[\s\S]*?border:0;border-radius:50%;background:transparent/);
+  assert.match(style, /@media \(hover:hover\) and \(pointer:fine\)\{/);
+  assert.match(style, /\.teamCharacter:focus-within \.removeCharacter/);
+  assert.match(style, /\.coreSlot:focus-within \.removeCore/);
+  assert.match(style, /\.removeCharacter:focus-visible,\.removeCore:focus-visible/);
+  const touchRules = style.slice(style.indexOf("/* Contextual Lucide minus:"));
+  assert.ok(touchRules.indexOf("opacity:0") > touchRules.indexOf("@media (hover:hover) and (pointer:fine)"));
+});

@@ -8,8 +8,8 @@ import type { ReactNode, SVGProps } from "react";
 export type LucideIconName =
   | "arrow-left" | "arrow-down-up" | "check" | "circle-alert"
   | "layout-list" | "layout-grid" | "sliders-horizontal" | "list"
-  | "search" | "hexagon" | "plus" | "minus" | "x"
-  | "chevron-left" | "chevron-right";
+  | "search" | "hexagon" | "rectangle-vertical" | "circle-minus"
+  | "plus" | "minus" | "x" | "chevron-left" | "chevron-right";
 
 const glyphs: Record<LucideIconName, ReactNode> = {
   "arrow-left": <><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></>,
@@ -22,6 +22,8 @@ const glyphs: Record<LucideIconName, ReactNode> = {
   "list": <><path d="M8 6h13M8 12h8M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></>,
   "search": <><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></>,
   "hexagon": <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>,
+  "rectangle-vertical": <rect width="12" height="20" x="6" y="2" rx="2"/>,
+  "circle-minus": <><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></>,
   "plus": <><path d="M5 12h14"/><path d="M12 5v14"/></>,
   "minus": <path d="M5 12h14"/>,
   "x": <><path d="M18 6 6 18"/><path d="m6 6 12 12"/></>,

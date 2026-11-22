@@ -60,8 +60,11 @@ test("A missing core slot opens a core-type-filtered gallery", async ({ page }) 
   const views = builder.getByRole("navigation", { name: "Builder views" });
   if (await views.isVisible()) await views.getByRole("button", { name: "Deck", exact: true }).click();
   const deck = builder.locator('aside[aria-label="Current deck"]');
-  const remove = deck.locator('[class*="coreSlot"] button[aria-label^="Remove"]').first();
-  await expect(remove).toBeVisible({ timeout: 20_000 });
+  const coreSlot = deck.locator('[class*="coreSlot"]').first();
+  const remove = coreSlot.getByRole("button", { name: /^Remove / });
+  await expect(remove).toBeAttached({ timeout: 20_000 });
+  await coreSlot.hover();
+  await expect.poll(() => remove.evaluate(el => getComputedStyle(el).opacity)).toBe("1");
   await remove.click();
   const empty = deck.locator('button[aria-label^="Choose"][aria-label$="BakuCore"]').first();
   await expect(empty).toBeVisible();
@@ -98,4 +101,26 @@ test("Team cards display rolling tags below the art and use Compendium hover tre
   await coreInspect.hover();
   await expect.poll(async () => coreInspect.locator('[class*="artwork"]').evaluate(element =>
     getComputedStyle(element, "::after").opacity)).toBe("1");
+});
+
+test("Team removal controls appear on hover or focus without covering the art with square buttons", async ({ page }) => {
+  await page.goto("/builder/deck-pyrus");
+  const builder = page.locator('[data-ui="deck-builder"]');
+  const tabs = builder.getByRole("navigation", { name: "Builder views" });
+  if (await tabs.isVisible()) await tabs.getByRole("button", { name: "Deck", exact: true }).click();
+  const team = builder.locator('aside[aria-label="Current deck"]');
+  const heading = team.locator('[class*="sectionHeading"]').first();
+  await expect(heading.locator("svg")).toHaveCount(2);
+  const character = team.locator('[class*="teamCharacter"]').first();
+  const removeCharacter = character.getByRole("button", { name: /^Remove / });
+  await expect(removeCharacter.locator("svg")).toBeVisible();
+  await expect(removeCharacter).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(removeCharacter).toHaveCSS("border-top-width", "0px");
+  await character.hover();
+  await expect.poll(() => removeCharacter.evaluate(el => getComputedStyle(el).opacity)).toBe("1");
+  const coreSlot = team.locator('[class*="coreSlot"]').first();
+  const removeCore = coreSlot.getByRole("button", { name: /^Remove / });
+  await coreSlot.hover();
+  await expect.poll(() => removeCore.evaluate(el => getComputedStyle(el).opacity)).toBe("1");
+  await expect(removeCore).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
 });

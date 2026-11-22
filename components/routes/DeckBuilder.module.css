@@ -52,19 +52,45 @@
 .sectionHeading:not(:first-child){margin-top:28px}
 .sectionHeading h2{margin:0;font:700 18px var(--bb-font-interface)}
 .sectionHeading>span{display:inline-flex;align-items:center;gap:4px;font:600 12px var(--bb-font-interface);color:var(--bb-muted);white-space:nowrap}
+.teamCountDivider{display:block;flex:none;width:1px;height:16px;margin-inline:5px;background:var(--bb-border)}
 .teamGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(5px,.9vw,14px)}
 .teamGroup{min-width:0;display:grid;align-content:start;gap:6px}
 .teamCharacter{position:relative;min-width:0}
 .teamCharacter>button:first-child{width:100%;cursor:pointer}
 .teamRollingStats{display:flex;flex-wrap:wrap;justify-content:center;align-items:start;gap:4px;min-width:0;padding-top:6px}
 .teamRollingStats>span{max-width:100%;box-sizing:border-box}
-.removeCharacter,.removeCore{position:absolute;right:1px;top:1px;z-index:2;display:grid;place-items:center;width:29px;height:29px;background:var(--bb-nav);color:var(--bb-text);border:1px solid var(--bb-border-hover);cursor:pointer}
-.removeCharacter:hover,.removeCore:hover{background:var(--bb-panel-hover)}
+/* Contextual Lucide minus: icon-only, no square fill or border over the artwork. */
+.removeCharacter,.removeCore{
+  position:absolute;right:0;top:0;z-index:2;
+  display:grid;place-items:center;width:32px;height:32px;padding:0;
+  border:0;border-radius:50%;background:transparent;color:var(--bb-white);
+  cursor:pointer;
+}
+.removeCharacter svg,.removeCore svg{
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.95));
+}
+.removeCharacter:hover,.removeCore:hover{color:var(--bb-focus)}
+.removeCharacter:focus-visible,.removeCore:focus-visible{
+  outline:2px solid var(--bb-focus);outline-offset:0;border-radius:50%;
+}
+/* Mouse users see removal only when interacting with that slot.
+   Keep it always visible on touch devices, which have no hover. */
+@media (hover:hover) and (pointer:fine){
+  .removeCharacter,.removeCore{opacity:0;pointer-events:none;transition:opacity 160ms ease}
+  .teamCharacter:hover .removeCharacter,
+  .teamCharacter:focus-within .removeCharacter,
+  .coreSlot:hover .removeCore,
+  .coreSlot:focus-within .removeCore,
+  .removeCharacter:focus-visible,.removeCore:focus-visible{opacity:1;pointer-events:auto}
+}
+@media (prefers-reduced-motion:reduce){
+  .removeCharacter,.removeCore{transition:none}
+}
 .emptyCharacter{display:grid;place-items:center;width:100%;aspect-ratio:5/7;background:var(--bb-panel);border:1px dashed var(--bb-border-hover);color:var(--bb-muted);cursor:pointer}
 .pairedCores{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
 .coreSlot{position:relative;min-width:0}
 .coreSlot>button:first-child{width:100%;cursor:pointer}
-.removeCore{top:0;right:0;width:22px;height:22px}
+.removeCore{top:0;right:0;width:28px;height:28px}
 .emptyCore{display:grid;place-items:center;aspect-ratio:240/209;min-width:0;padding:5px;background:var(--bb-panel);border:1px dashed var(--bb-border-hover);color:var(--bb-muted);cursor:pointer}
 .emptyCore img{display:block;width:100%;height:100%;object-fit:contain;opacity:.67}
 .emptyCore:disabled{cursor:default;opacity:.5}
