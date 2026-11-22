@@ -191,7 +191,7 @@ export function DeckSaveDialog({
             </div>
             {!report.isLegal && <p className={styles.publicNotice} role="note">
               <LucideIcon name="circle-alert" size={16} />
-              Public decks must be legal. {report.issues[0]?.message ?? "Check your deck construction."}
+              {fixedVisibility && visibility === "Private" ? "This managed deck must be legal before saving." : "Public decks must be legal."} {report.issues[0]?.message ?? "Check your deck construction."}
             </p>}
           </fieldset>
         </div>
