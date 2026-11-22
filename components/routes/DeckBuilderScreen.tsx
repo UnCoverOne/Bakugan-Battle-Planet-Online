@@ -4,22 +4,22 @@ import { OriginalImage } from "@/components/media/OriginalImage";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { memo, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type MouseEvent } from "react";
+import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type MouseEvent } from "react";
 import { activeCardFilterCount, CARD_FILTER_LABELS, CORE_SET_OPTIONS, cardMatchesFilters, clearCardFilterFacets, coreMatchesFilters, createCardFilterOptionCatalogue, createEmptyCardFilters, FACTION_SYMBOLS, restrictCardFilters, type CardFilterFacet, type CardFilterOptionCatalogue, type CardFilterState } from "../../lib/card-filters";
 import { cardArtSource } from "../../lib/content/card-art";
 import { createBuilderCardControls } from "../../lib/builder-card-selection";
 import { createCoreAdditionGuard } from "../../lib/builder-core-selection";
-import { coreForSet, corePreviewStats } from "../../lib/core-preview";
 import { paginateBuilderGallery } from "../../lib/builder-gallery-pagination";
 import { builderSortOptions, normalizeBuilderSort, sortBuilderItems, type BuilderCategory, type BuilderSort, type BuilderGalleryItem } from "../../lib/builder-sorting";
 import { BAKUGAN, CARD_BY_ID, CARDS, CORES, validateDeck, type DeckRecord } from "../../lib/data";
+import { cardPrintingKey, corePrintingKey, countConstructionCopies, preferredCardPrinting, preferredCorePrinting } from "../../lib/deck-printings";
+import { deckConstructionIdentity } from "../../lib/deck-validation";
 import type { DeckValidationResult } from "../../lib/deck-validation";
 import type { Core, GameCard } from "../../lib/game";
 import type { CardInspectorTab } from "../../lib/compendium";
 import { DECK_LIMIT } from "../../lib/deck-transfer";
 import { invalidateResponse } from "../../lib/response-cache";
 import { cardSearchText, frequencyMap } from "../../lib/catalogue-index";
-import { deckSetName } from "../../lib/deck-set";
 import { notifyOfflinePublicDecksUpdated } from "../../lib/public-deck-cache";
 import { useAppFields } from "../application/AppProvider";
 import { CardArt } from "../cards/CardArt";
@@ -27,10 +27,11 @@ import { copyText } from "../application/ui";
 import { CardInspector } from "../cards/CardInspector";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
 import { BakuganRollingOverlay } from "../cards/BakuganRollingStats";
-import { ActionButton, Field, StatusChip, Tabs } from "../design-system/primitives";
+import { ActionButton, Field } from "../design-system/primitives";
 import { CardFilterPanel } from "../filters/CardFilterPanel";
-import { FilterPicker } from "../filters/FilterPicker";
-import styles from "./DeckRoutes.module.css";
+import styles from "./DeckBuilder.module.css";
+import { CardsGallery } from "./CardsGallery";
+import { CoresGallery } from "./CoresGallery";
 import { MotionValue } from "../design-system/MotionValue";
 import { builderScope, builderBase, readBuilderDraft, writeBuilderDraft, setActiveBuilder, clearBuilderDraft, shouldConfirmBuilderExit, type BuilderDraft } from "../../lib/builder-session";
 import { useCompetitiveRules, clone, blankDraft, DeckState } from "./DeckRouteShared";
@@ -39,7 +40,6 @@ type BuilderView = "gallery" | "deck";
 
 type BuilderMenu =
   | { surface: "gallery" | "deck"; panel: "filter" | "sort" }
-  | { surface: "team" | "cores" | "mainDeck"; panel: "issues" }
   | { surface: "deck"; panel: "save" | "leave" };
 
 type BuilderInspection =
@@ -99,12 +99,11 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     setDecks,
     builderDeck,
     setBuilderDeck,
-    setSelectedDeckId,
     storageHealth,
     notify,
     promptAccount,
     catalogueRevision,
-  } = useAppFields(["decks", "setDecks", "builderDeck", "setBuilderDeck", "setSelectedDeckId", "storageHealth", "notify", "promptAccount", "catalogueRevision"]);
+  } = useAppFields(["decks", "setDecks", "builderDeck", "setBuilderDeck", "storageHealth", "notify", "promptAccount", "catalogueRevision"]);
   const competitiveRules = useCompetitiveRules();
   const { deckSize: competitiveDeckSize, restrictions: competitiveRestrictions } = competitiveRules;
   const competitiveRulesReady = !competitiveRules.loading && !competitiveRules.error;
@@ -132,6 +131,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   };
   const [remoteLoading, setRemoteLoading] = useState(administratorEdit && !source);
   const [builderView, setBuilderView] = useState<BuilderView>(() => restoredChoice("builderView", ["gallery", "deck"], "gallery"));
+  const [galleryDensity, setGalleryDensity] = useState<"compact" | "detailed">(() => restoredChoice("galleryDensity", ["compact", "detailed"], "detailed"));
   const [galleryQuery, setGalleryQuery] = useState(() => restoredText("galleryQuery", ""));
   const deferredGalleryQuery = useDeferredValue(galleryQuery);
   const [deckQuery, setDeckQuery] = useState(() => restoredText("deckQuery", ""));
@@ -207,7 +207,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     }
     latestDraft.current = {
       version: 1, routeId: id, deck, base: baseline.current,
-      ui: { builderView, galleryQuery, deckQuery, galleryCategory, gallerySort, deckSort,
+      ui: { builderView, galleryDensity, galleryQuery, deckQuery, galleryCategory, gallerySort, deckSort,
         galleryFilters, deckFilters, factionFilterAuto, saveName, saveDescription, saveVisibility, saveLeadCardId },
     };
     setSaveState("dirty");
@@ -215,7 +215,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
       if (!sessionEnded.current && latestDraft.current) setSaveState(writeBuilderDraft(scope, latestDraft.current) ? "saved" : "error");
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [administratorEdit, scope, id, deck, builderView, galleryQuery, deckQuery, galleryCategory, gallerySort, deckSort, galleryFilters, deckFilters, factionFilterAuto, saveName, saveDescription, saveVisibility, saveLeadCardId, setBuilderDeck, storageHealth.status]);
+  }, [administratorEdit, scope, id, deck, builderView, galleryDensity, galleryQuery, deckQuery, galleryCategory, gallerySort, deckSort, galleryFilters, deckFilters, factionFilterAuto, saveName, saveDescription, saveVisibility, saveLeadCardId, setBuilderDeck, storageHealth.status]);
 
   useEffect(() => {
     if (administratorEdit) return;
@@ -273,17 +273,28 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
       factions: [...new Set(next.bakuganIds.map((key) => BAKUGAN.find((item) => item.id === key)?.faction).filter(Boolean))] as string[],
     });
   };
-  const report = useMemo(() => validateDeck(deck, competitiveRestrictions, competitiveDeckSize), [competitiveDeckSize, competitiveRestrictions, deck]);
+  const report = useMemo(() => validateDeck({ ...deck, name: saveName }, competitiveRestrictions, competitiveDeckSize), [competitiveDeckSize, competitiveRestrictions, deck, saveName]);
   const mainDeckMaximum = deck.format === "competitive" ? competitiveDeckSize : 40;
   const cardControls = useMemo(() => createBuilderCardControls(
     deck.cardIds, CARD_BY_ID, deck.format, competitiveRestrictions, mainDeckMaximum, competitiveRulesReady,
   ), [deck.cardIds, deck.format, competitiveRestrictions, mainDeckMaximum, competitiveRulesReady]);
-  const cardCounts = useMemo(() => frequencyMap(deck.cardIds), [deck.cardIds]);
+  const cardCounts = useMemo(() => countConstructionCopies(deck.cardIds), [deck.cardIds]);
+  const characterCounts = useMemo(() => countConstructionCopies(deck.bakuganIds), [deck.bakuganIds]);
   const coreCounts = useMemo(() => frequencyMap(deck.coreIds), [deck.coreIds]);
-  const grouped = useMemo(() => [...cardCounts].map(([key, count]) => ({
-    card: CARD_BY_ID.get(key),
-    count,
-  })).filter((entry): entry is { card: NonNullable<ReturnType<typeof CARD_BY_ID.get>>; count: number } => Boolean(entry.card)), [cardCounts]);
+  const grouped = useMemo(() => {
+    const groups = new Map<string, { card: GameCard; count: number }>();
+    for (const id of deck.cardIds) {
+      const card = CARD_BY_ID.get(id);
+      if (!card) continue;
+      const key = cardPrintingKey(card);
+      const group = groups.get(key);
+      if (group) group.count += 1;
+      else groups.set(key, { card, count: 1 });
+    }
+    return [...groups.values()].map(entry => ({
+      ...entry, card: preferredCardPrinting(entry.card, deck.printingPreferences),
+    }));
+  }, [deck.cardIds, deck.printingPreferences]);
 
   const cardFilterOptions = useMemo<CardFilterOptionCatalogue>(() => {
     void catalogueRevision;
@@ -329,13 +340,13 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
         id: card.catalogId,
         name: card.displayName,
         card,
-        count: cardCounts.get(card.catalogId) ?? 0,
+        count: cardCounts.get(cardPrintingKey(card)) ?? 0,
       })) : galleryCategory === "characters" ? BAKUGAN.map((item) => ({
         kind: "character" as const,
         id: item.id,
         name: item.name,
         card: item.character,
-        count: deck.bakuganIds.includes(item.id) ? 1 : 0,
+        count: characterCounts.get(cardPrintingKey(item.character)) ?? 0,
       })) : CORES.map((core) => ({
         kind: "core" as const,
         id: core.id,
@@ -343,7 +354,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
         core,
         count: coreCounts.get(core.id) ?? 0,
       }));
-    return items.filter((item) => {
+    const filtered = items.filter((item) => {
       if (galleryCategory === "cards" && item.kind !== "card") return false;
       if (galleryCategory === "characters" && item.kind !== "character") return false;
       if (galleryCategory === "cores" && item.kind !== "core") return false;
@@ -362,9 +373,18 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
       }
       return true;
     }).sort((left, right) => sortBuilderItems(left, right, effectiveGallerySort, galleryFilters.set.length === 1 ? galleryFilters.set[0] : "All"));
+    const seen = new Set<string>();
+    return filtered.filter(item => {
+      if (item.kind === "core") return true;
+      const key = cardPrintingKey(item.card);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }, [
     deck.bakuganIds,
     cardCounts,
+    characterCounts,
     coreCounts,
     searchIndex,
     factionFilterAuto,
@@ -415,24 +435,39 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     return Array.from({ length: 6 }, (_, index) => slots[index]);
   }, [deck.coreIds, requiredCoreTypes]);
 
+  const selectPreferredPrinting = (key: string, printingId: string) => {
+    commit({ ...deck, printingPreferences: { ...deck.printingPreferences, [key]: printingId } });
+  };
   const adjustCard = (key: string, amount: number) => {
     const next = [...deck.cardIds];
+    const selected = CARD_BY_ID.get(key);
+    if (!selected) return;
     if (amount > 0 && cardControls.canAdd(key)) next.push(key);
     if (amount < 0) {
       const index = next.lastIndexOf(key);
-      if (index >= 0) next.splice(index, 1);
+      const matching = index >= 0 ? index : next.findLastIndex(id => {
+        const candidate = CARD_BY_ID.get(id);
+        return candidate && deckConstructionIdentity(candidate) === deckConstructionIdentity(selected);
+      });
+      if (matching >= 0) next.splice(matching, 1);
     }
     commit({ ...deck, cardIds: next });
   };
   const toggleCharacter = (key: string) => {
-    const adding = !deck.bakuganIds.includes(key);
-    const nextIds = deck.bakuganIds.includes(key)
-      ? deck.bakuganIds.filter((candidate) => candidate !== key)
-      : deck.bakuganIds.length < 3 ? [...deck.bakuganIds, key] : deck.bakuganIds;
-    const nextFactions = [...new Set(nextIds.map((candidate) => BAKUGAN.find((item) => item.id === candidate)?.faction).filter(Boolean))] as string[];
-    if (adding || factionFilterAuto) {
-      setGalleryFilters((current) => ({ ...current, faction: nextFactions }));
-    }
+    const selected = CARD_BY_ID.get(key);
+    if (!selected) return;
+    const identity = deckConstructionIdentity(selected);
+    const existing = deck.bakuganIds.find(id => {
+      const card = CARD_BY_ID.get(id);
+      return card && deckConstructionIdentity(card) === identity;
+    });
+    const adding = !existing;
+    const nextIds = existing
+      ? deck.bakuganIds.filter(id => id !== existing)
+      : deck.bakuganIds.length < 3 && BAKUGAN.some(item => item.id === key)
+        ? [...deck.bakuganIds, key] : deck.bakuganIds;
+    const nextFactions = [...new Set(nextIds.map(id => BAKUGAN.find(item => item.id === id)?.faction).filter(Boolean))] as string[];
+    if (adding || factionFilterAuto) setGalleryFilters(current => ({ ...current, faction: nextFactions }));
     if (adding) setFactionFilterAuto(true);
     commit({ ...deck, bakuganIds: nextIds });
   };
@@ -447,30 +482,33 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   };
   const inspectCard = (card: GameCard) => {
     setInspectorTab("overview");
-    setInspectorPrinting("");
+    setInspectorPrinting(preferredCardPrinting(card, deck.printingPreferences).catalogId);
     setInspection({ kind: "card", card });
   };
   const inspectCore = (coreId: string) => {
     setInspectorTab("overview");
-    setInspectorPrinting("");
+    setInspectorPrinting(deck.printingPreferences?.["core:" + coreId] ?? "");
     setInspection({ kind: "core", coreId });
   };
-  const adjustGalleryItem = (item: BuilderGalleryItem, amount: number) => {
-    if (item.kind === "card") adjustCard(item.id, amount);
-    if (item.kind === "character" && ((amount > 0 && !item.count) || (amount < 0 && item.count))) toggleCharacter(item.id);
-    if (item.kind === "core") adjustCore(item.id, amount);
+  const onGalleryCardAdjust = (card: GameCard, amount: number) => {
+    if (galleryCategory === "characters") {
+      if ((amount > 0 && !characterCounts.get(cardPrintingKey(card))) ||
+        (amount < 0 && characterCounts.get(cardPrintingKey(card)))) toggleCharacter(card.catalogId);
+    } else adjustCard(card.catalogId, amount);
   };
-  const canAddGalleryItem = (item: BuilderGalleryItem) => {
-    if (item.kind === "character") return item.count === 0 && deck.bakuganIds.length < 3;
-    if (item.kind === "core") return canAddCore(item.id);
-    return cardControls.canAdd(item.id);
+  const canAddGalleryCard = (card: GameCard) => galleryCategory === "characters"
+    ? !(characterCounts.get(cardPrintingKey(card))) && deck.bakuganIds.length < 3
+    : cardControls.canAdd(card.catalogId);
+  const chooseCoreSlot = (type: string) => {
+    changeGalleryCategory("cores");
+    setGalleryFilters(current => ({ ...current, coreType: [type] }));
+    setBuilderView("gallery");
   };
   const activeGalleryFilterCount = activeCardFilterCount(galleryFilters, galleryFilterFacets);
   const activeDeckFilterCount = activeCardFilterCount(deckFilters, BUILDER_MAIN_DECK_FILTER_FACETS);
 
   const openSaveDialog = () => {
     if (administratorEdit) setSaveVisibility(adminPublicId || adminOfflineId ? "Public" : "Private");
-    else if (!report.isLegal && saveVisibility === "Public") setSaveVisibility("Draft");
     setActiveMenu({ surface: "deck", panel: "save" });
   };
 
@@ -534,7 +572,6 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     sessionEnded.current = true;
     clearBuilderDraft(scope, id);
     setDecks((items: DeckRecord[]) => [next, ...items.filter((item) => item.id !== next.id)]);
-    setSelectedDeckId(next.id);
     setBuilderDeck(null);
     setSaveState("saved");
     setActiveMenu(null);
@@ -556,499 +593,256 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     /></div>;
   }
 
+
   return (
-    <section className={styles.builder}>
-      <header className={styles.builderHeader}>
-        <Link href={returnTo ?? "/decks"} onClick={exitBuilder}>{administratorEdit ? "← Administrator" : returnTo ? "← Match setup" : "← Back to decks"}</Link>
-        <div className={styles.builderDeckIdentity}><span>{administratorEdit ? "Administrator Edit" : "Edit Deck"}</span><strong title={deck.name}>{deck.name}</strong></div>
-        <div className={styles.builderFormat}>
-          <FilterPicker
-            label="Deck format"
-            mode="single"
-            clearable={false}
-            values={[deck.format ?? "standard"]}
-            options={DECK_FORMAT_OPTIONS}
-            onChange={(values) => {
-              const format = values[0] as DeckRecord["format"] | undefined;
-              if (format && format !== deck.format) commit({ ...deck, format });
-            }}
-          />
-        </div>
-        <StatusChip tone="info">{deckSetName(deck).toUpperCase()}</StatusChip>
-        <StatusChip tone={deck.format === "competitive" && !competitiveRulesReady ? "info" : report.isLegal ? "success" : "danger"}>
-          {deck.format === "competitive" && !competitiveRulesReady ? competitiveRules.error ? "Competitive rules unavailable" : "Checking competitive rules…" : report.isLegal ? "Legal" : `${report.issues.length} issues`}
-        </StatusChip>
-        {deck.format === "competitive" && competitiveRules.error && <ActionButton className={styles.builderRulesRetry} tone="quiet" onClick={competitiveRules.retry}>Retry rules</ActionButton>}
-        <span className={`${styles.saveState} ${styles[`saveState_${saveState}`]}`}>
-          <MotionValue value={saveState} kind="status">{saveState === "error" ? "Draft not saved" : saveState === "dirty" ? "Saving draft…" : "Draft saved locally"}</MotionValue>
-        </span>
-        <ActionButton onClick={openSaveDialog}>Save Deck</ActionButton>
-        <Tabs className={styles.builderMobileTabs} label="Deck Builder sections">
-          {(["gallery", "deck"] as BuilderView[]).map((value) => (
-            <button key={value} className={builderView === value ? "active" : ""} onClick={() => setBuilderView(value)}>
-              {value === "gallery" ? "Card Gallery" : `Current Deck ${deck.cardIds.length}/${mainDeckMaximum}`}
-            </button>
-          ))}
-        </Tabs>
+    <section className={styles.builder} data-ui="deck-builder">
+      <header className={styles.header}>
+        <Link href={returnTo ?? "/decks"} onClick={exitBuilder} className={styles.back} aria-label="Back to decks">←</Link>
+        <input className={styles.deckName} aria-label="Deck name" value={saveName} maxLength={60}
+          onChange={event => setSaveName(event.target.value)} />
+        <select className={styles.format} aria-label="Deck format" value={deck.format ?? "standard"}
+          onChange={event => commit({ ...deck, format: event.target.value as DeckRecord["format"] })}>
+          {DECK_FORMAT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </select>
+        {saveState === "error" && <span className={styles.saveError} role="status" title={storageHealth.message}>Draft unavailable</span>}
+        <button type="button" className={styles.saveButton} onClick={openSaveDialog}
+          title={report.isLegal ? "Deck is legal" : report.issues.map(issue => issue.message).join("\n")}>
+          <span aria-hidden="true" className={report.isLegal ? styles.legal : styles.unready}>{report.isLegal ? "✓" : "!"}</span>
+          Save
+        </button>
       </header>
 
-      <div className={styles.builderLayout}>
-        <section ref={galleryPanelRef} data-ui="builder-panel" data-active={builderView === "gallery"} className={`${styles.builderGallery} ${builderView !== "gallery" ? styles.mobileHidden : ""}`}>
-          <div className={styles.builderSideTitle}>
-            <div><span>Collection</span><h2>Card Gallery</h2></div>
-            <StatusChip>{galleryItems.length} matches</StatusChip>
+      <nav className={styles.mobileTabs} aria-label="Builder views">
+        <button type="button" aria-current={builderView === "gallery" ? "page" : undefined}
+          onClick={() => setBuilderView("gallery")}>Browse</button>
+        <button type="button" aria-current={builderView === "deck" ? "page" : undefined}
+          onClick={() => setBuilderView("deck")}>Deck · {deck.cardIds.length}/{mainDeckMaximum}</button>
+      </nav>
+
+      <div className={styles.workspace}>
+        <section ref={galleryPanelRef} className={`${styles.browse} ${builderView !== "gallery" ? styles.mobileHidden : ""}`} aria-label="Browse cards">
+          <nav className={styles.categories} aria-label="Card types">
+            {([["characters", "Characters"], ["cores", "BakuCores"], ["cards", "Cards"]] as const).map(([category, label]) =>
+              <button type="button" key={category} aria-current={galleryCategory === category ? "page" : undefined}
+                onClick={() => changeGalleryCategory(category)}>{label}</button>)}
+          </nav>
+          <div className={styles.browseTools}>
+            <BuilderToolbar label="Browse" query={galleryQuery} setQuery={setGalleryQuery}
+              filterCount={activeGalleryFilterCount} onFilter={() => setActiveMenu({ surface: "gallery", panel: "filter" })}
+              onSort={() => setActiveMenu({ surface: "gallery", panel: "sort" })} />
+            <button type="button" className={styles.density} aria-label={galleryDensity === "detailed" ? "Compact cards" : "Detailed cards"}
+              title={galleryDensity === "detailed" ? "Compact cards" : "Detailed cards"}
+              onClick={() => setGalleryDensity(value => value === "detailed" ? "compact" : "detailed")}>▦</button>
           </div>
-          <Tabs className={styles.builderGalleryTabs} label="Card Gallery sections">
-            {([
-              ["characters", "Character Cards"],
-              ["cores", "Cores"],
-              ["cards", "Main Deck Cards"],
-            ] as Array<[BuilderCategory, string]>).map(([value, label]) => (
-              <button
-                type="button"
-                className={galleryCategory === value ? "active" : ""}
-                aria-pressed={galleryCategory === value}
-                onClick={() => changeGalleryCategory(value)}
-                key={value}
-              >
-                {label}
-              </button>
-            ))}
-          </Tabs>
-          <BuilderToolbar
-            label="Card Gallery"
-            query={galleryQuery}
-            setQuery={setGalleryQuery}
-            filterCount={activeGalleryFilterCount}
-            onFilter={() => setActiveMenu({ surface: "gallery", panel: "filter" })}
-            onSort={() => setActiveMenu({ surface: "gallery", panel: "sort" })}
-          />
-          <BuilderActiveFilterChips
-            ariaLabel="Active Card Gallery filters"
-            filters={galleryFilters}
-            facets={galleryFilterFacets}
-            options={galleryFilterOptions}
-            factionLabel={factionFilterAuto ? "Team faction" : undefined}
-            onChange={(next, facet) => {
-              if (facet === "faction") setFactionFilterAuto(false);
-              setGalleryFilters(next);
-            }}
-          />
-          {galleryItems.length ? (
-            <div className={`${styles.builderGalleryGrid} ${galleryCategory === "cores" ? styles.builderCoreGalleryGrid : ""}`}>
-              {galleryPagination.items.map((item) => (
-                <BuilderGalleryCard
-                  key={`${item.kind}-${item.id}`}
-                  item={item}
-                  catalogueRevision={catalogueRevision}
-                  selectedCoreSet={galleryFilters.set.length === 1 ? galleryFilters.set[0] : "All"}
-                  canAdd={canAddGalleryItem(item)}
-                  restriction={item.kind === "card" ? cardControls.restrictionLabel(item.id) : undefined}
-                  onInspect={() => item.kind === "core" ? inspectCore(item.id) : inspectCard(item.card)}
-                  onAdjust={(amount) => adjustGalleryItem(item, amount)}
-                />
-              ))}
+          <BuilderActiveFilterChips ariaLabel="Active filters" filters={galleryFilters} facets={galleryFilterFacets}
+            options={galleryFilterOptions} factionLabel={factionFilterAuto ? "Team faction" : undefined}
+            onChange={(next, facet) => { if (facet === "faction") setFactionFilterAuto(false); setGalleryFilters(next); }} />
+          {galleryPagination.items.length ? (
+            galleryCategory === "cores" ?
+              <CoresGallery cores={galleryPagination.items.flatMap(item => item.kind === "core" ? [item.core] : [])}
+                selectedSets={galleryFilters.set} density={galleryDensity}
+                resolveCore={core => preferredCorePrinting(core, deck.printingPreferences)}
+                onSelect={core => inspectCore(core.id)}
+                renderControls={core => <BuilderQuantity name={core.name} count={coreCounts.get(core.id) ?? 0}
+                  canAdd={canAddCore(core.id)} canRemove={(coreCounts.get(core.id) ?? 0) > 0}
+                  onAdd={() => adjustCore(core.id, 1)} onRemove={() => adjustCore(core.id, -1)} />} />
+              :
+              <CardsGallery cards={galleryPagination.items.flatMap(item => item.kind === "core" ? [] : [item.card])}
+                density={galleryDensity} resolveCard={card => preferredCardPrinting(card, deck.printingPreferences)}
+                onSelect={card => inspectCard(card)}
+                renderControls={card => <BuilderQuantity name={card.displayName}
+                  count={galleryCategory === "characters" ? characterCounts.get(cardPrintingKey(card)) ?? 0 : cardCounts.get(cardPrintingKey(card)) ?? 0}
+                  canAdd={canAddGalleryCard(card)}
+                  canRemove={galleryCategory === "characters" ? Boolean(characterCounts.get(cardPrintingKey(card))) : Boolean(cardCounts.get(cardPrintingKey(card)))}
+                  restriction={galleryCategory === "cards" ? cardControls.restrictionLabel(card.catalogId) : undefined}
+                  onAdd={() => onGalleryCardAdjust(card, 1)} onRemove={() => onGalleryCardAdjust(card, -1)} />} />
+          ) : <div className={styles.empty}>No matches</div>}
+          {galleryItems.length > 0 && <nav className={styles.pagination} aria-label="Browse pages">
+            <span>{galleryPagination.start}–{galleryPagination.end} of {galleryItems.length}</span>
+            <div>
+              <button type="button" disabled={galleryPagination.page === 1} onClick={() => changeGalleryPage(galleryPagination.page - 1)}
+                aria-label="Previous page">‹</button>
+              <span>{galleryPagination.page} / {galleryPagination.pageCount}</span>
+              <button type="button" disabled={galleryPagination.page === galleryPagination.pageCount}
+                onClick={() => changeGalleryPage(galleryPagination.page + 1)} aria-label="Next page">›</button>
             </div>
-          ) : (
-            <DeckState
-              title="No gallery items match"
-              copy="Clear one or more filters to return cards, Character cards, and BakuCores to the gallery."
-              action={<ActionButton tone="quiet" onClick={() => {
-                setGalleryQuery("");
-                setGalleryCategory("characters");
-                setGalleryFilters(createEmptyCardFilters());
-                setFactionFilterAuto(false);
-              }}>Clear filters</ActionButton>}
-            />
-          )}
-          {galleryItems.length > 0 && (
-            <nav className={styles.builderGalleryPagination} aria-label="Card Gallery pages">
-              <span className={styles.builderGalleryPageSummary} aria-live="polite">
-                {galleryPagination.start}–{galleryPagination.end} of {galleryItems.length}
-              </span>
-              <div className={styles.builderGalleryPageControls}>
-                <button type="button" disabled={galleryPagination.page === 1} onClick={() => changeGalleryPage(1)} aria-label="First gallery page">«</button>
-                <button type="button" disabled={galleryPagination.page === 1} onClick={() => changeGalleryPage(galleryPagination.page - 1)} aria-label="Previous"><span className={styles.builderGalleryPageLong}>Previous</span><span className={styles.builderGalleryPageShort} aria-hidden="true">‹</span></button>
-                <span className={styles.builderGalleryPageIndicator} aria-label={`Page ${galleryPagination.page} of ${galleryPagination.pageCount}`}><span className={styles.builderGalleryPageLong}>Page {galleryPagination.page} of {galleryPagination.pageCount}</span><span className={styles.builderGalleryPageShort} aria-hidden="true">{galleryPagination.page} / {galleryPagination.pageCount}</span></span>
-                <button type="button" disabled={galleryPagination.page === galleryPagination.pageCount} onClick={() => changeGalleryPage(galleryPagination.page + 1)} aria-label="Next"><span className={styles.builderGalleryPageLong}>Next</span><span className={styles.builderGalleryPageShort} aria-hidden="true">›</span></button>
-                <button type="button" disabled={galleryPagination.page === galleryPagination.pageCount} onClick={() => changeGalleryPage(galleryPagination.pageCount)} aria-label="Last gallery page">»</button>
-              </div>
-            </nav>
-          )}
+          </nav>}
         </section>
 
-        <aside data-ui="builder-panel" data-active={builderView === "deck"} className={`${styles.builderCurrentDeck} ${builderView !== "deck" ? styles.mobileHidden : ""}`}>
-          <section className={styles.builderDeckSection}>
-            <BuilderRequirementHeader
-              title="Bakugan Character Cards"
-              count={deck.bakuganIds.length}
-              maximum={3}
-              issues={report.bySection.team}
-              onInfo={() => setActiveMenu({ surface: "team", panel: "issues" })}
-            />
-            <div className={styles.builderCharacterRow}>
-              {Array.from({ length: 3 }, (_, index) => {
-                const character = BAKUGAN.find((candidate) => candidate.id === deck.bakuganIds[index]);
-                return character ? (
-                  <article className={styles.builderCharacterSlot} key={character.id}>
-                    <button className={styles.builderCardArtButton} onClick={() => inspectCard(character.character)}>
-                      <ResponsiveCardImage card={character.character} presentation="tile" />
+        <aside className={`${styles.deck} ${builderView !== "deck" ? styles.mobileHidden : ""}`} aria-label="Current deck">
+          <div className={styles.sectionHeading}>
+            <h2>Team</h2>
+            <span>{deck.bakuganIds.length}/3 · ◇ {deck.coreIds.length}/6</span>
+          </div>
+          <div className={styles.teamGrid}>
+            {Array.from({ length: 3 }, (_, index) => {
+              const character = BAKUGAN.find(candidate => candidate.id === deck.bakuganIds[index]);
+              const display = character && preferredCardPrinting(character.character, deck.printingPreferences);
+              return <div className={styles.teamGroup} key={character?.id ?? index}>
+                {character && display ?
+                  <div className={styles.teamCharacter}>
+                    <button type="button" onClick={() => inspectCard(character.character)}
+                      aria-label={`Inspect ${character.name}`}><ResponsiveCardImage card={display} presentation="tile" alt={character.name} />
                       <BakuganRollingOverlay card={character.character} />
                     </button>
-                    <div><strong>{character.name}</strong><span>{character.faction}</span></div>
-                    <button aria-label={`Remove ${character.name}`} onClick={() => toggleCharacter(character.id)}>−</button>
-                  </article>
-                ) : (
-                  <div className={styles.builderCharacterEmpty} key={index}>
-                    <span>{index + 1}</span><strong>Character slot</strong><small>Add from the gallery</small>
+                    <button type="button" className={styles.removeCharacter} onClick={() => toggleCharacter(character.id)}
+                      aria-label={`Remove ${character.name}`}>×</button>
                   </div>
-                );
-              })}
-            </div>
-          </section>
+                  : <button type="button" className={styles.emptyCharacter}
+                    aria-label="Add Character" onClick={() => { changeGalleryCategory("characters"); setBuilderView("gallery"); }}>＋</button>}
+                <div className={styles.pairedCores}>
+                  {[0, 1].map(offset => {
+                    const slot = index * 2 + offset;
+                    const type = requiredCoreTypes[slot];
+                    const id = selectedCoreSlots[slot];
+                    const core = id ? CORES.find(candidate => candidate.id === id) : undefined;
+                    const displayCore = core && preferredCorePrinting(core, deck.printingPreferences);
+                    return core && displayCore ?
+                      <div className={styles.coreSlot} key={slot}>
+                        <button type="button" title={core.name} aria-label={`Inspect ${core.name}`}
+                          onClick={() => inspectCore(core.id)}><BakuCoreArt core={displayCore} alt={core.name} /></button>
+                        <button type="button" className={styles.removeCore} onClick={() => adjustCore(core.id, -1)}
+                          aria-label={`Remove ${core.name}`}>×</button>
+                      </div>
+                    : <button type="button" className={styles.emptyCore} key={slot} disabled={!type}
+                        title={type ?? "Select a Character"} aria-label={type ? `Choose ${type} BakuCore` : "Select a Character first"}
+                        onClick={() => { if (type) chooseCoreSlot(type); }}>
+                        {type ? <BakuCoreBack type={type} /> : "＋"}
+                      </button>;
+                  })}
+                </div>
+              </div>;
+            })}
+          </div>
 
-          <section className={styles.builderDeckSection}>
-            <BuilderRequirementHeader
-              title="BakuCores"
-              count={deck.coreIds.length}
-              maximum={6}
-              issues={report.bySection.cores}
-              onInfo={() => setActiveMenu({ surface: "cores", panel: "issues" })}
-            />
-            <p className={styles.coreRequirementCopy}>
-              Each pair sits beneath the Character card that requires it.
-            </p>
-            <div className={styles.builderCoreRow}>
-              {Array.from({ length: 6 }, (_, index) => {
-                const requiredType = requiredCoreTypes[index];
-                const selectedId = selectedCoreSlots[index];
-                const core = selectedId ? CORES.find((candidate) => candidate.id === selectedId) : null;
-                return core ? (
-                  <article className={styles.builderCoreSlot} key={`${core.id}-${index}`}>
-                    <button onClick={() => inspectCore(core.id)}><BakuCoreArt core={core} alt={core.name} /></button>
-                    <span>{core.type}</span>
-                    <button aria-label={`Remove ${core.name}`} onClick={() => adjustCore(core.id, -1)}>−</button>
-                  </article>
-                ) : (
-                  <div className={styles.builderCorePreview} key={`empty-${index}`}>
-                    {requiredType
-                      ? <BakuCoreBack type={requiredType} />
-                      : <><span>◇</span><strong>Choose Character</strong></>}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className={`${styles.builderDeckSection} ${styles.builderMainDeckSection}`}>
-            <BuilderRequirementHeader
-              title="Main Deck"
-              count={deck.cardIds.length}
-              maximum={mainDeckMaximum}
-              issues={report.bySection.mainDeck}
-              factions={report.teamFactions}
-              onInfo={() => setActiveMenu({ surface: "mainDeck", panel: "issues" })}
-            />
-            <BuilderToolbar
-              label="Main Deck"
-              query={deckQuery}
-              setQuery={setDeckQuery}
-              filterCount={activeDeckFilterCount}
-              onFilter={() => setActiveMenu({ surface: "deck", panel: "filter" })}
-              onSort={() => setActiveMenu({ surface: "deck", panel: "sort" })}
-            />
-            <BuilderActiveFilterChips
-              ariaLabel="Active Main Deck filters"
-              filters={deckFilters}
-              facets={BUILDER_MAIN_DECK_FILTER_FACETS}
-              options={cardFilterOptions}
-              onChange={(next) => setDeckFilters(next)}
-            />
-            {mainDeckCards.length ? (
-              <div className={styles.builderMainDeckGrid}>
-                {mainDeckCards.map(({ card, count }) => (
-                  <BuilderGalleryCard
-                    key={card.catalogId}
-                    item={{ kind: "card", id: card.catalogId, name: card.displayName, card, count }}
-                    canAdd={cardControls.canAdd(card.catalogId)}
-                    restriction={cardControls.restrictionLabel(card.catalogId)}
-                    onInspect={() => inspectCard(card)}
-                    onAdjust={(amount) => adjustCard(card.catalogId, amount)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <DeckState
-                title={deck.cardIds.length ? "No deck cards match" : "Main Deck is empty"}
-                copy={deck.cardIds.length ? "Clear the Main Deck filters to see every included card." : `Add ${mainDeckMaximum} faction-compatible cards from the Card Gallery.`}
-              />
-            )}
-          </section>
+          <div className={styles.sectionHeading}>
+            <h2>Main Deck</h2><span>{deck.cardIds.length}/{mainDeckMaximum}</span>
+          </div>
+          {deck.cardIds.length > 0 && <div className={styles.deckTools}>
+            <BuilderToolbar label="Main Deck" query={deckQuery} setQuery={setDeckQuery}
+              filterCount={activeDeckFilterCount} onFilter={() => setActiveMenu({ surface: "deck", panel: "filter" })}
+              onSort={() => setActiveMenu({ surface: "deck", panel: "sort" })} />
+            <button type="button" className={styles.density} aria-label={galleryDensity === "detailed" ? "Compact cards" : "Detailed cards"}
+              onClick={() => setGalleryDensity(value => value === "detailed" ? "compact" : "detailed")}>▦</button>
+          </div>}
+          <BuilderActiveFilterChips ariaLabel="Main Deck filters" filters={deckFilters}
+            facets={BUILDER_MAIN_DECK_FILTER_FACETS} options={cardFilterOptions} onChange={setDeckFilters} />
+          {mainDeckCards.length ?
+            <CardsGallery cards={mainDeckCards.map(entry => entry.card)} density={galleryDensity}
+              resolveCard={card => preferredCardPrinting(card, deck.printingPreferences)}
+              onSelect={card => inspectCard(card)}
+              renderControls={card => <BuilderQuantity name={card.displayName}
+                count={cardCounts.get(cardPrintingKey(card)) ?? 0}
+                canAdd={cardControls.canAdd(card.catalogId)}
+                canRemove={Boolean(cardCounts.get(cardPrintingKey(card)))}
+                restriction={cardControls.restrictionLabel(card.catalogId)}
+                onAdd={() => adjustCard(card.catalogId, 1)} onRemove={() => adjustCard(card.catalogId, -1)} />} />
+            : <div className={styles.empty}>
+              {deck.cardIds.length ? "No matches" : <button type="button" onClick={() => { changeGalleryCategory("cards"); setBuilderView("gallery"); }}>＋ Add cards</button>}
+            </div>}
         </aside>
       </div>
-      <footer className={styles.builderStatus}>
-        <div><span>Characters</span><strong>{deck.bakuganIds.length}/3</strong></div>
-        <div><span>BakuCores</span><strong>{deck.coreIds.length}/6</strong></div>
-        <div><span>Main Deck</span><strong>{deck.cardIds.length}/{mainDeckMaximum}</strong></div>
-        <span>{saveState === "error" ? storageHealth.message : "Draft persists on this device while you build."}</span>
-      </footer>
 
-      {activeMenu?.panel === "issues" && (
-        <BuilderMenuDialog
-          title={activeMenu.surface === "team" ? "Character requirements" : activeMenu.surface === "cores" ? "BakuCore requirements" : "Main Deck requirements"}
-          eyebrow="Deck validation"
-          onClose={() => setActiveMenu(null)}
-        >
-          <BuilderIssues
-            issues={activeMenu.surface === "team"
-              ? report.bySection.team
-              : activeMenu.surface === "cores"
-                ? report.bySection.cores
-                : report.bySection.mainDeck}
-          />
-        </BuilderMenuDialog>
-      )}
+      {activeMenu?.panel === "sort" && <BuilderMenuDialog title="Sort" eyebrow=""
+        onClose={() => setActiveMenu(null)}>
+        <div className={styles.builderOptionList}>
+          {builderSortOptions(activeMenu.surface === "gallery" ? galleryCategory : "cards").map(([value, label]) => (
+            <button type="button" key={value} onClick={() => {
+              if (activeMenu.surface === "gallery") setGallerySort(value); else setDeckSort(value);
+              setActiveMenu(null);
+            }}>{label}</button>
+          ))}
+        </div>
+      </BuilderMenuDialog>}
 
-      {activeMenu?.panel === "sort" && (
-        <BuilderMenuDialog
-          title={`Sort ${activeMenu.surface === "gallery" ? "Card Gallery" : "Main Deck"}`}
-          eyebrow="Display order"
-          onClose={() => setActiveMenu(null)}
-        >
-          <div className={styles.builderOptionList}>
-            {builderSortOptions(activeMenu.surface === "gallery" ? galleryCategory : "cards").map(([value, label]) => {
-              const selected = activeMenu.surface === "gallery" ? effectiveGallerySort === value : deckSort === value;
-              return (
-                <button
-                  className={selected ? styles.builderOptionSelected : ""}
-                  key={value}
-                  onClick={() => {
-                    if (activeMenu.surface === "gallery") setGallerySort(value);
-                    else setDeckSort(value);
-                    setActiveMenu(null);
-                  }}
-                >
-                  <span>{selected ? "●" : "○"}</span>{label}
-                </button>
-              );
-            })}
-          </div>
-        </BuilderMenuDialog>
-      )}
+      {activeMenu?.panel === "filter" && <BuilderMenuDialog title="Filters" eyebrow=""
+        onClose={() => setActiveMenu(null)} footer={<>
+          <ActionButton tone="quiet" onClick={() => {
+            if (activeMenu.surface === "gallery") {
+              setGalleryFilters(current => clearCardFilterFacets(current, galleryFilterFacets));
+              setFactionFilterAuto(false);
+            } else setDeckFilters(createEmptyCardFilters());
+          }}>Reset</ActionButton>
+          <ActionButton onClick={() => setActiveMenu(null)}>Done</ActionButton>
+        </>}>
+        <CardFilterPanel filters={activeMenu.surface === "gallery" ? galleryFilters : deckFilters}
+          facets={activeMenu.surface === "gallery" ? galleryFilterFacets : BUILDER_MAIN_DECK_FILTER_FACETS}
+          options={activeMenu.surface === "gallery" ? galleryFilterOptions : cardFilterOptions}
+          onChange={(next, facet) => {
+            if (activeMenu.surface === "gallery") {
+              if (facet === "faction") setFactionFilterAuto(false);
+              setGalleryFilters(next);
+            } else setDeckFilters(next);
+          }} />
+      </BuilderMenuDialog>}
 
-      {activeMenu?.panel === "filter" && (
-        <BuilderMenuDialog
-          title={`Filter ${activeMenu.surface === "gallery" ? "Card Gallery" : "Main Deck"}`}
-          eyebrow="Refine cards"
-          onClose={() => setActiveMenu(null)}
-          footer={(
-            <>
-              <ActionButton tone="quiet" onClick={() => {
-                if (activeMenu.surface === "gallery") {
-                  setGalleryFilters((current) => clearCardFilterFacets(current, galleryFilterFacets));
-                  if (galleryFilterFacets.includes("faction")) setFactionFilterAuto(false);
-                } else {
-                  setDeckFilters(createEmptyCardFilters());
-                }
-              }}>Reset</ActionButton>
-              <ActionButton onClick={() => setActiveMenu(null)}>Show cards</ActionButton>
-            </>
-          )}
-        >
-          <CardFilterPanel
-            filters={activeMenu.surface === "gallery" ? galleryFilters : deckFilters}
-            facets={activeMenu.surface === "gallery" ? galleryFilterFacets : BUILDER_MAIN_DECK_FILTER_FACETS}
-            options={activeMenu.surface === "gallery" ? galleryFilterOptions : cardFilterOptions}
-            onChange={(next, facet) => {
-              if (activeMenu.surface === "gallery") {
-                if (facet === "faction") setFactionFilterAuto(false);
-                setGalleryFilters(next);
-              } else {
-                setDeckFilters(next);
-              }
-            }}
-          />
-        </BuilderMenuDialog>
-      )}
+      {activeMenu?.panel === "leave" && <BuilderMenuDialog title="Unsaved changes" eyebrow=""
+        onClose={() => setActiveMenu(null)} footer={<>
+          <ActionButton tone="quiet" onClick={() => {
+            sessionEnded.current = true; clearBuilderDraft(scope, id);
+            setBuilderDeck(null); setActiveMenu(null); router.push("/decks");
+          }}>Discard</ActionButton>
+          <ActionButton onClick={() => { setExitAfterSave(true); setSaveVisibility("Draft"); openSaveDialog(); }}>Save draft</ActionButton>
+        </>}>
+        <p>Save before leaving?</p>
+      </BuilderMenuDialog>}
 
-      {activeMenu?.panel === "leave" && (
-        <BuilderMenuDialog
-          title="Save this deck before leaving?"
-          eyebrow="Unsaved changes"
-          onClose={() => setActiveMenu(null)}
-          footer={(
-            <>
-              <ActionButton tone="quiet" onClick={() => {
-                sessionEnded.current = true;
-                clearBuilderDraft(scope, id);
-                setBuilderDeck(null);
-                setActiveMenu(null);
-                router.push("/decks");
-              }}>Don’t Save</ActionButton>
-              <ActionButton onClick={() => {
-                setExitAfterSave(true);
-                openSaveDialog();
-                setSaveVisibility("Draft");
-              }}>Save Draft</ActionButton>
-            </>
-          )}
-        >
-          <p>Your deck has unsaved changes. Save a draft before returning to your deck library.</p>
-        </BuilderMenuDialog>
-      )}
-
-      {activeMenu?.panel === "save" && (
-        <BuilderMenuDialog
-          title="Save Deck"
-          eyebrow={report.isLegal ? "Ready to save" : `Saving with ${report.issues.length} legality issues`}
-          onClose={() => { setActiveMenu(null); setExitAfterSave(false); }}
-          footer={(
-            <>
-              <ActionButton tone="quiet" onClick={() => setActiveMenu(null)}>Cancel</ActionButton>
-              <ActionButton
-                disabled={!saveName.trim() || ((saveVisibility === "Public" || Boolean(adminAiId)) && !report.isLegal)}
-                onClick={() => void save()}
-              >
-                Save Deck
-              </ActionButton>
-            </>
-          )}
-        >
-          <div className={styles.builderSaveFields}>
-            <Field label="Deck name">
-              <input
-                value={saveName}
-                maxLength={60}
-                autoFocus
-                onChange={(event) => setSaveName(event.target.value)}
-              />
-            </Field>
-            <Field label="Deck description">
-              <textarea
-                value={saveDescription}
-                maxLength={500}
-                rows={5}
-                placeholder="Describe how this deck plays…"
-                onChange={(event) => setSaveDescription(event.target.value)}
-              />
-            </Field>
-            {!saveDescription.trim() && (
-              <p className={styles.builderDescriptionPrompt}>
-                Add a deck description for this deck to be eligible for featuring on the Home Page.
-              </p>
-            )}
-          </div>
-          <fieldset className={styles.builderFeaturedCardPicker}>
-            <legend>Featured Card</legend>
-            <p>Choose the Main Deck card used as this deck’s featured artwork.</p>
-            {grouped.length ? (
-              <div>
-                {grouped.map(({ card }) => {
-                  const selected = saveLeadCardId === card.catalogId;
-                  return (
-                    <button
-                      type="button"
-                      className={selected ? styles.builderFeaturedCardSelected : ""}
-                      aria-pressed={selected}
-                      onClick={() => setSaveLeadCardId(card.catalogId)}
-                      key={card.catalogId}
-                    >
-                      <CardArt src={cardArtSource(card, "thumbnail")} cardType={card.type} presentation="readable" alt="" />
-                      <span>
-                        <strong>{card.displayName}</strong>
-                        <small>{card.faction} · {card.type}</small>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <span className={styles.builderFeaturedCardEmpty}>Add a Main Deck card before choosing featured artwork.</span>
-            )}
-          </fieldset>
-          <fieldset className={styles.builderVisibilityOptions}>
+      {activeMenu?.panel === "save" && <BuilderMenuDialog title="Save Deck" eyebrow=""
+        onClose={() => { setActiveMenu(null); setExitAfterSave(false); }} footer={<>
+          <ActionButton tone="quiet" onClick={() => setActiveMenu(null)}>Cancel</ActionButton>
+          <ActionButton disabled={!saveName.trim() || ((saveVisibility === "Public" || Boolean(adminAiId)) && !report.isLegal)}
+            onClick={() => void save()}>Save</ActionButton>
+        </>}>
+        <div className={styles.saveFields}>
+          <Field label="Deck name"><input maxLength={60} value={saveName} onChange={event => setSaveName(event.target.value)} /></Field>
+          <fieldset className={styles.visibility}>
             <legend>Visibility</legend>
-            {administratorEdit ? (
-              <label>
-                <input type="radio" name="deck-visibility" checked readOnly />
-                <span>
-                  <strong>{adminPublicId ? "Public" : "AI Deck"}</strong>
-                  <small>{adminPublicId ? "Visible in the Public Deck library." : "Available only to the Training AI deck pool."}</small>
-                </span>
-              </label>
-            ) : ([
-              ["Draft", "Only visible to you."],
-              ["Private", "Only visible through its link."],
-              ["Public", "Visible in the Public Deck library."],
-            ] as Array<[DeckRecord["visibility"], string]>).map(([value, description]) => {
-              const disabled = value === "Public" && !report.isLegal;
-              return (
-                <label className={disabled ? styles.builderVisibilityDisabled : ""} key={value}>
-                  <input
-                    type="radio"
-                    name="deck-visibility"
-                    value={value}
-                    checked={saveVisibility === value}
-                    disabled={disabled}
-                    onChange={() => setSaveVisibility(value)}
-                  />
-                  <span><strong>{value}</strong><small>{description}</small></span>
-                </label>
-              );
-            })}
+            {(administratorEdit ?
+              [[adminPublicId || adminOfflineId ? "Public" : "Private", ""]] as const
+              : [["Draft", ""], ["Private", ""], ["Public", ""]] as const
+            ).map(([value]) => <label key={value}>
+              <input type="radio" name="deck-visibility" value={value} checked={saveVisibility === value}
+                disabled={administratorEdit || (value === "Public" && !report.isLegal)}
+                onChange={() => setSaveVisibility(value)} />
+              {value}
+            </label>)}
           </fieldset>
-          {!report.isLegal && !administratorEdit && (
-            <p className={styles.builderPublicRequirement} role="status">
-              Public visibility requires a valid {deck.format ?? "standard"} deck. Draft and Private decks can be saved with issues.
-            </p>
-          )}
-        </BuilderMenuDialog>
-      )}
+          <details className={styles.saveDetails}>
+            <summary>More options</summary>
+            <Field label="Description"><textarea maxLength={500} rows={3} value={saveDescription}
+              onChange={event => setSaveDescription(event.target.value)} /></Field>
+            <fieldset className={styles.featuredPicker}>
+              <legend>Featured card</legend>
+              <div>
+                {grouped.map(({ card }) => <button type="button" key={card.catalogId}
+                  aria-pressed={saveLeadCardId === card.catalogId} onClick={() => setSaveLeadCardId(card.catalogId)}>
+                  <CardArt src={cardArtSource(card, "thumbnail")} cardType={card.type} presentation="readable" alt="" />
+                  <span>{card.displayName}</span>
+                </button>)}
+              </div>
+            </fieldset>
+          </details>
+        </div>
+      </BuilderMenuDialog>}
 
-      {inspection?.kind === "card" && (
-        <div className={styles.builderInspectorOverlay} role="presentation">
-          <CardInspector
-            card={inspection.card}
-            allCards={CARDS}
-            tab={inspectorTab}
-            printingId={inspectorPrinting}
-            onPrintingChange={setInspectorPrinting}
+      {inspection?.kind === "card" && <div className={styles.inspectorOverlay}>
+        <CardInspector card={inspection.card} allCards={CARDS} tab={inspectorTab} printingId={inspectorPrinting}
+          mode="embedded"
+          onPrintingChange={next => { setInspectorPrinting(next); selectPreferredPrinting(cardPrintingKey(inspection.card), next); }}
+          onTabChange={setInspectorTab} onSelectCard={inspectCard} onClose={() => setInspection(null)}
+          onShare={() => void copyText(`${globalThis.location?.origin ?? ""}/compendium?card=${encodeURIComponent(inspection.card.catalogId)}&printing=${encodeURIComponent(inspectorPrinting)}`).then(() => notify("Card link copied."))} />
+      </div>}
+      {inspection?.kind === "core" && <div className={styles.inspectorOverlay}>
+        {(() => {
+          const core = CORES.find(candidate => candidate.id === inspection.coreId);
+          return core ? <CardInspector core={core} allCores={CORES} tab={inspectorTab} printingId={inspectorPrinting}
             mode="embedded"
-            onTabChange={setInspectorTab}
-            onSelectCard={inspectCard}
-            onClose={() => setInspection(null)}
-            onShare={() => {
-              const origin = globalThis.location?.origin ?? "";
-              void copyText(`${origin}/compendium?card=${encodeURIComponent(inspection.card.catalogId)}${inspectorPrinting ? `&printing=${encodeURIComponent(inspectorPrinting)}` : ""}`).then(() => notify("Card link copied."));
-            }}
-          />
-        </div>
-      )}
-      {inspection?.kind === "core" && (
-        <div className={styles.builderInspectorOverlay} role="presentation">
-          {(() => {
-            const core = CORES.find((candidate) => candidate.id === inspection.coreId);
-            if (!core) return null;
-            return (
-              <CardInspector
-                core={core}
-                allCores={CORES}
-                tab={inspectorTab}
-                printingId={inspectorPrinting}
-                onPrintingChange={setInspectorPrinting}
-                mode="embedded"
-                onTabChange={setInspectorTab}
-                onClose={() => setInspection(null)}
-                onShare={() => {
-                  const origin = globalThis.location?.origin ?? "";
-                  void copyText(`${origin}/compendium/cores?core=${encodeURIComponent(core.catalogId ?? core.id)}${inspectorPrinting ? `&printing=${encodeURIComponent(inspectorPrinting)}` : ""}`).then(() => notify("BakuCore link copied."));
-                }}
-              />
-            );
-          })()}
-        </div>
-      )}
+            onPrintingChange={next => { setInspectorPrinting(next); selectPreferredPrinting(corePrintingKey(core), next); }}
+            onTabChange={setInspectorTab} onClose={() => setInspection(null)} /> : null;
+        })()}
+      </div>}
     </section>
+
   );
 }
 
@@ -1118,142 +912,19 @@ function BuilderActiveFilterChips({
 }
 
 function BakuCoreBack({ type }: { type: string }) {
-  return (
-    <div className={styles.bakuCoreBack}>
-      <OriginalImage
-        src={CORE_BACK_IMAGES[type] ?? CORE_BACK_IMAGES.Shield}
-        alt={`${type} BakuCore reverse`}
-        decoding="async"
-      />
-    </div>
-  );
+  return <OriginalImage src={CORE_BACK_IMAGES[type] ?? CORE_BACK_IMAGES.Shield} alt="" />;
 }
 
-/*
- * Keep full-resolution card and BakuCore art mounted while deck quantity
- * controls update. Admin overrides mutate shared catalogue objects, so
- * catalogueRevision is included in the memo's shallow-comparison props.
- */
-const MemoizedBuilderGalleryArtwork = memo(function BuilderGalleryArtwork({
-  kind,
-  card,
-  core,
-}: {
-  kind: BuilderGalleryItem["kind"];
-  card?: GameCard;
-  core?: Core;
-  catalogueRevision: number;
+function BuilderQuantity({ name, count, canAdd, canRemove, onAdd, onRemove, restriction }: {
+  name: string; count: number; canAdd: boolean; canRemove: boolean;
+  onAdd: () => void; onRemove: () => void; restriction?: string;
 }) {
-  if (kind === "core" && core) return <BakuCoreArt core={core} alt="" loading="lazy" decoding="async" />;
-  if (card) return <ResponsiveCardImage card={card} presentation="tile" />;
-  return null;
-});
-
-function BuilderGalleryCard({
-  item,
-  catalogueRevision,
-  selectedCoreSet,
-  canAdd,
-  restriction,
-  onInspect,
-  onAdjust,
-}: {
-  item: BuilderGalleryItem;
-  catalogueRevision: number;
-  selectedCoreSet: string;
-  canAdd: boolean;
-  restriction?: string;
-  onInspect: () => void;
-  onAdjust: (amount: number) => void;
-}) {
-  const core = item.kind === "core" ? item.core : null;
-  const displayedCore = useMemo(() => core ? coreForSet(core, selectedCoreSet) : null, [core, selectedCoreSet]);
-  const metadata = item.kind === "character"
-    ? `${item.card.faction} · Character`
-    : item.kind === "card" ? `${item.card.faction} · ${item.card.type} · ${item.card.cost} Energy` : "";
-  return (
-    <article className={`${styles.builderGalleryCard} ${item.kind === "core" ? styles.builderGalleryCore : ""}`}>
-      <button className={styles.builderCardArtButton} type="button" onClick={onInspect} aria-label={`Inspect ${item.name}`}>
-        <MemoizedBuilderGalleryArtwork
-          kind={item.kind}
-          card={item.kind === "core" ? undefined : item.card}
-          core={displayedCore ?? undefined}
-          catalogueRevision={catalogueRevision}
-        />
-        {item.kind === "character" && <BakuganRollingOverlay card={item.card} />}
-      </button>
-      {core && displayedCore ? (
-        <div className={`${styles.builderGalleryIdentity} ${styles.builderCoreIdentity}`}>
-          <strong>{core.type}</strong>
-          <div className={styles.builderCoreStatList} aria-label="BakuCore stats">
-            {corePreviewStats(core).map((stat) => <span key={stat}>{stat}</span>)}
-          </div>
-          <span className={styles.builderCoreSetLabel} aria-label={`${displayedCore.set ?? "Battle Brawlers"}, collector number ${displayedCore.number}`}>
-            {displayedCore.set === "Armored Alliance" ? "AA" : "BB"} #{displayedCore.number}
-          </span>
-        </div>
-      ) : (
-        <div className={styles.builderGalleryIdentity}>
-          <strong>{item.name}</strong>
-          <span>{metadata}</span>
-          {restriction && <StatusChip className={styles.builderRestriction} tone={restriction.startsWith("Banned") ? "danger" : "info"} title={restriction}>{restriction}</StatusChip>}
-        </div>
-      )}
-      <div data-ui="quantity-control" className={styles.builderQuantity}>
-        <button type="button" disabled={item.count === 0} onClick={() => onAdjust(-1)} aria-label={`Remove ${item.name}`}>−</button>
-        <strong aria-label={`${item.count} copies in deck`}><MotionValue value={item.count} /></strong>
-        <button type="button" disabled={!canAdd} onClick={() => onAdjust(1)} aria-label={`Add ${item.name}`}>+</button>
-      </div>
-    </article>
-  );
-}
-
-function BuilderRequirementHeader({
-  title,
-  count,
-  maximum,
-  issues,
-  factions = [],
-  onInfo,
-}: {
-  title: string;
-  count: number;
-  maximum: number;
-  issues: DeckValidationResult["issues"];
-  factions?: string[];
-  onInfo: () => void;
-}) {
-  const valid = issues.length === 0;
-  return (
-    <header className={styles.builderRequirementHeader}>
-      <div>
-        <h2>{title}</h2>
-        <strong>{count}/{maximum}</strong>
-        {factions.length > 0 && (
-          <span className={styles.builderFactionSymbols} aria-label={`Allowed factions: ${factions.join(", ")}`}>
-            {factions.map((faction) => <OriginalImage src={FACTION_SYMBOLS[faction]} alt={faction} title={faction} key={faction} />)}
-          </span>
-        )}
-      </div>
-      <button
-        type="button"
-        className={valid ? styles.builderInfoValid : styles.builderInfoInvalid}
-        aria-label={`${title}: ${valid ? "requirements satisfied" : `${issues.length} issues`}`}
-        onClick={onInfo}
-      >i</button>
-    </header>
-  );
-}
-
-function BuilderIssues({ issues }: { issues: DeckValidationResult["issues"] }) {
-  if (!issues.length) {
-    return <div className={styles.builderValidMessage}><span>✓</span><h3>Requirements satisfied</h3><p>This section is valid for the selected format.</p></div>;
-  }
-  return (
-    <ol className={styles.builderIssueList}>
-      {issues.map((issue) => <li key={issue.code}><span>!</span><div><strong>{issue.code}</strong><p>{issue.message}</p></div></li>)}
-    </ol>
-  );
+  return <div className={styles.quantity} role="group" aria-label={`Copies of ${name}`}>
+    <button type="button" onClick={onRemove} disabled={!canRemove} aria-label={`Remove ${name}`}>−</button>
+    <strong aria-label={`${count} copies`}><MotionValue value={count} /></strong>
+    <button type="button" onClick={onAdd} disabled={!canAdd} aria-label={`Add ${name}`}
+      title={!canAdd ? restriction ?? "Limit reached" : undefined}>+</button>
+  </div>;
 }
 
 function BuilderMenuDialog({
