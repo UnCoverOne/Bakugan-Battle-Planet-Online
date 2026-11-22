@@ -1,21 +1,8 @@
-/* Redesign: structural rules only; visual styling intentionally removed. */
-.route {
+.route{
   min-height: calc(100vh - 76px);
   padding-bottom: var(--space-9);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-.state {
+.state{
   width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
   margin: var(--space-5) auto;
   display: grid;
@@ -24,8 +11,7 @@
   gap: var(--space-4);
   padding: var(--space-5);
 }
-
-.stateIcon {
+.stateIcon{
   width: 3rem;
   height: 3rem;
   display: grid;
@@ -36,47 +22,28 @@
 
 
 }
-
-.state strong {
+.state strong{
 
 
 
 
 }
-
-.state p {
+.state p{
   margin: .35rem 0 0;
 
   line-height: 1.5;
 }
-
-.state_error {
+.state_error{
 }
-
-.state_error .stateIcon {
+.state_error .stateIcon{
 
 }
-
-.state_offline {
+.state_offline{
 }
-
-.state_offline .stateIcon {
+.state_offline .stateIcon{
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-.characterFan {
+.characterFan{
   position: relative;
   min-height: 10.75rem;
   display: flex;
@@ -86,34 +53,23 @@
   padding: .3rem .75rem .25rem;
 
 }
-
-.characterFan img,
-.characterPlaceholder {
+.characterFan img, .characterPlaceholder{
   width: min(34%, 8.4rem);
   aspect-ratio: 359 / 500;
   object-fit: contain;
 
 }
-
-.characterFan img:nth-child(1) {
+.characterFan img:nth-child(1){
   transform: translate(15%, 8%) rotate(-7deg);
 }
-
-.characterFan img:nth-child(2) {
+.characterFan img:nth-child(2){
   z-index: 2;
   transform: translateY(-3%);
 }
-
-.characterFan img:nth-child(3) {
+.characterFan img:nth-child(3){
   transform: translate(-15%, 8%) rotate(7deg);
 }
-
-
-
-
-
-
-.characterPlaceholder {
+.characterPlaceholder{
   display: grid;
   place-items: center;
 
@@ -122,28 +78,13 @@
 
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-.factionTags {
+.factionTags{
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-2);
 }
-
-.factionTag,
-.emptyFactionTag {
+.factionTag, .emptyFactionTag{
   min-height: 2rem;
   display: inline-flex;
   align-items: center;
@@ -160,28 +101,13 @@
 
 
 }
-
-.factionTag img {
+.factionTag img{
   width: 1.25rem;
   height: 1.25rem;
   object-fit: contain;
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.textAction {
+.textAction{
   min-height: 2.875rem;
   display: inline-flex;
   align-items: center;
@@ -196,20 +122,17 @@
 
 
 }
-
-.detailHero {
+.detailHero{
   align-items: center;
 }
-
-.detailHero .characterFan {
+.detailHero .characterFan{
   width: clamp(20rem, 28vw, 31rem);
   min-height: 14rem;
   padding: 1rem;
 
 
 }
-
-.detailMeta {
+.detailMeta{
   width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
   margin: var(--space-5) auto;
   display: flex;
@@ -217,57 +140,41 @@
   flex-wrap: wrap;
   gap: var(--space-2);
 }
-
-.detailMeta > span:not([data-ui]) {
+.detailMeta > span:not([data-ui]){
   margin-left: auto;
 
 
 }
-
-.detailLayout {
+.detailLayout{
   width: min(calc(100% - (2 * var(--space-5))), var(--content-wide));
   margin: 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(18rem, 23rem);
   gap: var(--space-5);
 }
-
-.detailLayout main,
-.detailAside {
+.detailLayout main, .detailAside{
   display: grid;
   align-content: start;
   gap: var(--space-5);
 }
-
-.detailAside {
+.detailAside{
   position: sticky;
   top: calc(76px + var(--space-5));
 }
-
-.detailPanel,
-.validationPanel {
+.detailPanel, .validationPanel{
   padding: var(--space-5);
 }
-
-.panelHeading,
-.validationHeading {
+.panelHeading, .validationHeading{
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
   margin-bottom: var(--space-4);
 }
-
-.panelHeading h2,
-.panelHeading h3,
-.validationHeading h2 {
+.panelHeading h2, .panelHeading h3, .validationHeading h2{
   margin: 0;
 }
-
-.panelHeading span,
-.validationHeading span,
-.columnHeading > span,
-.inspectorCopy > span {
+.panelHeading span, .validationHeading span, .columnHeading > span, .inspectorCopy > span{
 
 
 
@@ -275,14 +182,12 @@
 
 
 }
-
-.detailTeam {
+.detailTeam{
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-4);
 }
-
-.detailTeam article {
+.detailTeam article{
   min-width: 0;
   display: grid;
   gap: var(--space-2);
@@ -290,9 +195,7 @@
 
 
 }
-
-.detailCharacterButton,
-.detailCardButton {
+.detailCharacterButton, .detailCardButton{
   min-width: 0;
   display: grid;
   gap: var(--space-2);
@@ -302,42 +205,32 @@
   text-align: left;
 
 }
-
-.detailCharacterButton {
+.detailCharacterButton{
   cursor: pointer;
 }
-
-.detailCharacterButton:hover,
-.detailCharacterButton:focus-visible,
-.detailCardButton:hover,
-.detailCardButton:focus-visible {
+.detailCharacterButton:hover, .detailCharacterButton:focus-visible, .detailCardButton:hover, .detailCardButton:focus-visible{
 
 }
-
-.detailCharacterArt {
+.detailCharacterArt{
   position: relative;
   display: block;
   width: 100%;
 }
-
-.detailTeam img {
+.detailTeam img{
   width: 100%;
   max-height: 18rem;
   object-fit: contain;
 }
-
-.detailTeam strong {
+.detailTeam strong{
   overflow-wrap: anywhere;
 }
-
-.characterStats {
+.characterStats{
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: .4rem;
 }
-
-.characterStats > span {
+.characterStats > span{
   min-height: 1.8rem;
   display: inline-flex;
   align-items: center;
@@ -347,48 +240,35 @@
 
 
 }
-
-.characterStats img {
+.characterStats img{
   width: 1.05rem;
   height: 1.05rem;
   object-fit: contain;
 }
-
-.detailTeam span,
-.coreStrip span,
-.detailCardList span,
-.requirementText,
-.builderCardRow span,
-.cataloguePiece span,
-.inspectorCopy p {
+.detailTeam span, .coreStrip span, .detailCardList span, .requirementText, .cataloguePiece span, .inspectorCopy p{
 
   line-height: 1.45;
 }
-
-.coreStrip {
+.coreStrip{
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: var(--space-2);
   margin-top: var(--space-4);
 }
-
-.coreStrip div {
+.coreStrip div{
   min-width: 0;
   display: grid;
   gap: var(--space-1);
   text-align: center;
 }
-
-.coreStrip img {
+.coreStrip img{
   width: 100%;
   aspect-ratio: 1;
   object-fit: contain;
 }
-
-.coreStrip strong {
+.coreStrip strong{
 }
-
-.subsectionHeading {
+.subsectionHeading{
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -397,38 +277,31 @@
   padding-bottom: var(--space-2);
 
 }
-
-.subsectionHeading > span {
-
+.subsectionHeading > span{
 
 
 
 
-
-}
-
-.subsectionHeading > strong {
 
 
 }
+.subsectionHeading > strong{
 
-.detailCardGroups,
-.detailCardGroup {
+
+}
+.detailCardGroups, .detailCardGroup{
   display: grid;
   gap: var(--space-4);
 }
-
-.detailCardGroup > .subsectionHeading {
+.detailCardGroup > .subsectionHeading{
   margin-top: var(--space-2);
 }
-
-.detailCardList {
+.detailCardList{
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-4);
 }
-
-.detailCardList article {
+.detailCardList article{
   min-width: 0;
   display: grid;
   align-content: start;
@@ -437,24 +310,20 @@
 
 
 }
-
-.detailCardButton {
+.detailCardButton{
   width: 100%;
 }
-
-.detailCardArt {
+.detailCardArt{
   position: relative;
   min-width: 0;
 
 }
-
-.detailCardArt > img {
+.detailCardArt > img{
   width: 100%;
   aspect-ratio: 359 / 500;
   object-fit: contain;
 }
-
-.copyCount {
+.copyCount{
   position: absolute;
   right: .45rem;
   bottom: .45rem;
@@ -473,24 +342,20 @@
 
 
 }
-
-.sharePanel {
+.sharePanel{
 
 }
-
-.sharePrimary {
+.sharePrimary{
   width: 100%;
   justify-content: center;
 }
-
-.shareActionGrid {
+.shareActionGrid{
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
   margin-top: var(--space-2);
 }
-
-.shareActionGrid button {
+.shareActionGrid button{
   min-width: 0;
   min-height: 3rem;
   display: flex;
@@ -506,18 +371,14 @@
   text-align: left;
   cursor: pointer;
 }
-
-.shareActionGrid button:hover:not(:disabled),
-.shareActionGrid button:focus-visible {
+.shareActionGrid button:hover:not(:disabled), .shareActionGrid button:focus-visible{
 
 }
-
-.shareActionGrid button:disabled {
+.shareActionGrid button:disabled{
   cursor: wait;
 
 }
-
-.shareActionGrid button > span {
+.shareActionGrid button > span{
   width: 1.65rem;
   height: 1.65rem;
   display: grid;
@@ -528,8 +389,7 @@
 
 
 }
-
-.exportHeading {
+.exportHeading{
   position: relative;
   margin: var(--space-4) 0 var(--space-2);
 
@@ -539,8 +399,7 @@
 
 
 }
-
-.exportHeading::after {
+.exportHeading::after{
   position: absolute;
   top: 50%;
   right: 0;
@@ -548,66 +407,54 @@
   height: 1px;
 
 }
-
-.validationPanel {
+.validationPanel{
 }
-
-.validationLegal {
+.validationLegal{
 }
-
-.validationPanel > p {
+.validationPanel > p{
   margin: 0;
 
   line-height: 1.5;
 }
-
-.validationPanel ul {
+.validationPanel ul{
   display: grid;
   gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
 }
-
-.validationPanel li {
+.validationPanel li{
   display: grid;
   gap: .25rem;
 
 
   line-height: 1.45;
 }
-
-.validationPanel code {
+.validationPanel code{
 
 }
-
-.breakdown {
+.breakdown{
   display: grid;
   gap: var(--space-2);
   margin: 0;
 }
-
-.breakdown div {
+.breakdown div{
   display: flex;
   justify-content: space-between;
   padding-bottom: var(--space-2);
 
 }
-
-.breakdown dt {
+.breakdown dt{
 }
-
-.breakdown dd {
+.breakdown dd{
   margin: 0;
 
 
 }
-
-.energyCurve {
+.energyCurve{
   margin-top: var(--space-5);
 }
-
-.energyChart {
+.energyChart{
   min-height: 10rem;
   display: grid;
   grid-auto-columns: minmax(1.75rem, 1fr);
@@ -618,8 +465,7 @@
   margin-top: var(--space-4);
   padding: 0 0 .25rem;
 }
-
-.energyBarColumn {
+.energyBarColumn{
   min-width: 1.75rem;
   height: 10rem;
   display: grid;
@@ -630,13 +476,11 @@
 
   text-align: center;
 }
-
-.energyBarColumn > strong {
+.energyBarColumn > strong{
 
 
 }
-
-.energyBarTrack {
+.energyBarTrack{
   width: 100%;
   height: 100%;
   display: flex;
@@ -644,15 +488,13 @@
 
 
 }
-
-.energyBarTrack > span {
+.energyBarTrack > span{
   width: 100%;
   min-height: 2px;
 
 
 }
-
-.energyAxisLabel {
+.energyAxisLabel{
   padding-top: .35rem;
 
 
@@ -661,1697 +503,50 @@
   text-align: center;
 
 }
-
-.builder {
-  --builder-header-height: 4.25rem;
-  height: calc(100dvh - 76px);
-  min-height: 0;
-  overflow: hidden;
-  padding-bottom: 0;
-
-}
-
-.builderHeader {
-  position: sticky;
-  z-index: 30;
-  top: 76px;
-  min-height: var(--builder-header-height);
-  box-sizing: border-box;
-  display: grid;
-  grid-template-columns: auto minmax(10rem, 1fr) 13rem auto auto minmax(8rem, auto) auto;
-  align-items: center;
-  gap: var(--space-3);
-  padding: .5rem var(--space-5);
-
-
-
-
-}
-
-.builderHeader > a {
-
-
-
-
-
-
-}
-
-.builderFormat {
-  min-width: 0;
-}
-
-.builderFormat [data-ui="filter-picker"] {
-  width: 100%;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.builderFormat [data-ui="filter-picker"] > button {
-  flex: 1 1 0;
-  width: 100%;
-  min-width: 0;
-  min-height: 2.5rem;
-  padding: .45rem .6rem;
-
-
-}
-
-.builderDeckIdentity {
-  min-width: 0;
-  display: grid;
-  gap: .15rem;
-}
-
-.builderDeckIdentity span {
-
-
-
-
-}
-
-.builderDeckIdentity strong {
-  overflow: hidden;
-
-
-
-
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.builderFormat [data-ui="filter-picker"] > span {
-  flex: 0 0 auto;
-  white-space: nowrap;
-
-
-
-
-
-}
-
-.builderHeader > [data-ui="action-button"] {
-  min-height: 2.5rem;
-  padding-block: .45rem;
-  white-space: nowrap;
-}
-
-.saveState {
-
-}
-
-.saveState_error {
-}
-
-.saveState_dirty {
-}
-
-.builderLayout {
-  width: min(calc(100% - (2 * var(--space-4))), 112rem);
-  height: calc(100dvh - 76px - var(--builder-header-height) - 3.75rem - (2 * var(--space-4)));
-  min-height: 0;
-  margin: var(--space-4) auto;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: stretch;
-  gap: var(--space-5);
-}
-
-.builderGallery,
-.builderCurrentDeck {
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-  display: grid;
-  align-content: start;
-  gap: var(--space-3);
-  overflow-y: auto;
-  overflow-x: hidden;
-
-
-}
-
-.builderGallery {
-  max-height: none;
-}
-
-.builderCurrentDeck {
-  gap: var(--space-4);
-}
-
-.builderSideTitle {
-  min-height: 3.5rem;
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding-inline: var(--space-2);
-}
-
-.builderSideTitle span {
-
-
-
-
-
-
-}
-
-.builderSideTitle h2 {
-  margin: .2rem 0 0;
-
-}
-
-.builderGalleryTabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding: var(--space-1);
-
-
- 
-}
-
-
-.builderGalleryTabs[data-ui="tabs"] {
-}
-
-.builderGalleryTabs button {
-  min-width: 0;
-  min-height: 2.85rem;
-  padding-inline: var(--space-2);
-
-}
-
-.builderToolbar {
-  position: sticky;
-  z-index: 8;
-  top: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: var(--space-2);
-  padding: var(--space-3);
-
-
-
-
-
-}
-
-.builderToolbar label {
-  min-width: 0;
-}
-
-.builderToolbar input {
-  width: 100%;
-  min-height: 2.75rem;
-  padding: .55rem .8rem;
-
-
-
-}
-
-.builderToolbar > button {
-  min-height: 2.75rem;
-  display: inline-flex;
-  align-items: center;
-  gap: .45rem;
-  padding: .55rem .8rem;
-
-
-
-
-
-
-
-
-
-}
-
-.activeFilters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.activeFilters:empty {
-  display: none;
-}
-
-.activeFilters button {
-  min-height: 2rem;
-  padding: .35rem .6rem;
-
-
-
-
-}
-
-.builderGalleryGrid,
-.builderMainDeckGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
-  align-items: start;
-  gap: var(--space-3);
-}
-
-.builderGalleryCard {
-  content-visibility: auto;
-
-  min-width: 0;
-  overflow: hidden;
-
-
-
-
-}
-
-.builderCardArtButton {
-  position: relative;
-  width: 100%;
-  display: grid;
-  place-items: center;
-  padding: var(--space-2);
-
-  overflow: hidden;
-
-}
-
-.builderCardArtButton:hover,
-.builderCardArtButton:focus-visible {
-}
-
-.builderGalleryCard .builderCardArtButton {
-  aspect-ratio: 359 / 500;
-}
-
-.builderGalleryCard .builderCardArtButton img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-
-}
-
-.builderGalleryCore .builderCardArtButton {
-  aspect-ratio: 240 / 209;
-  padding: var(--space-3);
-}
-
-.builderGalleryCore .builderCardArtButton > span {
-  
-  width: 100%;
-  height: auto;
-  max-width: 100%;
-  aspect-ratio: 240 / 209;
-}
-
-.builderGalleryIdentity {
-  min-height: 4.1rem;
-  display: grid;
-  align-content: center;
-  gap: .2rem;
-  padding: var(--space-2) var(--space-3);
-}
-
-.builderGalleryIdentity strong,
-.builderGalleryIdentity span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.builderGalleryIdentity strong {
-}
-
-.builderGalleryIdentity span {
-
-}
-
-
-.builderCoreIdentity {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
-  min-height: 8rem;
-  gap: .4rem;
-}
-
-.builderCoreIdentity > strong {
-  line-height: 1.2;
-}
-
-.builderCoreIdentity > strong,
-.builderCoreIdentity .builderCoreStatList > span,
-.builderCoreIdentity .builderCoreSetLabel {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-  overflow-wrap: anywhere;
-}
-
-.builderCoreStatList {
-  display: grid;
-  align-content: start;
-  gap: .2rem;
-
-
-  line-height: 1.35;
-}
-
-.builderCoreIdentity .builderCoreStatList > span {
-  line-height: 1.35;
-}
-
-.builderCoreIdentity .builderCoreSetLabel {
-  margin-top: auto;
-  padding-top: .45rem;
-
-
-
-
-
-}
-
-.builderGalleryIdentity .builderRestriction {
-  max-width: 100%;
-  overflow: visible;
-  white-space: normal;
-  text-overflow: clip;
-
-
-  line-height: 1.4;
-}
-
-.builderQuantity {
-  display: grid;
-  grid-template-columns: 2.8rem minmax(2.8rem, 1fr) 2.8rem;
-  align-items: center;
-
-}
-
-.builderQuantity button {
-  min-height: 2.8rem;
-
-
-
-
-
-}
-
-.builderQuantity button:disabled {
-  cursor: not-allowed;
-
-
-}
-
-.builderQuantity strong {
-  text-align: center;
-}
-
-.builderDeckSection {
-  min-width: 0;
-  padding: var(--space-4);
-
-
-
-}
-
-.builderRequirementHeader {
-  min-height: 3rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
-  padding-bottom: var(--space-3);
-
-}
-
-.builderRequirementHeader > div {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-
-.builderRequirementHeader h2 {
-  margin: 0;
-
-}
-
-.builderRequirementHeader > div > strong {
-
-
-
-}
-
-.builderInfoValid,
-.builderInfoInvalid {
-  width: 2rem;
-  height: 2rem;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-
-
-
-
-
-}
-
-.builderInfoValid {
-
-}
-
-.builderInfoInvalid {
-
-
-}
-
-.builderFactionSymbols {
-  display: inline-flex;
-  align-items: center;
-  gap: .35rem;
-}
-
-.builderFactionSymbols img {
-  width: 1.65rem;
-  height: 1.65rem;
-  object-fit: contain;
-
-}
-
-.builderCharacterRow {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-3);
-}
-
-.builderCharacterSlot {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-
-
-}
-
-.builderCharacterSlot .builderCardArtButton {
-  grid-column: 1 / -1;
-  aspect-ratio: 359 / 500;
-}
-
-.builderCharacterSlot .builderCardArtButton img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.builderCharacterSlot > div {
-  min-width: 0;
-  display: grid;
-  gap: .15rem;
-  padding: var(--space-2);
-}
-
-.builderCharacterSlot > div strong,
-.builderCharacterSlot > div span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.builderCharacterSlot > div strong {
-}
-
-.builderCharacterSlot > div span {
-
-}
-
-.builderCharacterSlot > button:last-child,
-.builderCoreSlot > button:last-child {
-  width: 2.5rem;
-
-
-
-
-
-}
-
-.builderCharacterEmpty {
-  min-height: 15rem;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: .35rem;
-
-
-  text-align: center;
-}
-
-.builderCharacterEmpty > span {
-
-
-}
-
-.builderCharacterEmpty small {
-}
-
-.coreRequirementCopy {
-  margin: -.2rem 0 var(--space-3);
-
-
-}
-
-.builderCoreRow {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: var(--space-2);
-}
-
-.builderCoreSlot,
-.builderCorePreview {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 2rem;
-  align-items: center;
-
-
-}
-
-.builderCoreSlot > button:first-child {
-  grid-column: 1 / -1;
-  padding: var(--space-1);
-
-
-}
-
-.builderCoreSlot > button:first-child > img {
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: contain;
-}
-
-.builderCoreSlot > button:first-child > [data-core-fallback],
-.builderCoreSlot > button:first-child > [data-core-scan] {
-  display: block;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 240 / 209;
-}
-
-.builderCoreSlot > span {
-  overflow: hidden;
-  padding: .35rem;
-
-
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.builderCorePreview {
-  min-height: 7rem;
-  grid-template-columns: 1fr;
-  place-content: center;
-  justify-items: center;
-  padding: var(--space-2);
-
-  text-align: center;
-}
-
-.builderCorePreview > span {
-
-}
-
-.builderCorePreview strong {
-  margin-top: -.8rem;
-
-
-}
-
-.bakuCoreBack {
-  width: 100%;
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  padding: 2%;
-
-}
-
-.bakuCoreBack > img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-
-}
-
-.builderMainDeckSection {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.builderMainDeckSection .builderRequirementHeader {
-  margin-bottom: 0;
-}
-
-.builderMainDeckGrid {
-  grid-template-columns: repeat(auto-fill, minmax(8.6rem, 1fr));
-}
-
-.builderMainDeckGrid .builderGalleryIdentity {
-  min-height: 3.8rem;
-}
-
-.builderStatus {
-  position: fixed;
-  z-index: 25;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  min-height: 3.6rem;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, auto)) minmax(0, 1fr);
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-6);
-  padding: var(--space-2) var(--space-5);
-
-
-
-
-}
-
-.builderStatus div {
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: var(--space-2);
-  white-space: nowrap;
-}
-
-.builderStatus span {
-
-}
-
-.builderStatus strong {
-
-
-}
-
-.builderMenuBackdrop,
-.builderInspectorOverlay {
-  position: fixed;
-  z-index: 1250;
-  inset: 0;
-  display: grid;
-  place-items: start center;
-  padding: min(12vh, 8rem) var(--space-4) var(--space-4);
-
-
-}
-
-.builderMenuDialog {
-  width: min(100%, 34rem);
-  max-height: min(78dvh, 46rem);
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  overflow: hidden;
-
-
-
-
-}
-
-.builderMenuDialog > header {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
-
-}
-
-.builderMenuDialog > header span {
-
-
-
-
-}
-
-.builderMenuDialog > header h2 {
-  margin: .25rem 0 0;
-
-}
-
-.builderMenuDialog > header button {
-  width: 2.6rem;
-  height: 2.6rem;
-  flex: 0 0 auto;
-
-
-
-
-}
-
-.builderMenuBody {
-  display: grid;
-  align-content: start;
-  gap: var(--space-4);
-  overflow: auto;
-  padding: var(--space-5);
-}
-
-.builderMenuDialog > footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  padding: var(--space-4) var(--space-5);
-
-}
-
-.builderOptionList {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.builderOptionList button {
-  min-height: 3.25rem;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: .7rem .9rem;
-
-
-
-  text-align: left;
-}
-
-.builderOptionSelected {
-
-}
-
-.builderOptionList span {
-}
-
-.builderFilterGroup {
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-
-}
-
-.builderFilterGroup legend {
-  margin-bottom: var(--space-2);
-
-
-
-
-
-
-}
-
-.builderFilterGroup > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.builderFilterGroup button {
-  min-height: 2.5rem;
-  padding: .5rem .7rem;
-
-
-
-}
-
-.builderFilterSelected {
-
-
-}
-
-.builderFilterSelects {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
-}
-
-.builderSaveFields {
-  display: grid;
-  gap: var(--space-4);
-}
-
-.builderSaveFields input,
-.builderSaveFields textarea {
-  width: 100%;
-  padding: .7rem .8rem;
-
-
-
-
-}
-
-.builderSaveFields textarea {
-  resize: vertical;
-}
-
-.builderDescriptionPrompt,
-.builderPublicRequirement {
-  margin: calc(-1 * var(--space-2)) 0 0;
-
-
-  line-height: 1.45;
-}
-
-.builderFeaturedCardPicker {
-  min-width: 0;
-  display: grid;
-  gap: var(--space-3);
-  margin: 0;
-  padding: 0;
-
-}
-
-.builderFeaturedCardPicker > legend {
-  margin-bottom: var(--space-2);
-
-
-
-
-
-
-}
-
-.builderFeaturedCardPicker > p {
-  margin: calc(-1 * var(--space-2)) 0 0;
-
-
-  line-height: 1.45;
-}
-
-.builderFeaturedCardPicker > div {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
-}
-
-.builderFeaturedCardPicker button {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: 3.25rem minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-2);
-  padding: .55rem;
-
-
-
-  text-align: left;
-}
-
-.builderFeaturedCardPicker img {
-  width: 3.25rem;
-  aspect-ratio: 359 / 500;
-  object-fit: contain;
-
-}
-
-.builderFeaturedCardPicker button > span {
-  min-width: 0;
-  display: grid;
-  gap: .18rem;
-}
-
-.builderFeaturedCardPicker strong,
-.builderFeaturedCardPicker small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.builderFeaturedCardPicker small {
-}
-
-.builderFeaturedCardSelected {
-
-
-}
-
-.builderFeaturedCardEmpty {
-  padding: var(--space-3);
-
-
-
-}
-
-.builderVisibilityOptions {
-  min-width: 0;
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-
-}
-
-.builderVisibilityOptions legend {
-  margin-bottom: var(--space-2);
-
-
-
-
-
-
-}
-
-.builderVisibilityOptions label {
-  min-width: 0;
-  min-height: 4rem;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
-
-
-}
-
-.builderVisibilityOptions label:has(input:checked) {
-
-}
-
-.builderVisibilityOptions input {
-  width: 1.15rem;
-  height: 1.15rem;
-
-}
-
-.builderVisibilityOptions span {
-  min-width: 0;
-  display: grid;
-  gap: .2rem;
-}
-
-.builderVisibilityOptions small {
-  line-height: 1.35;
-}
-
-.builderVisibilityDisabled {
-}
-
-.builderIssueList {
-  display: grid;
-  gap: var(--space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.builderIssueList li {
-  display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr);
-  gap: var(--space-3);
-  padding: var(--space-3);
-
-
-}
-
-.builderIssueList li > span {
-  width: 2rem;
-  height: 2rem;
-  display: grid;
-  place-items: center;
-
-
-
-}
-
-.builderIssueList strong {
-
-}
-
-.builderIssueList p {
-  margin: .25rem 0 0;
-
-  line-height: 1.5;
-}
-
-.builderValidMessage {
-  min-height: 16rem;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  text-align: center;
-}
-
-.builderValidMessage > span {
-  width: 3rem;
-  height: 3rem;
-  display: grid;
-  place-items: center;
-
-
-
-}
-
-.builderValidMessage h3 {
-  margin: var(--space-3) 0 var(--space-2);
-}
-
-.builderValidMessage p {
-  margin: 0;
-
-}
-
-.builderInspectorOverlay {
-  z-index: 1350;
-  place-items: center;
-  padding: var(--space-5);
-
-}
-
-.builderInspectorOverlay > [data-ui="card-inspector"] {
-  width: min(72rem, calc(100vw - (2 * var(--space-5))));
-  height: min(82dvh, 50rem);
-  max-width: 72rem;
-
-}
-
-.builderCoreInspector {
-  width: 100vw;
-  height: 100dvh;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  overflow: auto;
-
-}
-
-.builderCoreInspector > header {
-  min-height: 5rem;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
-
-}
-
-.builderCoreInspector > header span {
-
-
-
-}
-
-.builderCoreInspector > header h2 {
-  margin: 0;
-
-}
-
-.builderCoreInspector > header button {
-  min-height: 2.5rem;
-  padding-inline: var(--space-3);
-
-
-
-}
-
-.builderCoreInspector > div {
-  width: min(calc(100% - 2rem), 58rem);
-  margin: auto;
-  display: grid;
-  grid-template-columns: minmax(16rem, 28rem) minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-7);
-  padding: var(--space-7);
-}
-
-.builderCoreInspector > div > img {
-  width: 100%;
-  object-fit: contain;
-
-}
-
-.builderCoreInspector dl {
-  display: grid;
-  gap: 1px;
-  margin: 0;
-
-}
-
-.builderCoreInspector dl div {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3);
-
-}
-
-.builderCoreInspector dd {
-  margin: 0;
-
-}
-
-.builderCoreInspector p {
-  grid-column: 2;
-  margin: 0;
-
-  line-height: 1.6;
-}
-
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-
-  white-space: nowrap;
-}
-
-.builderMobileTabs {
-  display: none;
-}
-
-.builderGalleryPagination {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  padding: var(--space-3) var(--space-2) var(--space-5);
-
-}
-
-.builderGalleryPageSummary {
-
-}
-
-.builderGalleryPageControls {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: .4rem;
-  flex-wrap: wrap;
-}
-
-.builderGalleryPageControls > span {
-  padding: 0 .4rem;
-
-
-  white-space: nowrap;
-}
-
-.builderGalleryPageControls > button {
-  min-width: 2.75rem;
-  min-height: 2.75rem;
-  padding: .5rem .75rem;
-
-
-
-
-
-
-}
-
-.builderGalleryPageControls > button:disabled {
-}
-
-
-.builderGalleryPageShort {
-  display: none;
-}
-
-
-
-
-
-
-
-@keyframes skeletonPulse {
+@keyframes skeletonPulse{
   to { }
 }
-
-@media (max-width: 1500px) {
-  .builderLayout {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .builderHeader {
-    grid-template-columns: auto minmax(9rem, 1fr) 13rem auto minmax(8rem, auto) auto;
-  }
-
-  .builderHeader > [data-ui="status-chip"]:first-of-type {
-    display: none;
-  }
-}
-
-@media (max-width: 1180px) {
-
-
-
-  .builderLayout {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-
-@media (max-width: 1000px) {
-  .builderHeader {
-    grid-template-columns: auto minmax(0, 1fr) minmax(8rem, 10rem) auto auto;
-  }
-
-  .builderFormat [data-ui="filter-picker"] > span,
-  .saveState {
-    display: none;
-  }
-}
-
-@media (max-width: 800px) {
-
-
-
-
-.state, .detailMeta, .detailLayout {
+@media (max-width: 800px){
+.state, .detailMeta, .detailLayout{
     width: min(calc(100% - (2 * var(--space-4))), var(--content-wide));
   }
-
-
-  .detailHero .characterFan {
+.detailHero .characterFan{
     width: 100%;
   }
-
-  .detailLayout {
+.detailLayout{
     grid-template-columns: 1fr;
   }
-
-  .detailAside {
+.detailAside{
     position: static;
   }
-
-  .detailCardList {
+.detailCardList{
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .builder {
-    height: auto;
-    min-height: calc(100vh - 76px);
-    overflow: visible;
-    padding-bottom: 7.5rem;
-  }
-
-  .builderHeader {
-    
-    --builder-header-gutter: .75rem;
-    position: relative;
-    top: auto;
-    min-height: 0;
-    grid-template-columns: 2.25rem minmax(0, 1fr) 7.25rem 7rem;
-    grid-template-rows: 3.5rem 2.75rem;
-    align-items: center;
-    gap: 0 .45rem;
-    padding: 0 var(--builder-header-gutter);
-  }
-
-  .builderHeader > a {
-    display: grid;
-    place-items: center;
-    width: 2.25rem;
-    height: 2.75rem;
-    min-width: 0;
-
-  }
-
-  .builderHeader > a::before {
-
-  }
-
-  .builderHeader .builderDeckIdentity {
-    min-width: 0;
-    height: 2.75rem;
-    max-height: 2.75rem;
-    align-self: center;
-    align-content: center;
-    gap: .05rem;
-  }
-
-  .builderHeader .builderDeckIdentity span {
-    line-height: 1.1;
-  }
-
-  .builderHeader .builderDeckIdentity strong {
-    display: block;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-
-    line-height: 1.05;
-  }
-
-  .builderHeader .builderFormat {
-    min-width: 0;
-    align-self: center;
-  }
-
-  .builderHeader .builderFormat [data-ui="filter-picker"] {
-    gap: 0;
-  }
-
-  .builderHeader .builderFormat [data-ui="filter-picker"] > span {
-    display: none;
-  }
-
-  .builderHeader .builderFormat [data-ui="filter-picker"] > button {
-    box-sizing: border-box;
-    width: 100%;
-    height: 2.75rem;
-    min-height: 2.75rem;
-    padding: .4rem .45rem;
-
-  }
-
-  .builderHeader > [data-ui="action-button"] {
-    box-sizing: border-box;
-    width: 100%;
-    min-width: 0;
-    height: 2.75rem;
-    min-height: 2.75rem;
-    padding: 0 .35rem;
-
-
-
-    white-space: nowrap;
-  }
-
-  
-  .builderHeader .builderRulesRetry {
-    grid-column: 1 / -1;
-    grid-row: 3;
-    margin-block: .25rem;
-  }
-
-  .builderHeader > [data-ui="status-chip"],
-  .saveState {
-    display: none;
-  }
-
-  
-  .builderHeader .builderMobileTabs {
-    position: static;
-    grid-column: 1 / -1;
-    width: calc(100% + 2 * var(--builder-header-gutter));
-    height: 2.75rem;
-    margin-inline: calc(-1 * var(--builder-header-gutter));
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-
-  }
-
-  .builderHeader .builderMobileTabs > button {
-    min-height: 2.75rem;
-    min-width: 0;
-    height: 2.75rem;
-    padding: .25rem .4rem;
-
-    line-height: 1.1;
-  }
-
-  .builderGallery .builderToolbar {
-    top: 64px;
-    scroll-margin-top: calc(64px + .5rem);
-  }
-
-  .builderLayout {
-    width: min(calc(100% - (2 * var(--space-4))), var(--content-wide));
-    height: auto;
-    min-height: 0;
-    grid-template-columns: 1fr;
-  }
-
-  .builderGallery,
-  .builderCurrentDeck {
-    height: auto;
-    overflow: visible;
-
-  }
-
-  .builderGallery {
-    max-height: none;
-  }
-
-  .mobileHidden {
-    display: none;
-  }
-
-  .builderGalleryGrid {
-    grid-template-columns: repeat(auto-fill, minmax(8.75rem, 1fr));
-  }
-
-  .builderCoreRow {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .builderMenuBackdrop,
-  .builderInspectorOverlay {
-    place-items: stretch;
-    padding: 0;
-  }
-
-  .builderMenuDialog {
-    width: 100vw;
-    height: 100dvh;
-    max-height: none;
-
-
-  }
-
-  .builderInspectorOverlay > [data-ui="card-inspector"] {
-    width: 100vw;
-    height: 100dvh;
-    max-width: none;
-
-
-  }
-
-  .builderStatus {
-    bottom: 4.2rem;
-    width: 100%;
-    height: 2.5rem;
-    min-height: 2.5rem;
-    box-sizing: border-box;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    justify-content: stretch;
-    gap: .25rem;
-    padding: .2rem .35rem;
-    overflow: hidden;
-  }
-
-  .builderStatus div {
-    min-width: 0;
-    gap: .3rem;
-    justify-content: center;
-  }
-
-  .builderStatus div span {
-    white-space: nowrap;
-  }
-
-  .builderStatus div strong {
-    white-space: nowrap;
-  }
-
-  .builderStatus > span {
-    display: none;
   }
 }
-
-@media (max-width: 540px) {
-
-.state {
+@media (max-width: 540px){
+.state{
     grid-template-columns: 1fr;
   }
-
-  .stateIcon {
+.stateIcon{
     display: none;
   }
-
-
-
-
-
-  .detailTeam {
+.detailTeam{
     grid-template-columns: 1fr;
   }
-
-  .coreStrip {
+.coreStrip{
     grid-template-columns: repeat(3, 1fr);
   }
-
-  .detailCardList {
+.detailCardList{
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .detailPanel,
-  .validationPanel {
+.detailPanel, .validationPanel{
     padding: var(--space-4);
   }
-
-  .shareActionGrid {
+.shareActionGrid{
     grid-template-columns: 1fr;
-  }
-
-  .builderHeader {
-    --builder-header-gutter: .5rem;
-    grid-template-columns: 1.875rem minmax(0, 1fr) 5.85rem 5.8rem;
-    gap: 0 .3rem;
-    grid-template-rows: 3.25rem 2.75rem;
-  }
-
-  .builderHeader > a {
-    width: 1.875rem;
-  }
-
-  .builderHeader .builderDeckIdentity strong {
-  }
-
-  .builderHeader .builderFormat [data-ui="filter-picker"] > button {
-    padding-inline: .25rem;
-
-  }
-
-  .builderHeader > [data-ui="action-button"] {
-
-    padding-inline: .15rem;
-  }
-
-  .builderHeader .builderMobileTabs > button {
-  }
-
-  .builderGalleryGrid,
-  .builderMainDeckGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  
-  .builderCoreGalleryGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: .4rem;
-  }
-
-  .builderCoreGalleryGrid .builderGalleryCore .builderCardArtButton {
-    padding: var(--space-2);
-  }
-
-  .builderCoreGalleryGrid .builderCoreIdentity {
-    min-height: 7rem;
-    padding: .45rem .4rem;
-    gap: .3rem;
-  }
-
-  .builderCoreGalleryGrid .builderCoreIdentity > strong {
-  }
-
-  .builderCoreGalleryGrid .builderCoreStatList {
-    line-height: 1.3;
-  }
-
-  .builderCoreGalleryGrid .builderQuantity {
-    grid-template-columns: minmax(0, 1fr) minmax(1.15rem, auto) minmax(0, 1fr);
-  }
-
-  .builderCoreGalleryGrid .builderQuantity > button {
-    min-height: 2.75rem;
-    padding-inline: 0;
-  }
-
-  .builderToolbar > button span {
-    display: none;
-  }
-
-  .builderFilterSelects {
-    grid-template-columns: 1fr;
-  }
-
-  .builderFeaturedCardPicker > div {
-    grid-template-columns: 1fr;
-  }
-
-  .builderCoreInspector > div {
-    grid-template-columns: 1fr;
-    padding: var(--space-5);
-  }
-
-  .builderCoreInspector > div > img {
-    max-height: 48dvh;
-  }
-
-  .builderCoreInspector p {
-    grid-column: auto;
-  }
-
-  .builderStatus {
-    justify-content: flex-start;
   }
 }
 
-
-@media (max-width: 540px) {
-  .builderGalleryPagination {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: center;
-    gap: .4rem;
-    padding: .6rem 0 .35rem;
-    text-align: center;
-  }
-
-  .builderGalleryPageSummary {
-    width: 100%;
-  }
-
-  .builderGalleryPageControls {
-    width: 100%;
-    max-width: 24rem;
-    min-width: 0;
-    margin-inline: auto;
-    display: grid;
-    grid-template-columns: 2.75rem 2.75rem minmax(0, 1fr) 2.75rem 2.75rem;
-    align-items: center;
-    justify-content: stretch;
-    gap: .25rem;
-  }
-
-  .builderGalleryPageControls > button {
-    box-sizing: border-box;
-    width: 100%;
-    min-width: 0;
-    min-height: 2.75rem;
-    padding: 0;
-    display: grid;
-    place-items: center;
-
-  }
-
-  .builderGalleryPageControls > .builderGalleryPageIndicator {
-    min-width: 0;
-    padding: 0 .1rem;
-
-    text-align: center;
-    white-space: nowrap;
-  }
-
-  .builderGalleryPageLong {
-    display: none;
-  }
-
-  .builderGalleryPageShort {
-    display: inline;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-
-}
 
 
 
