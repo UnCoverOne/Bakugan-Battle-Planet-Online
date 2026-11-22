@@ -53,7 +53,7 @@
   z-index: 1;
   pointer-events: none;
   border-radius: inherit;
-  background: linear-gradient(135deg, rgba(255,255,255,.17), rgba(218,237,255,.075) 43%, rgba(255,255,255,0) 78%);
+  background: linear-gradient(135deg, rgba(255,255,255,.20), rgba(218,237,255,.10) 43%, rgba(255,255,255,0) 100%);
   opacity: 0;
   transition: opacity 160ms ease;
 }

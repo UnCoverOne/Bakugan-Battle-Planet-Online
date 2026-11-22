@@ -810,3 +810,20 @@ test("Cards has frameless Detailed and Compact galleries with artwork-only compa
   assert.doesNotMatch(gallery, /BakuganRollingOverlay|FusionSymbol|StatusChip|card\.cost|card\.rarity/);
   assert.doesNotMatch(route, /styles\.cardArtFrame|styles\.fusionBadge|styles\.cardBadges/);
 });
+
+
+test("Cards, BakuCores, and Builder Team share the tuned white artwork hover", async () => {
+  const [cardsCss, coresCss, builder] = await Promise.all([
+    read("components/routes/CardsGallery.module.css"),
+    read("components/routes/CoresGallery.module.css"),
+    read("components/routes/DeckBuilderScreen.tsx"),
+  ]);
+  const expected = "linear-gradient(135deg, rgba(255,255,255,.20), rgba(218,237,255,.10) 43%, rgba(255,255,255,0) 100%)";
+  for (const css of [cardsCss, coresCss]) {
+    assert.ok(css.includes(expected));
+    assert.match(css, /transition: opacity 160ms ease/);
+    assert.match(css, /\.tile:hover \.artwork::after/);
+  }
+  assert.match(builder, /className=\{cardTileStyles\.artwork\}/);
+  assert.match(builder, /className=\{coreTileStyles\.artwork\}/);
+});
