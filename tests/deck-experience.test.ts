@@ -281,7 +281,7 @@ test("Team counts use a matching Lucide card and BakuCore icon", async () => {
   assert.match(style, /\.teamCountDivider\{display:block/);
 });
 
-test("Team removal uses Lucide circle-minus without square buttons and remains available on touch and keyboard", async () => {
+test("Team removal uses high-contrast circular Lucide buttons and remains available on touch and keyboard", async () => {
   const [builder, icons, style] = await Promise.all([
     read("components/routes/DeckBuilderScreen.tsx"),
     read("components/design-system/LucideIcon.tsx"),
@@ -291,7 +291,10 @@ test("Team removal uses Lucide circle-minus without square buttons and remains a
   assert.match(icons, /"circle-minus": <><circle cx="12" cy="12" r="10"\/><path d="M8 12h8"\/><\/>/);
   assert.match(builder, /className=\{styles\.removeCharacter\} onClick=\{\(\) => toggleCharacter\(character\.id\)\}/);
   assert.match(builder, /className=\{styles\.removeCore\} onClick=\{\(\) => adjustCore\(core\.id, -1\)\}/);
-  assert.match(style, /\.removeCharacter,\.removeCore\{[\s\S]*?border:0;border-radius:50%;background:transparent/);
+  assert.match(style, /\.removeCharacter,\.removeCore\{[\s\S]*?border:1px solid rgba\(255,255,255,\.25\)/);
+  assert.match(style, /border-radius:50%;background:rgba\(2,12,17,\.85\);color:var\(--bb-white\)/);
+  assert.match(style, /\.removeCharacter:hover,\.removeCore:hover\{[\s\S]*?background:rgba\(15,45,58,\.95\)/);
+  assert.doesNotMatch(style, /\.removeCharacter svg,\.removeCore svg\{\s*filter:drop-shadow/);
   assert.match(style, /@media \(hover:hover\) and \(pointer:fine\)\{/);
   assert.match(style, /\.teamCharacter:focus-within \.removeCharacter/);
   assert.match(style, /\.coreSlot:focus-within \.removeCore/);

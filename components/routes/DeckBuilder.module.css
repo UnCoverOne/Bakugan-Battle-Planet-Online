@@ -60,17 +60,17 @@
 .teamCharacter>button:first-child{width:100%;cursor:pointer}
 .teamRollingStats{display:flex;flex-wrap:wrap;justify-content:center;align-items:start;gap:4px;min-width:0;padding-top:6px}
 .teamRollingStats>span{max-width:100%;box-sizing:border-box}
-/* Contextual Lucide minus: icon-only, no square fill or border over the artwork. */
+/* Contextual Lucide minus with a subtle circular contrast backing. */
 .removeCharacter,.removeCore{
   position:absolute;right:0;top:0;z-index:2;
   display:grid;place-items:center;width:32px;height:32px;padding:0;
-  border:0;border-radius:50%;background:transparent;color:var(--bb-white);
+  border:1px solid rgba(255,255,255,.25);
+  border-radius:50%;background:rgba(2,12,17,.85);color:var(--bb-white);
   cursor:pointer;
 }
-.removeCharacter svg,.removeCore svg{
-  filter:drop-shadow(0 1px 2px rgba(0,0,0,.95));
+.removeCharacter:hover,.removeCore:hover{
+  background:rgba(15,45,58,.95);color:var(--bb-white);
 }
-.removeCharacter:hover,.removeCore:hover{color:var(--bb-focus)}
 .removeCharacter:focus-visible,.removeCore:focus-visible{
   outline:2px solid var(--bb-focus);outline-offset:0;border-radius:50%;
 }

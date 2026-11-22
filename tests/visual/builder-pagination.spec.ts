@@ -103,7 +103,7 @@ test("Team cards display rolling tags below the art and use Compendium hover tre
     getComputedStyle(element, "::after").opacity)).toBe("1");
 });
 
-test("Team removal controls appear on hover or focus without covering the art with square buttons", async ({ page }) => {
+test("Team removal controls use dark circular backings and appear on hover or focus", async ({ page }) => {
   await page.goto("/builder/deck-pyrus");
   const builder = page.locator('[data-ui="deck-builder"]');
   const tabs = builder.getByRole("navigation", { name: "Builder views" });
@@ -114,13 +114,17 @@ test("Team removal controls appear on hover or focus without covering the art wi
   const character = team.locator('[class*="teamCharacter"]').first();
   const removeCharacter = character.getByRole("button", { name: /^Remove / });
   await expect(removeCharacter.locator("svg")).toBeVisible();
-  await expect(removeCharacter).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-  await expect(removeCharacter).toHaveCSS("border-top-width", "0px");
+  await expect(removeCharacter).toHaveCSS("background-color", "rgba(2, 12, 17, 0.85)");
+  await expect(removeCharacter).toHaveCSS("border-top-width", "1px");
+  await expect(removeCharacter).toHaveCSS("border-radius", "50%");
+  await expect(removeCharacter.locator("svg")).toHaveCSS("filter", "none");
   await character.hover();
   await expect.poll(() => removeCharacter.evaluate(el => getComputedStyle(el).opacity)).toBe("1");
   const coreSlot = team.locator('[class*="coreSlot"]').first();
   const removeCore = coreSlot.getByRole("button", { name: /^Remove / });
   await coreSlot.hover();
   await expect.poll(() => removeCore.evaluate(el => getComputedStyle(el).opacity)).toBe("1");
-  await expect(removeCore).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(removeCore).toHaveCSS("background-color", "rgba(2, 12, 17, 0.85)");
+  await expect(removeCore).toHaveCSS("border-radius", "50%");
+  await expect(removeCore.locator("svg")).toHaveCSS("filter", "none");
 });
