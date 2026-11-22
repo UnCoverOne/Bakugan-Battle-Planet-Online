@@ -432,3 +432,31 @@ test("Cards previews illuminate on hover without moving or scaling", async ({ pa
   await expect.poll(() => preview.evaluate(el => getComputedStyle(el, "::after").opacity)).toBe("1");
   expect(await first.evaluate(el => getComputedStyle(el).transform)).toBe("none");
 });
+
+test("Card and BakuCore hover highlights respect artwork silhouettes", async ({ page }) => {
+  await page.goto("/compendium");
+  const card = page.locator("[data-cards-gallery] > button").first();
+  const cardArt = card.locator("[data-card-preview]");
+  await expect(cardArt).toBeVisible();
+  const cardClip = await cardArt.evaluate(el => ({
+    overlay: getComputedStyle(el, "::after").clipPath,
+    image: getComputedStyle(el.querySelector("img")!).clipPath,
+  }));
+  expect(cardClip.overlay).toContain("inset(0.85% round 4.6% / 3.3%)");
+  expect(cardClip.overlay).toBe(cardClip.image);
+  await card.focus();
+  await expect.poll(() => cardArt.evaluate(el => getComputedStyle(el, "::before").opacity)).toBe("1");
+  await card.hover();
+  await expect.poll(() => cardArt.evaluate(el => getComputedStyle(el, "::after").opacity)).toBe("1");
+
+  await page.goto("/compendium/cores");
+  const core = page.locator("[data-cores-gallery] > button").first();
+  const coreArt = core.locator("[data-core-preview]");
+  await expect(coreArt).toBeVisible();
+  await expect.poll(() => coreArt.evaluate(el => getComputedStyle(el, "::after").clipPath))
+    .toContain("polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)");
+  await core.hover();
+  await expect.poll(() => coreArt.evaluate(el => getComputedStyle(el, "::after").opacity)).toBe("1");
+  await core.focus();
+  await expect(coreArt.locator(":scope > span")).toHaveCSS("filter", /drop-shadow/);
+});

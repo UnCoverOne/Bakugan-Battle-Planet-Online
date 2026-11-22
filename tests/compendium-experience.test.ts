@@ -827,3 +827,29 @@ test("Cards, BakuCores, and Builder Team share the tuned white artwork hover", a
   assert.match(builder, /className=\{cardTileStyles\.artwork\}/);
   assert.match(builder, /className=\{coreTileStyles\.artwork\}/);
 });
+
+test("Card and BakuCore gallery hover effects follow the physical artwork silhouettes", async () => {
+  const [cards, cores, cardImage, builder] = await Promise.all([
+    read("components/routes/CardsGallery.module.css"),
+    read("components/routes/CoresGallery.module.css"),
+    read("app/card-art-transparency.css"),
+    read("components/routes/DeckBuilderScreen.tsx"),
+  ]);
+  const roundedClip = "clip-path: inset(0.85% round 4.6% / 3.3%)";
+  const hexClip = "clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)";
+  assert.ok(cardImage.includes(roundedClip));
+  assert.ok(cards.includes(roundedClip));
+  assert.ok(cores.includes(hexClip));
+  assert.match(cards, /\.tile:focus-visible \.artwork::before/);
+  assert.match(cores, /\.tile:focus-visible \.artwork > span/);
+  assert.doesNotMatch(cards, /\.tile:focus-visible \.artwork\s*\{\s*outline:/);
+  assert.doesNotMatch(cores, /\.tile:focus-visible \.artwork\s*\{\s*outline:/);
+  assert.doesNotMatch(cores, /\.tile\[aria-pressed="true"\] \.artwork\s*\{\s*box-shadow:/);
+  assert.match(builder, /className=\{cardTileStyles\.artwork\}/);
+  assert.match(builder, /className=\{coreTileStyles\.artwork\}/);
+  const gradient = "linear-gradient(135deg, rgba(255,255,255,.20), rgba(218,237,255,.10) 43%, rgba(255,255,255,0) 100%)";
+  for (const gallery of [cards, cores]) {
+    assert.ok(gallery.includes(gradient));
+    assert.match(gallery, /transition: opacity 160ms ease/);
+  }
+});
