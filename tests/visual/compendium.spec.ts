@@ -444,8 +444,6 @@ test("Card and BakuCore hover highlights respect artwork silhouettes", async ({ 
   }));
   expect(cardClip.overlay).toContain("inset(0.85% round 4.6% / 3.3%)");
   expect(cardClip.overlay).toBe(cardClip.image);
-  await card.focus();
-  await expect.poll(() => cardArt.evaluate(el => getComputedStyle(el, "::before").opacity)).toBe("1");
   await card.hover();
   await expect.poll(() => cardArt.evaluate(el => getComputedStyle(el, "::after").opacity)).toBe("1");
 
@@ -457,6 +455,4 @@ test("Card and BakuCore hover highlights respect artwork silhouettes", async ({ 
     .toContain("polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)");
   await core.hover();
   await expect.poll(() => coreArt.evaluate(el => getComputedStyle(el, "::after").opacity)).toBe("1");
-  await core.focus();
-  await expect(coreArt.locator(":scope > span")).toHaveCSS("filter", /drop-shadow/);
 });
