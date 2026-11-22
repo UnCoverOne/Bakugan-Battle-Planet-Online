@@ -339,7 +339,7 @@ export async function exportDeckImage(deck: DeckRecord) {
   const overlayIconEntries = Object.entries(CORE_OVERLAY_ICONS) as [CoreOverlayIcon, string][];
   const [teamImages, teamCoreImages, mainDeckImages, flipCardImages, factionImages, coreOverlayIconPairs] = await Promise.all([
     Promise.all(team.map((item) => loadImage(cardArtSource(preferredCardPrinting(item!.character, deck.printingPreferences), "full")))),
-    Promise.all(teamCores.map((pair) => Promise.all(pair.map((core) => core ? loadImage(core.art) : Promise.resolve(null))))),
+    Promise.all(teamCores.map((pair) => Promise.all(pair.map((core) => core ? loadImage(preferredCorePrinting(core, deck.printingPreferences).art) : Promise.resolve(null))))),
     Promise.all(mainDeckCards.map(({ card }) => loadImage(cardArtSource(card, "full")))),
     Promise.all(flipCards.map(({ card }) => loadImage(cardArtSource(card, "full")))),
     Promise.all(factionSources.map((source) => loadImage(source))),

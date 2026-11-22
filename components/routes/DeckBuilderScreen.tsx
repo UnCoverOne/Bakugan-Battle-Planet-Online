@@ -9,12 +9,13 @@ import { activeCardFilterCount, CARD_FILTER_LABELS, CORE_SET_OPTIONS, cardMatche
 import { cardArtSource } from "../../lib/content/card-art";
 import { createBuilderCardControls } from "../../lib/builder-card-selection";
 import { createCoreAdditionGuard } from "../../lib/builder-core-selection";
+import { coreForSet } from "../../lib/core-preview";
 import { paginateBuilderGallery } from "../../lib/builder-gallery-pagination";
 import { builderSortOptions, normalizeBuilderSort, sortBuilderItems, type BuilderCategory, type BuilderSort, type BuilderGalleryItem } from "../../lib/builder-sorting";
 import { BAKUGAN, CARD_BY_ID, CARDS, CORES, validateDeck, type DeckRecord } from "../../lib/data";
 import { cardPrintingKey, corePrintingKey, countConstructionCopies, preferredCardPrinting, preferredCorePrinting } from "../../lib/deck-printings";
 import { deckConstructionIdentity } from "../../lib/deck-validation";
-import type { GameCard } from "../../lib/game";
+import type { Core, GameCard } from "../../lib/game";
 import type { CardInspectorTab } from "../../lib/compendium";
 import { DECK_LIMIT } from "../../lib/deck-transfer";
 import { invalidateResponse } from "../../lib/response-cache";
@@ -491,9 +492,29 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     setInspectorPrinting(preferredCardPrinting(card, deck.printingPreferences).catalogId);
     setInspection({ kind: "card", card });
   };
+  const galleryCorePrinting = (core: Core): Core => {
+    const preferred = deck.printingPreferences?.[corePrintingKey(core)];
+    return preferred ? preferredCorePrinting(core, deck.printingPreferences) : coreForSet(core, galleryFilters.set);
+  };
+  const addCoreFromGallery = (core: Core) => {
+    if (!canAddCore(core.id)) return;
+    const displayed = galleryCorePrinting(core);
+    const physical = core.printings?.find(print => print.art === displayed.art);
+    commit({
+      ...deck, coreIds: [...deck.coreIds, core.id],
+      printingPreferences: physical
+        ? { ...deck.printingPreferences, [corePrintingKey(core)]: physical.id }
+        : deck.printingPreferences,
+    });
+  };
   const inspectCore = (coreId: string) => {
+    const core = CORES.find(candidate => candidate.id === coreId);
     setInspectorTab("overview");
-    setInspectorPrinting(deck.printingPreferences?.["core:" + coreId] ?? "");
+    const displayed = core && galleryCorePrinting(core);
+    const physical = core?.printings?.find(print => print.art === displayed?.art);
+    setInspectorPrinting(core
+      ? deck.printingPreferences?.[corePrintingKey(core)] ?? physical?.id ?? core.catalogId ?? core.id
+      : "");
     setInspection({ kind: "core", coreId });
   };
   const onGalleryCardAdjust = (card: GameCard, amount: number) => {
@@ -654,11 +675,11 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
             galleryCategory === "cores" ?
               <CoresGallery cores={galleryPagination.items.flatMap(item => item.kind === "core" ? [item.core] : [])}
                 selectedSets={galleryFilters.set} density={galleryDensity}
-                resolveCore={core => preferredCorePrinting(core, deck.printingPreferences)}
+                resolveCore={galleryCorePrinting}
                 onSelect={core => inspectCore(core.id)}
                 renderControls={core => <BuilderQuantity name={core.name} count={coreCounts.get(core.id) ?? 0}
                   canAdd={canAddCore(core.id)} canRemove={(coreCounts.get(core.id) ?? 0) > 0}
-                  onAdd={() => adjustCore(core.id, 1)} onRemove={() => adjustCore(core.id, -1)} />} />
+                  onAdd={() => addCoreFromGallery(core)} onRemove={() => adjustCore(core.id, -1)} />} />
               :
               <CardsGallery cards={galleryPagination.items.flatMap(item => item.kind === "core" ? [] : [item.card])}
                 density={galleryDensity} resolveCard={card => preferredCardPrinting(card, deck.printingPreferences)}
