@@ -865,6 +865,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
       {activeMenu?.panel === "save" && <DeckSaveDialog
         deck={deck}
         report={report}
+        requiredCardCount={mainDeckMaximum}
         cards={grouped}
         name={saveName}
         onNameChange={setSaveName}

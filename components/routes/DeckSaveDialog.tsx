@@ -20,6 +20,7 @@ const visibilityOptions: { value: DeckRecord["visibility"]; description: string;
 type DeckSaveDialogProps = {
   deck: DeckRecord;
   report: DeckValidationResult;
+  requiredCardCount: number;
   cards: readonly { card: GameCard; count: number }[];
   name: string;
   onNameChange: (value: string) => void;
@@ -45,7 +46,7 @@ const focusableSelector = [
 ].join(",");
 
 export function DeckSaveDialog({
-  deck, report, cards, name, onNameChange, description, onDescriptionChange,
+  deck, report, requiredCardCount, cards, name, onNameChange, description, onDescriptionChange,
   visibility, onVisibilityChange, featuredCardId, onFeaturedCardChange,
   fixedVisibility, saveDisabled, onSave, onClose,
 }: DeckSaveDialogProps) {
@@ -140,7 +141,7 @@ export function DeckSaveDialog({
                 {report.isLegal ? "Legal deck" : report.issues.length + " legality " + (report.issues.length === 1 ? "issue" : "issues")}
                 <span className={styles.format}>· {deck.format === "competitive" ? "Competitive" : deck.format === "singleton" ? "Singleton" : "Standard"}</span>
               </p>
-              <p className={styles.counts}>{deck.bakuganIds.length}/3 Characters · {deck.coreIds.length}/6 BakuCores · {deck.cardIds.length}/{deck.format === "competitive" ? 50 : 40} Cards</p>
+              <p className={styles.counts}>{deck.bakuganIds.length}/3 Characters · {deck.coreIds.length}/6 BakuCores · {deck.cardIds.length}/{requiredCardCount} Cards</p>
             </div>
 
             <div className={styles.metadata}>
