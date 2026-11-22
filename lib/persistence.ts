@@ -218,6 +218,11 @@ function normalizeDeck(value: unknown): DeckRecord | null {
     bakuganIds: deck.bakuganIds.filter((id): id is string => typeof id === "string").slice(0, 3),
     coreIds: deck.coreIds.filter((id): id is string => typeof id === "string").slice(0, 6),
     cardIds: deck.cardIds.filter((id): id is string => typeof id === "string").slice(0, cardLimit),
+    printingPreferences: deck.printingPreferences && typeof deck.printingPreferences === "object" && !Array.isArray(deck.printingPreferences)
+      ? Object.fromEntries(Object.entries(deck.printingPreferences).slice(0, 120)
+        .filter(([key, value]) => (key.startsWith("card:") || key.startsWith("core:"))
+          && key.length <= 300 && typeof value === "string" && value.length <= 160))
+      : undefined,
     updatedAt,
     visibility: deck.visibility === "Public" ? "Public" : deck.visibility === "Draft" ? "Draft" : "Private",
     format,
