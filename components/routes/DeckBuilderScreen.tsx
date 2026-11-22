@@ -14,8 +14,7 @@ import { builderSortOptions, normalizeBuilderSort, sortBuilderItems, type Builde
 import { BAKUGAN, CARD_BY_ID, CARDS, CORES, validateDeck, type DeckRecord } from "../../lib/data";
 import { cardPrintingKey, corePrintingKey, countConstructionCopies, preferredCardPrinting, preferredCorePrinting } from "../../lib/deck-printings";
 import { deckConstructionIdentity } from "../../lib/deck-validation";
-import type { DeckValidationResult } from "../../lib/deck-validation";
-import type { Core, GameCard } from "../../lib/game";
+import type { GameCard } from "../../lib/game";
 import type { CardInspectorTab } from "../../lib/compendium";
 import { DECK_LIMIT } from "../../lib/deck-transfer";
 import { invalidateResponse } from "../../lib/response-cache";
@@ -236,7 +235,14 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     const workingDeck = {
       ...deck, name: saveName.trim(), description: saveDescription.trim() || undefined,
       visibility: saveVisibility,
-      leadCardId: saveLeadCardId && deck.cardIds.includes(saveLeadCardId) ? saveLeadCardId : deck.cardIds[0],
+      leadCardId: (() => {
+        const selected = CARD_BY_ID.get(saveLeadCardId);
+        const matching = selected && deck.cardIds.find(id => {
+          const card = CARD_BY_ID.get(id);
+          return card && deckConstructionIdentity(card) === deckConstructionIdentity(selected);
+        });
+        return matching || deck.cardIds[0];
+      })(),
     };
     if ((!returnTo || returnTo === "/decks") && shouldConfirmBuilderExit(workingDeck, saved)) {
       event.preventDefault();
@@ -539,7 +545,14 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
       name,
       description: saveDescription.trim() || undefined,
       visibility: adminPublicId || adminOfflineId ? "Public" as const : adminAiId ? "Private" as const : saveVisibility,
-      leadCardId: saveLeadCardId && deck.cardIds.includes(saveLeadCardId) ? saveLeadCardId : deck.cardIds[0],
+      leadCardId: (() => {
+        const selected = CARD_BY_ID.get(saveLeadCardId);
+        const matching = selected && deck.cardIds.find(id => {
+          const card = CARD_BY_ID.get(id);
+          return card && deckConstructionIdentity(card) === deckConstructionIdentity(selected);
+        });
+        return matching || deck.cardIds[0];
+      })(),
       updatedAt: new Date().toISOString(),
       revision: (deck.revision ?? 0) + 1,
     };

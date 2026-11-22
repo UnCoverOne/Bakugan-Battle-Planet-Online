@@ -6,6 +6,7 @@ import { CardArt } from "../cards/CardArt";
 import { DeckCreatorIdentity } from "../profile/DeckCreatorIdentity";
 import { FACTION_SYMBOLS } from "../../lib/card-filters";
 import { cardArtSource } from "../../lib/content/card-art";
+import { preferredCardPrinting } from "../../lib/deck-printings";
 import { BAKUGAN, deckLeadCard, type DeckFormat, type DeckRecord } from "../../lib/data";
 import { deckSetName } from "../../lib/deck-set";
 import styles from "./DeckGalleryCard.module.css";
@@ -19,13 +20,14 @@ export function CharacterPortrait({ src, name }: { src: string; name: string }) 
 
 export function DeckPreview({ deck }: { deck: DeckRecord }) {
   const characters = deck.bakuganIds.slice(0, 3).map(id => BAKUGAN.find(b => b.id === id));
-  const featured = deckLeadCard(deck);
+  const selected = deckLeadCard(deck);
+  const featured = selected ? preferredCardPrinting(selected, deck.printingPreferences) : undefined;
   return <div className={styles.preview} aria-label={`Three Bakugan and featured card for ${deck.name}`}>
     <div className={styles.portraits}>
       {Array.from({ length: 3 }, (_, index) => {
         const character = characters[index];
         return character
-          ? <CharacterPortrait key={index} name={character.name} src={cardArtSource(character.character, "full")} />
+          ? <CharacterPortrait key={index} name={character.name} src={cardArtSource(preferredCardPrinting(character.character, deck.printingPreferences), "full")} />
           : <span className={styles.emptyPortrait} key={index} aria-label="Empty Bakugan slot">?</span>;
       })}
     </div>

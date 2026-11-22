@@ -11,6 +11,7 @@ import type { GameCard } from "../../lib/game";
 import type { CardInspectorTab } from "../../lib/compendium";
 import { deckTextList, encodeDeckCode } from "../../lib/deck-transfer";
 import { deckEnergyCurve, deckExportFilename, groupedDeckCards } from "../../lib/deck-presentation";
+import { preferredCardPrinting, preferredCorePrinting } from "../../lib/deck-printings";
 import { deckSetName } from "../../lib/deck-set";
 import { CardArt } from "../cards/CardArt";
 import { BakuganRollingOverlay } from "../cards/BakuganRollingStats";
@@ -40,7 +41,8 @@ export function DeckDetailPresentation({
   const report = validateDeck(deck);
   const bakugan = deck.bakuganIds.map((key) => BAKUGAN.find((item) => item.id === key)).filter(Boolean);
   const cards = groupedDeckCards(deck);
-  const cores = deck.coreIds.map((key) => CORES.find((item) => item.id === key)).filter(Boolean);
+  const cores = deck.coreIds.map((key) => CORES.find((item) => item.id === key)).filter(Boolean)
+    .map(core => preferredCorePrinting(core!, deck.printingPreferences));
   const typeCounts = cards.reduce<Record<string, number>>((counts, entry) => {
     const type = isFlipCardType(entry.card.type) ? "Flip" : entry.card.type;
     counts[type] = (counts[type] ?? 0) + entry.count;
@@ -104,10 +106,10 @@ export function DeckDetailPresentation({
                     type="button"
                     className={styles.detailCharacterButton}
                     aria-label={`Inspect ${item!.name} character card`}
-                    onClick={(event) => inspectCard(item!.character, event.currentTarget)}
+                    onClick={(event) => inspectCard(preferredCardPrinting(item!.character, deck.printingPreferences), event.currentTarget)}
                   >
                     <span className={styles.detailCharacterArt}>
-                      <CardArt src={cardArtSource(item!.character, "full")} cardType={item!.character.type} presentation="readable" alt={item!.name} />
+                      <CardArt src={cardArtSource(preferredCardPrinting(item!.character, deck.printingPreferences), "full")} cardType={item!.character.type} presentation="readable" alt={item!.name} />
                       <BakuganRollingOverlay card={item!.character} />
                     </span>
                     <strong>{item!.name}</strong>

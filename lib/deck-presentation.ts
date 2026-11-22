@@ -1,4 +1,5 @@
 import { CARD_BY_ID, type DeckRecord } from "./data";
+import { cardPrintingKey, preferredCardPrinting } from "./deck-printings";
 import type { GameCard } from "./game";
 
 export type DeckCardEntry = {
@@ -12,13 +13,18 @@ export type EnergyCurveBucket = {
   count: number;
 };
 
-export function groupedDeckCards(deck: Pick<DeckRecord, "cardIds">): DeckCardEntry[] {
-  const counts = new Map<string, number>();
-  for (const id of deck.cardIds) counts.set(id, (counts.get(id) ?? 0) + 1);
-
-  return [...counts.entries()]
-    .map(([id, count]) => ({ card: CARD_BY_ID.get(id), count }))
-    .filter((entry): entry is DeckCardEntry => Boolean(entry.card))
+export function groupedDeckCards(deck: Pick<DeckRecord, "cardIds" | "printingPreferences">): DeckCardEntry[] {
+  const grouped = new Map<string, DeckCardEntry>();
+  for (const id of deck.cardIds) {
+    const card = CARD_BY_ID.get(id);
+    if (!card) continue;
+    const key = cardPrintingKey(card);
+    const existing = grouped.get(key);
+    if (existing) existing.count += 1;
+    else grouped.set(key, { card, count: 1 });
+  }
+  return [...grouped.values()]
+    .map(({ card, count }) => ({ card: preferredCardPrinting(card, deck.printingPreferences), count }))
     .sort((left, right) => {
       const leftCost = left.card.cost === "X" ? Number.MAX_SAFE_INTEGER : left.card.cost;
       const rightCost = right.card.cost === "X" ? Number.MAX_SAFE_INTEGER : right.card.cost;

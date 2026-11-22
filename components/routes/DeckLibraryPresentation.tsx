@@ -5,6 +5,7 @@ import Link from "next/link";
 import { type ReactNode } from "react";
 import { FACTIONS, FACTION_SYMBOLS } from "../../lib/card-filters";
 import { cardArtSource } from "../../lib/content/card-art";
+import { preferredCardPrinting } from "../../lib/deck-printings";
 import { BAKUGAN, type DeckFormat, type DeckRecord } from "../../lib/data";
 import { CardArt } from "../cards/CardArt";
 import styles from "./DeckRoutes.module.css";
@@ -106,7 +107,7 @@ export function CharacterFan({ deck }: { deck: DeckRecord }) {
   return <div className={styles.characterFan}>
     {Array.from({ length: 3 }, (_, index) => {
       const character = characters[index];
-      return character ? <CardArt key={character.id} src={cardArtSource(character.character, "full")}
+      return character ? <CardArt key={character.id} src={cardArtSource(preferredCardPrinting(character.character, deck.printingPreferences), "full")}
         cardType={character.character.type} presentation="readable" loading="lazy" decoding="async" alt={character.name}/>
       : <div className={styles.characterPlaceholder} key={`empty-${index}`} aria-label="Empty Character slot">?</div>;
     })}

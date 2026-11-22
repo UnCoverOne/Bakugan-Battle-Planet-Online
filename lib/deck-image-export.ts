@@ -2,6 +2,7 @@ import { BAKUGAN, CORES, type DeckRecord } from "./data";
 import { fingerprintedAsset } from "./assets";
 import { cardArtSource, isFlipCardType } from "./content/card-art";
 import { deckExportFilename, groupedDeckCards } from "./deck-presentation";
+import { preferredCardPrinting, preferredCorePrinting } from "./deck-printings";
 import type { Core } from "./game";
 
 const WIDTH = 2200;
@@ -337,7 +338,7 @@ export async function exportDeckImage(deck: DeckRecord) {
     .filter((source): source is string => Boolean(source));
   const overlayIconEntries = Object.entries(CORE_OVERLAY_ICONS) as [CoreOverlayIcon, string][];
   const [teamImages, teamCoreImages, mainDeckImages, flipCardImages, factionImages, coreOverlayIconPairs] = await Promise.all([
-    Promise.all(team.map((item) => loadImage(cardArtSource(item!.character, "full")))),
+    Promise.all(team.map((item) => loadImage(cardArtSource(preferredCardPrinting(item!.character, deck.printingPreferences), "full")))),
     Promise.all(teamCores.map((pair) => Promise.all(pair.map((core) => core ? loadImage(core.art) : Promise.resolve(null))))),
     Promise.all(mainDeckCards.map(({ card }) => loadImage(cardArtSource(card, "full")))),
     Promise.all(flipCards.map(({ card }) => loadImage(cardArtSource(card, "full")))),

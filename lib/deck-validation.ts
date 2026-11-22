@@ -51,7 +51,7 @@ export type ValidationCard = {
 export type ValidationCharacter = {
   id: string;
   faction: string;
-  character?: { coreTypes?: string[]; factions?: string[] };
+  character?: { coreTypes?: string[]; factions?: string[]; constructionIdentity?: string };
   coreTypes?: string[];
 };
 
@@ -137,7 +137,10 @@ export function validateDeckConstruction(
   if (deck.bakuganIds.length !== 3) {
     issues.push(issue("team.exactly_three", "team", "bakuganIds", "Bakugan Team must contain exactly three Character cards.", { expected: 3, actual: deck.bakuganIds.length }));
   }
-  if (new Set(deck.bakuganIds).size !== deck.bakuganIds.length) {
+  if (new Set(deck.bakuganIds.map(id => {
+    const character = catalogue.characters.get(id);
+    return character?.character?.constructionIdentity ?? id;
+  })).size !== deck.bakuganIds.length) {
     issues.push(issue("team.distinct", "team", "bakuganIds", "Each Character card in the Bakugan Team must be distinct."));
   }
   if (unknownCharacters.length) {
