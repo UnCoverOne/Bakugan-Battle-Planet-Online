@@ -113,22 +113,6 @@
 .builderOptionList{display:grid;gap:4px}
 .builderOptionList button{min-height:39px;padding:9px 10px;text-align:left;background:var(--bb-panel);border:1px solid var(--bb-border);color:var(--bb-text);cursor:pointer;font:500 13px var(--bb-font-interface)}
 .builderOptionList button:hover{background:var(--bb-panel-hover)}
-.saveFields{display:grid;gap:15px}
-.saveFields input:not([type=radio]),.saveFields textarea{box-sizing:border-box;display:block;width:100%;min-height:42px;padding:10px;background:var(--bb-page);border:1px solid var(--bb-border);color:var(--bb-text);font:400 14px var(--bb-font-content)}
-.visibility,.featuredPicker{min-width:0;padding:0;border:0;margin:0}
-.visibility legend,.featuredPicker legend{font:700 12px var(--bb-font-interface);margin-bottom:8px}
-.visibility{display:flex;flex-wrap:wrap;gap:15px}
-.visibility legend{width:100%}
-.visibility label{display:flex;align-items:center;gap:7px;font:500 13px var(--bb-font-interface);cursor:pointer}
-.visibility input{accent-color:var(--bb-selection)}
-.saveDetails{border-top:1px solid var(--bb-border);padding-top:12px}
-.saveDetails summary{cursor:pointer;font:600 13px var(--bb-font-interface);margin-bottom:12px}
-.saveDetails>div,.saveDetails fieldset{margin-top:14px}
-.featuredPicker>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-height:260px;overflow:auto;gap:6px}
-.featuredPicker button{display:flex;align-items:center;gap:8px;min-width:0;min-height:70px;border:1px solid var(--bb-border);background:var(--bb-panel);color:var(--bb-text);text-align:left;padding:7px;cursor:pointer}
-.featuredPicker button[aria-pressed="true"]{border-color:var(--bb-focus)}
-.featuredPicker button img{width:39px;height:55px;object-fit:contain;flex:none}
-.featuredPicker button span{min-width:0;overflow:hidden;text-overflow:ellipsis;font:600 11px var(--bb-font-interface)}
 :where(.builder) button:focus-visible,:where(.builder) select:focus-visible,:where(.builder) a:focus-visible{outline:2px solid var(--bb-focus);outline-offset:2px}
 @media(max-width:800px){
  .builder{height:auto;min-height:calc(100dvh - 64px);overflow:visible;padding-bottom:calc(4.2rem + env(safe-area-inset-bottom))}

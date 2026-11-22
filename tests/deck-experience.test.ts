@@ -324,3 +324,25 @@ test("Save Deck header button is text-only and keeps legal-deck guidance", async
   assert.doesNotMatch(builder, /report\.isLegal \? "check" : "circle-alert"/);
   assert.doesNotMatch(css, /\.saveButton>span|\.legal\{|\.unready\{/);
 });
+
+test("Save Deck has a persistent metadata layout and a dedicated featured-card modal", async () => {
+  const [builder, dialog, css] = await Promise.all([
+    read("components/routes/DeckBuilderScreen.tsx"),
+    read("components/routes/DeckSaveDialog.tsx"),
+    read("components/routes/DeckSaveDialog.module.css"),
+  ]);
+  assert.match(builder, /<DeckSaveDialog/);
+  assert.match(builder, /cards=\{grouped\}/);
+  assert.match(dialog, /import \{ DeckPreview \} from "\.\/DeckGalleryCard"/);
+  assert.match(dialog, /<DeckPreview deck=\{previewDeck\} \/>/);
+  assert.match(dialog, /<textarea value=\{description\}/);
+  assert.match(dialog, /data-ui="featured-card-picker"/);
+  assert.match(dialog, /onFeaturedCardChange\(card\.catalogId\)/);
+  assert.match(dialog, /name="save-deck-visibility"/);
+  for (const text of ["Only visible to you.", "Only visible through its link.", "Visible in the Public Deck library."]) {
+    assert.ok(dialog.includes(text), text);
+  }
+  assert.match(css, /\.topGrid\{display:grid;grid-template-columns:/);
+  assert.match(css, /@media\(max-width:650px\)/);
+  assert.doesNotMatch(builder, /<details className=\{styles\.saveDetails\}>/);
+});

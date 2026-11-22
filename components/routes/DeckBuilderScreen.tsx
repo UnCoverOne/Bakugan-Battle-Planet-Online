@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type MouseEvent } from "react";
 import { activeCardFilterCount, CARD_FILTER_LABELS, CORE_SET_OPTIONS, cardMatchesFilters, clearCardFilterFacets, coreMatchesFilters, createCardFilterOptionCatalogue, createEmptyCardFilters, restrictCardFilters, type CardFilterFacet, type CardFilterOptionCatalogue, type CardFilterState } from "../../lib/card-filters";
-import { cardArtSource } from "../../lib/content/card-art";
 import { createBuilderCardControls } from "../../lib/builder-card-selection";
 import { createCoreAdditionGuard } from "../../lib/builder-core-selection";
 import { coreForSet } from "../../lib/core-preview";
@@ -22,15 +21,15 @@ import { invalidateResponse } from "../../lib/response-cache";
 import { cardSearchText, frequencyMap } from "../../lib/catalogue-index";
 import { notifyOfflinePublicDecksUpdated } from "../../lib/public-deck-cache";
 import { useAppFields } from "../application/AppProvider";
-import { CardArt } from "../cards/CardArt";
 import { copyText } from "../application/ui";
 import { CardInspector } from "../cards/CardInspector";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
 import { BakuganRollingStat } from "../cards/BakuganRollingStats";
 import { bakuganRollingValues } from "../../lib/bakugan-rolling";
-import { ActionButton, Field } from "../design-system/primitives";
+import { ActionButton } from "../design-system/primitives";
 import { CardFilterPanel } from "../filters/CardFilterPanel";
 import styles from "./DeckBuilder.module.css";
+import { DeckSaveDialog } from "./DeckSaveDialog";
 import { CardsGallery } from "./CardsGallery";
 import { CardFactionTag } from "./CardFactionTag";
 import cardTileStyles from "./CardsGallery.module.css";
@@ -863,46 +862,23 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
         <p>Save before leaving?</p>
       </BuilderMenuDialog>}
 
-      {activeMenu?.panel === "save" && <BuilderMenuDialog title="Save Deck" eyebrow=""
-        onClose={() => { setActiveMenu(null); setExitAfterSave(false); }} footer={<>
-          <ActionButton tone="quiet" onClick={() => setActiveMenu(null)}>Cancel</ActionButton>
-          <ActionButton disabled={!saveName.trim() || ((saveVisibility === "Public" || Boolean(adminAiId)) && !report.isLegal)}
-            onClick={() => void save()}>Save</ActionButton>
-        </>}>
-        <div className={styles.saveFields}>
-          <Field label="Deck name"><input maxLength={60} value={saveName} onChange={event => setSaveName(event.target.value)} /></Field>
-          <fieldset className={styles.visibility}>
-            <legend>Visibility</legend>
-            {(administratorEdit ?
-              [[adminPublicId || adminOfflineId ? "Public" : "Private", ""]] as const
-              : [["Draft", ""], ["Private", ""], ["Public", ""]] as const
-            ).map(([value]) => <label key={value}>
-              <input type="radio" name="deck-visibility" value={value} checked={saveVisibility === value}
-                disabled={administratorEdit || (value === "Public" && !report.isLegal)}
-                onChange={() => setSaveVisibility(value)} />
-              {value}
-            </label>)}
-          </fieldset>
-          <details className={styles.saveDetails}>
-            <summary>More options</summary>
-            <Field label="Description"><textarea maxLength={500} rows={3} value={saveDescription}
-              onChange={event => setSaveDescription(event.target.value)} /></Field>
-            <fieldset className={styles.featuredPicker}>
-              <legend>Featured card</legend>
-              <div>
-                {grouped.map(({ card }) => <button type="button" key={card.catalogId}
-                  aria-pressed={(() => {
-                    const lead = CARD_BY_ID.get(saveLeadCardId);
-                    return Boolean(lead && deckConstructionIdentity(lead) === deckConstructionIdentity(card));
-                  })()} onClick={() => setSaveLeadCardId(card.catalogId)}>
-                  <CardArt src={cardArtSource(card, "thumbnail")} cardType={card.type} presentation="readable" alt="" />
-                  <span>{card.displayName}</span>
-                </button>)}
-              </div>
-            </fieldset>
-          </details>
-        </div>
-      </BuilderMenuDialog>}
+      {activeMenu?.panel === "save" && <DeckSaveDialog
+        deck={deck}
+        report={report}
+        cards={grouped}
+        name={saveName}
+        onNameChange={setSaveName}
+        description={saveDescription}
+        onDescriptionChange={setSaveDescription}
+        visibility={saveVisibility}
+        onVisibilityChange={setSaveVisibility}
+        featuredCardId={saveLeadCardId}
+        onFeaturedCardChange={setSaveLeadCardId}
+        fixedVisibility={administratorEdit}
+        saveDisabled={!saveName.trim() || ((saveVisibility === "Public" || Boolean(adminAiId) || Boolean(adminOfflineId)) && !report.isLegal)}
+        onSave={() => void save()}
+        onClose={() => { setActiveMenu(null); setExitAfterSave(false); }}
+      />}
 
       {inspection?.kind === "card" && <div className={styles.inspectorOverlay}>
         <CardInspector card={inspection.card} allCards={CARDS} tab={inspectorTab} printingId={inspectorPrinting}
