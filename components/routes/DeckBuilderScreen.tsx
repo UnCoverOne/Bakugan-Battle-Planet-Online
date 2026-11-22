@@ -651,7 +651,6 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
         {saveState === "error" && <span className={styles.saveError} role="status" title={storageHealth.message}>Draft unavailable</span>}
         <button type="button" className={styles.saveButton} onClick={openSaveDialog}
           title={report.isLegal ? "Deck is legal" : report.issues.map(issue => issue.message).join("\n")}>
-          <span className={report.isLegal ? styles.legal : styles.unready}><LucideIcon name={report.isLegal ? "check" : "circle-alert"} size={16} /></span>
           Save
         </button>
       </header>

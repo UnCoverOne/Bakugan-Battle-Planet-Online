@@ -8,10 +8,8 @@
 .deckName{min-width:0;flex:1 1 240px;width:0;padding:9px 3px;background:transparent;border:0;border-bottom:1px solid transparent;color:var(--bb-white);font:700 clamp(16px,1.7vw,22px)/1.2 var(--bb-font-interface,"Titillium Web",Arial,sans-serif);text-overflow:ellipsis}
 .deckName:hover,.deckName:focus{border-bottom-color:var(--bb-border-hover);outline:none}
 .format{min-height:40px;max-width:160px;padding:0 10px;border:1px solid var(--bb-border);background:var(--bb-panel);color:var(--bb-text);font:600 12px var(--bb-font-interface);cursor:pointer}
-.saveButton{display:inline-flex;align-items:center;gap:9px;min-height:40px;padding:0 18px;border:1px solid var(--bb-selection);background:var(--bb-selection);color:var(--bb-white);font:700 13px var(--bb-font-interface);cursor:pointer}
+.saveButton{display:inline-flex;align-items:center;min-height:40px;padding:0 18px;border:1px solid var(--bb-selection);background:var(--bb-selection);color:var(--bb-white);font:700 13px var(--bb-font-interface);cursor:pointer}
 .saveButton:hover{background:var(--bb-nav-indicator)}
-.saveButton>span{display:inline-flex;align-items:center}
-.legal{color:var(--bb-success)}.unready{color:#ffca85}
 .saveError{font-size:11px;color:#ffaaaa}
 .workspace{min-height:0;flex:1;display:grid;grid-template-columns:minmax(0,57fr) minmax(0,43fr);gap:22px;width:min(calc(100% - 32px),1600px);margin:16px auto;align-items:stretch}
 .browse,.deck{min-height:0;min-width:0;overflow:auto;overscroll-behavior:contain;padding:3px 6px 28px;scrollbar-gutter:stable}
@@ -151,7 +149,7 @@
  .inspectorOverlay>:global([data-ui="card-inspector"]){width:100vw;height:100dvh;max-width:none}
 }
 @media(max-width:380px){
- .header{gap:4px}.back{width:28px}.format{max-width:101px}.saveButton{gap:5px;padding:0 8px}
+ .header{gap:4px}.back{width:28px}.format{max-width:101px}.saveButton{padding:0 8px}
  .builderToolbar{gap:5px}.builderToolbar>button{padding:0 9px}.builderToolbar>button span{display:none}
  .quantity{grid-template-columns:40px minmax(0,1fr) 40px}
  .browse :global([data-cards-gallery]):not([data-cards-view="compact"]),.deck :global([data-cards-gallery]):not([data-cards-view="compact"]),.browse :global([data-cores-gallery]):not([data-cores-view="compact"]){grid-template-columns:repeat(2,minmax(0,1fr))}

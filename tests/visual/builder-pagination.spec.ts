@@ -171,3 +171,14 @@ test("Team Character tags stay full-size and left aligned at narrow mobile width
     expect((await stat.locator("..").boundingBox())?.height).toBe(24);
   }
 });
+
+test("Save Deck button uses text only while opening the same save dialog", async ({ page }) => {
+  await page.goto("/builder/deck-pyrus");
+  const builder = page.locator('[data-ui="deck-builder"]');
+  const save = builder.locator('header button[class*="saveButton"]');
+  await expect(save).toBeVisible();
+  await expect(save).toHaveText("Save");
+  await expect(save.locator("svg")).toHaveCount(0);
+  await save.click();
+  await expect(page.getByRole("dialog", { name: "Save Deck" })).toBeVisible();
+});

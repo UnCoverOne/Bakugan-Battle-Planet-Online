@@ -312,3 +312,15 @@ test("Team removal uses high-contrast circular Lucide buttons and remains availa
   const touchRules = style.slice(style.indexOf("/* Contextual Lucide minus:"));
   assert.ok(touchRules.indexOf("opacity:0") > touchRules.indexOf("@media (hover:hover) and (pointer:fine)"));
 });
+
+test("Save Deck header button is text-only and keeps legal-deck guidance", async () => {
+  const [builder, css] = await Promise.all([
+    read("components/routes/DeckBuilderScreen.tsx"),
+    read("components/routes/DeckBuilder.module.css"),
+  ]);
+  assert.match(builder, /className=\{styles\.saveButton\} onClick=\{openSaveDialog\}/);
+  assert.match(builder, /title=\{report\.isLegal \? "Deck is legal"/);
+  assert.match(builder, /className=\{styles\.saveButton\}[\s\S]*?\n\s*Save\n\s*<\/button>/);
+  assert.doesNotMatch(builder, /report\.isLegal \? "check" : "circle-alert"/);
+  assert.doesNotMatch(css, /\.saveButton>span|\.legal\{|\.unready\{/);
+});
