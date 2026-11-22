@@ -650,7 +650,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
         <button type="button" aria-current={builderView === "gallery" ? "page" : undefined}
           onClick={() => setBuilderView("gallery")}>Browse</button>
         <button type="button" aria-current={builderView === "deck" ? "page" : undefined}
-          onClick={() => setBuilderView("deck")}>Deck · {deck.cardIds.length}/{mainDeckMaximum}</button>
+          onClick={() => setBuilderView("deck")}>Deck</button>
       </nav>
 
       <div className={styles.workspace}>

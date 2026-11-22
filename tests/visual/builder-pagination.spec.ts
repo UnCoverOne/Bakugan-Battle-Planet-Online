@@ -39,7 +39,7 @@ test("Mobile switches between Browse and a real Main Deck card grid", async ({ p
   for (const width of [320, 375, 390, 540, 768]) {
     await page.setViewportSize({ width, height: 844 });
     await expect(views).toBeVisible();
-    await views.getByRole("button", { name: /Deck ·/ }).click();
+    await views.getByRole("button", { name: "Deck", exact: true }).click();
     const deck = builder.locator('aside[aria-label="Current deck"]');
     await expect(deck).toBeVisible();
     await expect(deck.locator('[class*="teamGroup"]')).toHaveCount(3);
@@ -58,7 +58,7 @@ test("A missing core slot opens a core-type-filtered gallery", async ({ page }) 
   await page.goto("/builder/deck-pyrus");
   const builder = page.locator('[data-ui="deck-builder"]');
   const views = builder.getByRole("navigation", { name: "Builder views" });
-  if (await views.isVisible()) await views.getByRole("button", { name: /Deck ·/ }).click();
+  if (await views.isVisible()) await views.getByRole("button", { name: "Deck", exact: true }).click();
   const deck = builder.locator('aside[aria-label="Current deck"]');
   const remove = deck.locator('[class*="coreSlot"] button[aria-label^="Remove"]').first();
   await expect(remove).toBeVisible({ timeout: 20_000 });
