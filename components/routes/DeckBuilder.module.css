@@ -52,6 +52,7 @@
 .sectionHeading:not(:first-child){margin-top:28px}
 .sectionHeading h2{margin:0;font:700 18px var(--bb-font-interface)}
 .sectionHeading>span{display:inline-flex;align-items:center;gap:4px;font:600 12px var(--bb-font-interface);color:var(--bb-muted);white-space:nowrap}
+.teamCounts{font-variant-numeric:tabular-nums}
 .teamCountDivider{display:block;flex:none;width:1px;height:16px;margin-inline:5px;background:var(--bb-border)}
 .teamGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(5px,.9vw,14px)}
 .teamGroup{min-width:0;display:grid;align-content:start;gap:6px}
