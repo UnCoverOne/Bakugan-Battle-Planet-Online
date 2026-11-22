@@ -527,10 +527,15 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     ? !(characterCounts.get(cardPrintingKey(card))) && deck.bakuganIds.length < 3
     : cardControls.canAdd(card.catalogId);
   const chooseCoreSlot = (type: string) => {
+    setGalleryQuery("");
     changeGalleryCategory("cores");
     setGalleryFilters(current => ({ ...current, coreType: [type] }));
     setBuilderView("gallery");
   };
+  const issueForCard = (card: GameCard) => report.issues.find(issue => {
+    const affected = issue.cardId && CARD_BY_ID.get(issue.cardId);
+    return affected && cardPrintingKey(affected) === cardPrintingKey(card);
+  })?.message;
   const activeGalleryFilterCount = activeCardFilterCount(galleryFilters, galleryFilterFacets);
   const activeDeckFilterCount = activeCardFilterCount(deckFilters, BUILDER_MAIN_DECK_FILTER_FACETS);
 
@@ -689,6 +694,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                   canAdd={canAddGalleryCard(card)}
                   canRemove={galleryCategory === "characters" ? Boolean(characterCounts.get(cardPrintingKey(card))) : Boolean(cardCounts.get(cardPrintingKey(card)))}
                   restriction={galleryCategory === "cards" ? cardControls.restrictionLabel(card.catalogId) : undefined}
+                  issue={galleryCategory === "cards" ? issueForCard(card) : undefined}
                   onAdd={() => onGalleryCardAdjust(card, 1)} onRemove={() => onGalleryCardAdjust(card, -1)} />} />
           ) : <div className={styles.empty}>No matches</div>}
           {galleryItems.length > 0 && <nav className={styles.pagination} aria-label="Browse pages">
@@ -723,7 +729,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                       aria-label={`Remove ${character.name}`}>×</button>
                   </div>
                   : <button type="button" className={styles.emptyCharacter}
-                    aria-label="Add Character" onClick={() => { changeGalleryCategory("characters"); setBuilderView("gallery"); }}>＋</button>}
+                    aria-label="Add Character" onClick={() => { setGalleryQuery(""); changeGalleryCategory("characters"); setBuilderView("gallery"); }}>＋</button>}
                 <div className={styles.pairedCores}>
                   {[0, 1].map(offset => {
                     const slot = index * 2 + offset;
@@ -732,8 +738,8 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                     const core = id ? CORES.find(candidate => candidate.id === id) : undefined;
                     const displayCore = core && preferredCorePrinting(core, deck.printingPreferences);
                     return core && displayCore ?
-                      <div className={styles.coreSlot} key={slot}>
-                        <button type="button" title={core.name} aria-label={`Inspect ${core.name}`}
+                      <div className={styles.coreSlot} key={slot} data-invalid={type && core.type !== type ? "true" : undefined}>
+                        <button type="button" title={type && core.type !== type ? `Requires ${type}` : core.name} aria-label={`Inspect ${core.name}`}
                           onClick={() => inspectCore(core.id)}><BakuCoreArt core={displayCore} alt={core.name} /></button>
                         <button type="button" className={styles.removeCore} onClick={() => adjustCore(core.id, -1)}
                           aria-label={`Remove ${core.name}`}>×</button>
@@ -769,10 +775,10 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                 count={cardCounts.get(cardPrintingKey(card)) ?? 0}
                 canAdd={cardControls.canAdd(card.catalogId)}
                 canRemove={Boolean(cardCounts.get(cardPrintingKey(card)))}
-                restriction={cardControls.restrictionLabel(card.catalogId)}
+                restriction={cardControls.restrictionLabel(card.catalogId)} issue={issueForCard(card)}
                 onAdd={() => adjustCard(card.catalogId, 1)} onRemove={() => adjustCard(card.catalogId, -1)} />} />
             : <div className={styles.empty}>
-              {deck.cardIds.length ? "No matches" : <button type="button" onClick={() => { changeGalleryCategory("cards"); setBuilderView("gallery"); }}>＋ Add cards</button>}
+              {deck.cardIds.length ? "No matches" : <button type="button" onClick={() => { setGalleryQuery(""); changeGalleryCategory("cards"); setBuilderView("gallery"); }}>＋ Add cards</button>}
             </div>}
         </aside>
       </div>
@@ -952,11 +958,12 @@ function BakuCoreBack({ type }: { type: string }) {
   return <OriginalImage src={CORE_BACK_IMAGES[type] ?? CORE_BACK_IMAGES.Shield} alt="" />;
 }
 
-function BuilderQuantity({ name, count, canAdd, canRemove, onAdd, onRemove, restriction }: {
+function BuilderQuantity({ name, count, canAdd, canRemove, onAdd, onRemove, restriction, issue }: {
   name: string; count: number; canAdd: boolean; canRemove: boolean;
-  onAdd: () => void; onRemove: () => void; restriction?: string;
+  onAdd: () => void; onRemove: () => void; restriction?: string; issue?: string;
 }) {
-  return <div className={styles.quantity} role="group" aria-label={`Copies of ${name}`}>
+  return <div className={styles.quantity} role="group" aria-label={`Copies of ${name}${issue ? `; ${issue}` : ""}`}
+    data-invalid={issue ? "true" : undefined} title={issue}>
     <button type="button" onClick={onRemove} disabled={!canRemove} aria-label={`Remove ${name}`}>−</button>
     <strong aria-label={`${count} copies`}><MotionValue value={count} /></strong>
     <button type="button" onClick={onAdd} disabled={!canAdd} aria-label={`Add ${name}`}
