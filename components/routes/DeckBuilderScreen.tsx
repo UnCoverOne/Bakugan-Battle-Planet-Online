@@ -741,7 +741,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                       </span>
                     </button>
                     <button type="button" className={styles.removeCharacter} onClick={() => toggleCharacter(character.id)}
-                      aria-label={`Remove ${character.name}`} title={`Remove ${character.name}`}><LucideIcon name="circle-minus" size={17} /></button>
+                      aria-label={`Remove ${character.name}`} title={`Remove ${character.name}`}><LucideIcon name="minus" size={17} /><span>Remove</span></button>
                     <div className={styles.teamCharacterTags} data-ui="team-character-tags">
                       <span className={cardTileStyles.factions} aria-label={factions.join(" / ")}>
                         {factions.map(faction => <CardFactionTag key={faction} faction={faction} />)}
@@ -775,7 +775,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                           </span>
                         </button>
                         <button type="button" className={styles.removeCore} onClick={() => adjustCore(core.id, -1)}
-                          aria-label={`Remove ${core.name}`} title={`Remove ${core.name}`}><LucideIcon name="circle-minus" size={16} /></button>
+                          aria-label={`Remove ${core.name}`} title={`Remove ${core.name}`}><LucideIcon name="minus" size={16} /></button>
                       </div>
                     : <button type="button" className={styles.emptyCore} key={slot} disabled={!type}
                         title={type ?? "Select a Character"} aria-label={type ? `Choose ${type} BakuCore` : "Select a Character first"}

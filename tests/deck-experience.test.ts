@@ -289,28 +289,28 @@ test("Team counts use a matching Lucide card and BakuCore icon", async () => {
   assert.match(style, /\.teamCountDivider\{display:block/);
 });
 
-test("Team removal uses high-contrast circular Lucide buttons and remains available on touch and keyboard", async () => {
+test("Team remove bars use Lucide minus below Character and BakuCore artwork on desktop and touch", async () => {
   const [builder, icons, style] = await Promise.all([
     read("components/routes/DeckBuilderScreen.tsx"),
     read("components/design-system/LucideIcon.tsx"),
     read("components/routes/DeckBuilder.module.css"),
   ]);
-  assert.equal((builder.match(/name="circle-minus"/g) ?? []).length, 2);
-  assert.match(icons, /"circle-minus": <><circle cx="12" cy="12" r="10"\/><path d="M8 12h8"\/><\/>/);
+  assert.equal((builder.match(/name="minus" size=\{1[67]\}/g) ?? []).length, 2);
+  assert.match(icons, /"minus": <path d="M5 12h14"\/>/);
   assert.match(builder, /className=\{styles\.removeCharacter\} onClick=\{\(\) => toggleCharacter\(character\.id\)\}/);
   assert.match(builder, /className=\{styles\.removeCore\} onClick=\{\(\) => adjustCore\(core\.id, -1\)\}/);
-  assert.match(style, /\.removeCharacter,\.removeCore\{[\s\S]*?position:absolute;right:4px;top:4px;z-index:2/);
-  assert.match(style, /border:0;\s*border-radius:50%;background:rgba\(2,12,17,\.85\)/);
-  assert.match(style, /\.removeCore\{top:3px;right:3px;width:28px;height:28px\}/);
-  assert.match(style, /border-radius:50%;background:rgba\(2,12,17,\.85\);color:var\(--bb-white\)/);
-  assert.match(style, /\.removeCharacter:hover,\.removeCore:hover\{[\s\S]*?background:rgba\(15,45,58,\.95\)/);
-  assert.doesNotMatch(style, /\.removeCharacter svg,\.removeCore svg\{\s*filter:drop-shadow/);
-  assert.match(style, /@media \(hover:hover\) and \(pointer:fine\)\{/);
-  assert.match(style, /\.teamCharacter:focus-within \.removeCharacter/);
-  assert.match(style, /\.coreSlot:focus-within \.removeCore/);
+  assert.match(builder, /<LucideIcon name="minus" size=\{17\} \/><span>Remove<\/span><\/button>/);
+  assert.match(builder, /<LucideIcon name="minus" size=\{16\} \/><\/button>/);
+  assert.match(builder, /aria-label=\{`Remove \$\{character\.name\}`\}/);
+  assert.match(builder, /aria-label=\{`Remove \$\{core\.name\}`\}/);
+  assert.match(style, /\.teamCharacter\{min-width:0;display:grid;align-content:start;gap:4px\}/);
+  assert.match(style, /\.coreSlot\{min-width:0;display:grid;align-content:start;gap:3px\}/);
+  assert.match(style, /\.removeCharacter,\.removeCore\{[\s\S]*?width:100%;min-height:36px/);
+  assert.match(style, /\.removeCharacter:hover,\.removeCore:hover\{[\s\S]*?var\(--bb-pyrus-border\)/);
   assert.match(style, /\.removeCharacter:focus-visible,\.removeCore:focus-visible/);
-  const touchRules = style.slice(style.indexOf("/* Contextual Lucide minus:"));
-  assert.ok(touchRules.indexOf("opacity:0") > touchRules.indexOf("@media (hover:hover) and (pointer:fine)"));
+  assert.doesNotMatch(style, /\.removeCharacter,\.removeCore\{[\s\S]*?position:absolute/);
+  assert.doesNotMatch(style, /\.removeCharacter,\.removeCore\{[\s\S]*?opacity:0/);
+  assert.match(style, /\.pairedCores\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\);align-items:start/);
 });
 
 test("Save Deck header button is text-only and keeps legal-deck guidance", async () => {
