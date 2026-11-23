@@ -118,7 +118,7 @@ export function DeckBuilderFilterSortDialog({
     } else {
       (returnToField.current?.isConnected ? returnToField.current : closeRef.current)?.focus();
     }
-  }, [openField]);
+  }, [openField, selectedField?.searchable]);
 
   const chooseField = (field: Field, target: HTMLButtonElement) => {
     returnToField.current = target;
@@ -213,7 +213,7 @@ export function DeckBuilderFilterSortDialog({
                 </span>
                 <span className={compendium.summary + " " + styles.selectionSummary}>
                   {selectedValues.length ? <>
-                    {selectedValues.slice(0, 1).map(option => <span key={option.value} className={compendium.chip + " " + styles.selectionChip}>
+                    {selectedValues.slice(0, 1).map(option => <span key={option.value} className={compendium.chip + (selectedValues.length > 1 ? " " + styles.selectionChip : "")}>
                       {option.icon && <OriginalImage src={option.icon} alt="" width={16} height={16} />}
                       <span>{option.label}</span>
                     </span>)}
