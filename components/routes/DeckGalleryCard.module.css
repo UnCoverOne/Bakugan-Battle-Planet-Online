@@ -42,15 +42,17 @@
 .statusReady{color:var(--bb-success)}
 .statusInvalid{color:var(--bb-deck-warning-text)}
 
-/* On narrow library cards, flatten only the presentation wrappers into the
-   tile's grid. The artwork then spans the information and management footer. */
+/* Keep Decks-library preview beside the metadata and action footer on phones.
+   Centre its natural 1.16:1 frame in the tall column instead of stretching it:
+   the shared 4:3 Character portraits then retain their approved x/y artwork crop. */
 @media (max-width: 499px) {
   :global([data-deck-library-card]) .body {
     display: contents;
   }
   :global([data-deck-library-card]) .previewLink {
-    position: relative;
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     grid-column: 1;
     grid-row: 1 / span 2;
     align-self: stretch;
@@ -58,11 +60,9 @@
     overflow: hidden;
   }
   :global([data-deck-library-card]) .preview {
-    position: absolute;
-    inset: 0;
     width: 100%;
-    height: 100%;
-    aspect-ratio: auto;
+    height: auto;
+    aspect-ratio: 1.16 / 1;
   }
   :global([data-deck-library-card]) .info {
     grid-column: 2;
@@ -70,16 +70,5 @@
     align-self: start;
     min-width: 0;
     padding: 10px 10px 5px;
-  }
-  /* Each Character crop fills its newly taller portrait cell without stretching
-     the original scan. The featured card remains uncropped (object-fit: contain). */
-  :global([data-deck-library-card]) .portrait img {
-    width: 113.63636% !important;
-    height: 100% !important;
-    left: -6.81818%;
-    top: 0;
-    transform: none;
-    object-fit: cover !important;
-    object-position: center 15%;
   }
 }

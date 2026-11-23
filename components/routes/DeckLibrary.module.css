@@ -99,8 +99,8 @@
 .filterButton{list-style:none}.filterButton::-webkit-details-marker,.importToggle::-webkit-details-marker{display:none}
 .cardActions>button:disabled{opacity:.5;cursor:not-allowed}
 
-/* Below 500px, artwork occupies the full deck tile, including the action row.
-   Only gallery tiles opt in; homepage and deck-detail presentations are untouched. */
+/* Below 500px, the cropped deck preview sits beside information and actions.
+   Only library tiles opt in; homepage and deck-detail views stay untouched. */
 @media (max-width: 499px) {
   .card[data-deck-library-card] {
     display: grid;

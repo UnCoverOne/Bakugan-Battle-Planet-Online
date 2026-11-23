@@ -405,3 +405,22 @@ test("Unsaved changes dialog uses the shared Midnight/Pyrus button convention", 
   assert.match(designSystem, /\.bb-button\s*\{/);
   assert.match(designSystem, /\.bb-button--primary\s*\{/);
 });
+
+test("Mobile Decks tiles retain the established Character crop and featured-card framing", async () => {
+  const [gallery, library] = await Promise.all([
+    read("components/routes/DeckGalleryCard.module.css"),
+    read("components/routes/DeckLibrary.module.css"),
+  ]);
+  assert.match(gallery, /\.preview\{width:100%;aspect-ratio:1\.16\/1/);
+  assert.match(gallery, /\.portrait img\{position:absolute!important;width:113\.63636%!important;max-width:none!important;height:auto!important;left:-6\.81818%;top:0;transform:translateY\(-15%\);object-fit:initial!important\}/);
+  const mobile = gallery.slice(gallery.indexOf("/* Keep Decks-library preview"));
+  assert.match(mobile, /@media \(max-width: 499px\)/);
+  assert.match(mobile, /:global\(\[data-deck-library-card\]\) \.body \{\s*display: contents;/);
+  assert.match(mobile, /:global\(\[data-deck-library-card\]\) \.previewLink \{\s*display: flex;\s*align-items: center;\s*justify-content: center;/);
+  assert.match(mobile, /:global\(\[data-deck-library-card\]\) \.preview \{\s*width: 100%;\s*height: auto;\s*aspect-ratio: 1\.16 \/ 1;/);
+  assert.doesNotMatch(mobile, /\.portrait img\s*\{/);
+  assert.doesNotMatch(mobile, /object-fit:\s*cover/);
+  assert.doesNotMatch(mobile, /position:\s*absolute/);
+  assert.match(library, /\.card\[data-deck-library-card\] \{[\s\S]*?grid-template-columns: minmax\(0, 35%\) minmax\(0, 1fr\)/);
+  assert.match(library, /\.card\[data-deck-library-card\] \.cardFooter \{\s*grid-column: 2;/);
+});
