@@ -413,7 +413,7 @@ test("Mobile Decks tiles retain the established Character crop and featured-card
   ]);
   assert.match(gallery, /\.preview\{width:100%;aspect-ratio:1\.16\/1/);
   assert.match(gallery, /\.portrait img\{position:absolute!important;width:113\.63636%!important;max-width:none!important;height:auto!important;left:-6\.81818%;top:0;transform:translateY\(-15%\);object-fit:initial!important\}/);
-  const mobile = gallery.slice(gallery.indexOf("/* Keep Decks-library preview"));
+  const mobile = gallery.slice(gallery.indexOf("/* On mobile, keep the 1.16:1 deck preview"));
   assert.match(mobile, /@media \(max-width: 499px\)/);
   assert.match(mobile, /:global\(\[data-deck-library-card\]\) \.body \{\s*display: contents;/);
   assert.match(mobile, /:global\(\[data-deck-library-card\]\) \.previewLink \{\s*display: flex;\s*align-items: center;\s*justify-content: center;/);
