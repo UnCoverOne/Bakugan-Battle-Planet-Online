@@ -417,6 +417,10 @@ test("Mobile Decks tiles retain the established Character crop and featured-card
   assert.match(mobile, /@media \(max-width: 499px\)/);
   assert.match(mobile, /:global\(\[data-deck-library-card\]\) \.body \{\s*display: contents;/);
   assert.match(mobile, /:global\(\[data-deck-library-card\]\) \.previewLink \{\s*display: flex;\s*align-items: center;\s*justify-content: center;/);
+  assert.match(gallery, /\.portrait,\.emptyPortrait\{[^}]*border-radius:3px/);
+  assert.match(mobile, /grid-column: 1;\s*grid-row: 1;\s*align-self: stretch;/);
+  assert.match(mobile, /padding: 10px 7px 10px 10px;/);
+  assert.doesNotMatch(mobile, /grid-row: 1 \/ span 2/);
   assert.match(mobile, /:global\(\[data-deck-library-card\]\) \.preview \{\s*width: 100%;\s*height: auto;\s*aspect-ratio: 1\.16 \/ 1;/);
   assert.doesNotMatch(mobile, /\.portrait img\s*\{/);
   assert.doesNotMatch(mobile, /object-fit:\s*cover/);

@@ -2,7 +2,7 @@
 .previewLink{min-width:0;display:block;text-decoration:none;color:inherit}
 .preview{width:100%;aspect-ratio:1.16/1;display:grid;grid-template-columns:minmax(0,0.444fr) minmax(0,0.713fr);gap:3px;align-items:stretch;overflow:hidden}
 .portraits{display:grid;grid-template-rows:repeat(3,minmax(0,1fr));gap:3px;min-height:0;min-width:0}
-.portrait,.emptyPortrait{position:relative;display:block;overflow:hidden;min-width:0;min-height:0;background:var(--bb-deck-surface)}
+.portrait,.emptyPortrait{position:relative;display:block;overflow:hidden;min-width:0;min-height:0;border-radius:3px;background:var(--bb-deck-surface)}
 .portrait img{position:absolute!important;width:113.63636%!important;max-width:none!important;height:auto!important;left:-6.81818%;top:0;transform:translateY(-15%);object-fit:initial!important}
 .emptyPortrait{display:grid;place-items:center;color:var(--bb-deck-muted)}
 .featuredCard{min-width:0;min-height:0;display:flex;align-items:stretch;justify-content:center;overflow:hidden}
@@ -42,9 +42,9 @@
 .statusReady{color:var(--bb-success)}
 .statusInvalid{color:var(--bb-deck-warning-text)}
 
-/* Keep Decks-library preview beside the metadata and action footer on phones.
-   Centre its natural 1.16:1 frame in the tall column instead of stretching it:
-   the shared 4:3 Character portraits then retain their approved x/y artwork crop. */
+/* On mobile, keep the 1.16:1 deck preview in the information row only.
+   Inset it from the left border and keep it above the management footer divider;
+   the shared 4:3 Character portraits retain their approved artwork crop. */
 @media (max-width: 499px) {
   :global([data-deck-library-card]) .body {
     display: contents;
@@ -54,9 +54,10 @@
     align-items: center;
     justify-content: center;
     grid-column: 1;
-    grid-row: 1 / span 2;
+    grid-row: 1;
     align-self: stretch;
     min-height: 0;
+    padding: 10px 7px 10px 10px;
     overflow: hidden;
   }
   :global([data-deck-library-card]) .preview {
