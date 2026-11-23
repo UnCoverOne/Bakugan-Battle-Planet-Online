@@ -76,7 +76,7 @@
   .body{padding:18px 16px}
   /* Mobile Option B: the name leads, while the established deck preview
      occupies a small, intentional space on its right. */
-  .topGrid{grid-template-columns:minmax(0,1fr) clamp(76px,25vw,104px);column-gap:14px;row-gap:7px}
+  .topGrid{grid-template-columns:minmax(0,1fr) clamp(99px,32.5vw,135px);column-gap:14px;row-gap:7px}
   .previewSection,.metadata{display:contents}
   .previewSection h3{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   .metadata>.field:first-child{grid-column:1;grid-row:1;align-self:start}

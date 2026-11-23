@@ -350,7 +350,7 @@ test("Save Deck has a persistent metadata layout and a dedicated featured-card m
 test("Save Deck places a small preview alongside the name on narrow screens", async () => {
   const css = await read("components/routes/DeckSaveDialog.module.css");
   const mobile = css.slice(css.indexOf("@media(max-width:650px)"));
-  assert.match(mobile, /\.topGrid\{grid-template-columns:minmax\(0,1fr\) clamp\(76px,25vw,104px\)/);
+  assert.match(mobile, /\.topGrid\{grid-template-columns:minmax\(0,1fr\) clamp\(99px,32\.5vw,135px\)/);
   assert.match(mobile, /\.previewSection,\.metadata\{display:contents\}/);
   assert.match(mobile, /\.metadata>\.field:first-child\{grid-column:1;grid-row:1/);
   assert.match(mobile, /\.preview\{grid-column:2;grid-row:1 \/ span 3/);
