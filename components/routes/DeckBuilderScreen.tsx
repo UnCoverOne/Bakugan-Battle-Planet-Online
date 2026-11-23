@@ -740,8 +740,6 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                         <ResponsiveCardImage card={display} presentation="tile" alt={character.name} />
                       </span>
                     </button>
-                    <button type="button" className={styles.removeCharacter} onClick={() => toggleCharacter(character.id)}
-                      aria-label={`Remove ${character.name}`} title={`Remove ${character.name}`}><LucideIcon name="minus" size={17} /><span>Remove</span></button>
                     <div className={styles.teamCharacterTags} data-ui="team-character-tags">
                       <span className={cardTileStyles.factions} aria-label={factions.join(" / ")}>
                         {factions.map(faction => <CardFactionTag key={faction} faction={faction} />)}
@@ -755,6 +753,8 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
                         </span>
                       </>}
                     </div>
+                    <button type="button" className={styles.removeCharacter} onClick={() => toggleCharacter(character.id)}
+                      aria-label={`Remove ${character.name}`} title={`Remove ${character.name}`}><LucideIcon name="minus" size={17} /><span>Remove</span></button>
                   </div>
                   : <button type="button" className={styles.emptyCharacter}
                     aria-label="Add Character" onClick={() => { setGalleryQuery(""); changeGalleryCategory("characters"); setBuilderView("gallery"); }}><LucideIcon name="plus" size={28} /></button>}

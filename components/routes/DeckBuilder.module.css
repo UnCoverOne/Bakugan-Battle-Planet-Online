@@ -59,16 +59,16 @@
 /* Same 24px faction and rolling tags as the Compendium, left-aligned beneath
    each Character. Wrap the tags rather than shrinking them on narrow screens. */
 .teamCharacterTags{display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:4px;min-width:0;width:100%;padding-top:8px}
-/* Permanently visible action bars below artwork: inspecting and removing
-   are separate controls. The compact Core bar uses the same Lucide minus. */
+/* Permanently visible action bars: Character removal follows its faction and
+   rolling tags; Core removal follows artwork. Inspection remains independent. */
 .removeCharacter,.removeCore{
   display:inline-flex;align-items:center;justify-content:center;gap:6px;
-  width:100%;min-height:36px;padding:0 8px;
+  width:100%;min-height:29px;padding:0 8px;
   border:1px solid var(--bb-border);border-radius:0;
   background:var(--bb-panel);color:var(--bb-text);
   font:600 12px/1 var(--bb-font-interface);cursor:pointer;
 }
-.removeCore{min-height:36px;padding:0}
+.removeCore{min-height:29px;padding:0}
 .removeCharacter:hover,.removeCore:hover{
   border-color:var(--bb-pyrus-border);background:var(--bb-active);color:var(--bb-pyrus-border);
 }

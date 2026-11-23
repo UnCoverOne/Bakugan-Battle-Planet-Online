@@ -289,7 +289,7 @@ test("Team counts use a matching Lucide card and BakuCore icon", async () => {
   assert.match(style, /\.teamCountDivider\{display:block/);
 });
 
-test("Team remove bars use Lucide minus below Character and BakuCore artwork on desktop and touch", async () => {
+test("Team remove bars use Lucide minus beneath Character tags and BakuCore artwork", async () => {
   const [builder, icons, style] = await Promise.all([
     read("components/routes/DeckBuilderScreen.tsx"),
     read("components/design-system/LucideIcon.tsx"),
@@ -305,7 +305,19 @@ test("Team remove bars use Lucide minus below Character and BakuCore artwork on 
   assert.match(builder, /aria-label=\{`Remove \$\{core\.name\}`\}/);
   assert.match(style, /\.teamCharacter\{min-width:0;display:grid;align-content:start;gap:4px\}/);
   assert.match(style, /\.coreSlot\{min-width:0;display:grid;align-content:start;gap:3px\}/);
-  assert.match(style, /\.removeCharacter,\.removeCore\{[\s\S]*?width:100%;min-height:36px/);
+  assert.match(style, /\.removeCharacter,\.removeCore\{[\s\S]*?width:100%;min-height:29px/);
+  assert.match(style, /\.removeCore\{min-height:29px;padding:0\}/);
+  const characterStart = builder.indexOf('className={styles.teamCharacter}');
+  const tagStart = builder.indexOf('className={styles.teamCharacterTags}', characterStart);
+  const removeStart = builder.indexOf('className={styles.removeCharacter}', characterStart);
+  const characterEnd = builder.indexOf('className={styles.emptyCharacter}', characterStart);
+  assert.ok(characterStart >= 0 && tagStart > characterStart && removeStart > tagStart && characterEnd > removeStart,
+    "Character Remove must follow the faction and rolling tags");
+  const coreStart = builder.indexOf('className={styles.coreSlot}');
+  const coreInspect = builder.indexOf('className={coreTileStyles.tile}', coreStart);
+  const coreRemove = builder.indexOf('className={styles.removeCore}', coreStart);
+  assert.ok(coreStart >= 0 && coreInspect > coreStart && coreRemove > coreInspect,
+    "BakuCore Remove must follow its artwork");
   assert.match(style, /\.removeCharacter:hover,\.removeCore:hover\{[\s\S]*?var\(--bb-pyrus-border\)/);
   assert.match(style, /\.removeCharacter:focus-visible,\.removeCore:focus-visible/);
   assert.doesNotMatch(style, /\.removeCharacter,\.removeCore\{[^}]*position:absolute/);
