@@ -387,3 +387,21 @@ test("Save Deck footer uses the established shared button convention", async () 
   assert.match(designSystem, /\.bb-button\s*\{/);
   assert.match(designSystem, /\.bb-button--primary\s*\{/);
 });
+
+test("Unsaved changes dialog uses the shared Midnight/Pyrus button convention", async () => {
+  const [builder, designSystem] = await Promise.all([
+    read("components/routes/DeckBuilderScreen.tsx"),
+    read("app/design-system.css"),
+  ]);
+  const start = builder.indexOf('title="Unsaved changes"');
+  const end = builder.indexOf('title="Save Deck"', start);
+  const dialog = end > start ? builder.slice(start, end) : builder.slice(start, builder.indexOf('activeMenu?.panel === "save"', start));
+  assert.ok(start >= 0, "Unsaved changes dialog exists");
+  assert.match(dialog, /className="bb-button" onClick=\{\(\) => \{/);
+  assert.match(dialog, /\}>Discard<\/button>/);
+  assert.match(dialog, /className="bb-button bb-button--primary"/);
+  assert.match(dialog, /\}>Save draft<\/button>/);
+  assert.doesNotMatch(dialog, /<ActionButton/);
+  assert.match(designSystem, /\.bb-button\s*\{/);
+  assert.match(designSystem, /\.bb-button--primary\s*\{/);
+});

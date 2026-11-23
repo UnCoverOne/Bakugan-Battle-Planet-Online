@@ -853,11 +853,12 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
 
       {activeMenu?.panel === "leave" && <BuilderMenuDialog title="Unsaved changes" eyebrow=""
         onClose={() => setActiveMenu(null)} footer={<>
-          <ActionButton tone="quiet" onClick={() => {
+          <button type="button" className="bb-button" onClick={() => {
             sessionEnded.current = true; clearBuilderDraft(scope, id);
             setBuilderDeck(null); setActiveMenu(null); router.push("/decks");
-          }}>Discard</ActionButton>
-          <ActionButton onClick={() => { setExitAfterSave(true); setSaveVisibility("Draft"); openSaveDialog(); }}>Save draft</ActionButton>
+          }}>Discard</button>
+          <button type="button" className="bb-button bb-button--primary"
+            onClick={() => { setExitAfterSave(true); setSaveVisibility("Draft"); openSaveDialog(); }}>Save draft</button>
         </>}>
         <p>Save before leaving?</p>
       </BuilderMenuDialog>}
