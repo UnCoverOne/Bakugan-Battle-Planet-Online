@@ -197,7 +197,7 @@ export function DeckSaveDialog({
         </div>
         <footer className={styles.footer}>
           <button type="button" className="bb-button" onClick={onClose}>Cancel</button>
-          <button type="button" className="bb-button bb-button--primary" disabled={saveDisabled} onClick={onSave}>
+          <button type="button" className="bb-button bb-button--blue" disabled={saveDisabled} onClick={onSave}>
             {visibility === "Public" ? "Publish Deck" : visibility === "Draft" ? "Save Draft" : "Save Deck"}
           </button>
         </footer>

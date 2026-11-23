@@ -378,17 +378,18 @@ test("Save Deck places a small preview alongside the name on narrow screens", as
   assert.doesNotMatch(mobile, /\.preview\{max-width:320px\}/);
 });
 
-test("Save Deck footer uses the established shared button convention", async () => {
+test("Save Deck footer uses a blue save action and neutral cancel button", async () => {
   const [dialog, designSystem] = await Promise.all([
     read("components/routes/DeckSaveDialog.tsx"),
     read("app/design-system.css"),
   ]);
   assert.match(dialog, /className="bb-button" onClick=\{onClose\}>Cancel<\/button>/);
-  assert.match(dialog, /className="bb-button bb-button--primary" disabled=\{saveDisabled\} onClick=\{onSave\}/);
+  assert.match(dialog, /className="bb-button bb-button--blue" disabled=\{saveDisabled\} onClick=\{onSave\}/);
   assert.match(dialog, /className="bb-button" onClick=\{\(\) => setPickerOpen\(false\)\}>Back to Save Deck<\/button>/);
   assert.doesNotMatch(dialog, /<ActionButton/);
   assert.match(designSystem, /\.bb-button\s*\{/);
-  assert.match(designSystem, /\.bb-button--primary\s*\{/);
+  assert.match(designSystem, /\.bb-button--blue\s*\{ background: var\(--bb-selection\)/);
+  assert.match(designSystem, /\.bb-button\.bb-button--blue:not\(:disabled\):not\(\[aria-disabled="true"\]\):hover/);
 });
 
 test("Unsaved changes dialog uses red Discard and blue Save draft buttons", async () => {
