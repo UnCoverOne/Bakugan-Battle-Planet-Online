@@ -6,7 +6,6 @@ import { cardArtSource } from "../../lib/content/card-art";
 import { deckConstructionIdentity, type DeckValidationResult } from "../../lib/deck-validation";
 import type { GameCard } from "../../lib/game";
 import { CardArt } from "../cards/CardArt";
-import { ActionButton } from "../design-system/primitives";
 import { LucideIcon } from "../design-system/LucideIcon";
 import { DeckPreview } from "./DeckGalleryCard";
 import styles from "./DeckSaveDialog.module.css";
@@ -197,10 +196,10 @@ export function DeckSaveDialog({
           </fieldset>
         </div>
         <footer className={styles.footer}>
-          <ActionButton type="button" tone="quiet" onClick={onClose}>Cancel</ActionButton>
-          <ActionButton type="button" disabled={saveDisabled} onClick={onSave}>
+          <button type="button" className="bb-button" onClick={onClose}>Cancel</button>
+          <button type="button" className="bb-button bb-button--primary" disabled={saveDisabled} onClick={onSave}>
             {visibility === "Public" ? "Publish Deck" : visibility === "Draft" ? "Save Draft" : "Save Deck"}
-          </ActionButton>
+          </button>
         </footer>
       </section>
     </div>
@@ -245,7 +244,7 @@ export function DeckSaveDialog({
           </div>
           {!visibleCards.length && <p className={styles.noResults}>No cards match your search.</p>}
         </div>
-        <footer className={styles.footer}><ActionButton tone="quiet" onClick={() => setPickerOpen(false)}>Back to Save Deck</ActionButton></footer>
+        <footer className={styles.footer}><button type="button" className="bb-button" onClick={() => setPickerOpen(false)}>Back to Save Deck</button></footer>
       </section>
     </div>}
   </>;

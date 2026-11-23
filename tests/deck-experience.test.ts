@@ -360,3 +360,16 @@ test("Save Deck places a small preview alongside the name on narrow screens", as
   assert.match(mobile, /\.featuredSection\{grid-column:1 \/ -1;grid-row:5/);
   assert.doesNotMatch(mobile, /\.preview\{max-width:320px\}/);
 });
+
+test("Save Deck footer uses the established shared button convention", async () => {
+  const [dialog, designSystem] = await Promise.all([
+    read("components/routes/DeckSaveDialog.tsx"),
+    read("app/design-system.css"),
+  ]);
+  assert.match(dialog, /className="bb-button" onClick=\{onClose\}>Cancel<\/button>/);
+  assert.match(dialog, /className="bb-button bb-button--primary" disabled=\{saveDisabled\} onClick=\{onSave\}/);
+  assert.match(dialog, /className="bb-button" onClick=\{\(\) => setPickerOpen\(false\)\}>Back to Save Deck<\/button>/);
+  assert.doesNotMatch(dialog, /<ActionButton/);
+  assert.match(designSystem, /\.bb-button\s*\{/);
+  assert.match(designSystem, /\.bb-button--primary\s*\{/);
+});
