@@ -391,7 +391,7 @@ test("Save Deck footer uses the established shared button convention", async () 
   assert.match(designSystem, /\.bb-button--primary\s*\{/);
 });
 
-test("Unsaved changes dialog uses the shared Midnight/Pyrus button convention", async () => {
+test("Unsaved changes dialog uses red Discard and blue Save draft buttons", async () => {
   const [builder, designSystem] = await Promise.all([
     read("components/routes/DeckBuilderScreen.tsx"),
     read("app/design-system.css"),
@@ -400,13 +400,20 @@ test("Unsaved changes dialog uses the shared Midnight/Pyrus button convention", 
   const end = builder.indexOf('title="Save Deck"', start);
   const dialog = end > start ? builder.slice(start, end) : builder.slice(start, builder.indexOf('activeMenu?.panel === "save"', start));
   assert.ok(start >= 0, "Unsaved changes dialog exists");
-  assert.match(dialog, /className="bb-button" onClick=\{\(\) => \{/);
+  assert.match(dialog, /className="bb-button bb-button--danger" onClick=\{\(\) => \{/);
   assert.match(dialog, /\}>Discard<\/button>/);
-  assert.match(dialog, /className="bb-button bb-button--primary"/);
+  assert.match(dialog, /className="bb-button bb-button--blue"/);
   assert.match(dialog, /\}>Save draft<\/button>/);
+  assert.match(dialog, /sessionEnded\.current = true; clearBuilderDraft\(scope, id\)/);
+  assert.match(dialog, /setExitAfterSave\(true\); setSaveVisibility\("Draft"\); openSaveDialog\(\)/);
   assert.doesNotMatch(dialog, /<ActionButton/);
   assert.match(designSystem, /\.bb-button\s*\{/);
-  assert.match(designSystem, /\.bb-button--primary\s*\{/);
+  assert.match(designSystem, /\.bb-button--danger\s*\{ background: var\(--bb-pyrus\)/);
+  assert.match(designSystem, /\.bb-button--blue\s*\{ background: var\(--bb-selection\)/);
+  assert.match(designSystem, /\.bb-button\.bb-button--danger:not\(:disabled\):not\(\[aria-disabled="true"\]\):hover/);
+  assert.match(designSystem, /\.bb-button\.bb-button--blue:not\(:disabled\):not\(\[aria-disabled="true"\]\):hover/);
+  assert.match(designSystem, /\.bb-button\.bb-button--danger:not\(:disabled\):active/);
+  assert.match(designSystem, /\.bb-button\.bb-button--blue:not\(:disabled\):active/);
 });
 
 test("Mobile Decks tiles retain the established Character crop and featured-card framing", async () => {

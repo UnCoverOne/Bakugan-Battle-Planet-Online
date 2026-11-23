@@ -163,6 +163,26 @@ body { line-height: 1.5; }
   .bb-button--primary:not(:disabled):hover { background: var(--bb-pyrus-hover); border-color: var(--bb-pyrus-hover); }
 }
 .bb-button--primary:not(:disabled):active { background: var(--bb-pyrus-pressed); border-color: var(--bb-pyrus-pressed); }
+/* Explicit action colours for confirmation dialogs. Keep the same shared
+   button dimensions and focus treatment as all other bb-button variants. */
+.bb-button--danger { background: var(--bb-pyrus); border-color: var(--bb-pyrus); color: var(--bb-white); }
+.bb-button--blue { background: var(--bb-selection); border-color: var(--bb-selection); color: var(--bb-white); }
+@media (hover: hover) and (pointer: fine) {
+  .bb-button.bb-button--danger:not(:disabled):not([aria-disabled="true"]):hover {
+    background: var(--bb-pyrus-pressed); border-color: var(--bb-pyrus-pressed);
+  }
+  .bb-button.bb-button--blue:not(:disabled):not([aria-disabled="true"]):hover {
+    background: color-mix(in srgb, var(--bb-selection) 88%, var(--bb-black));
+    border-color: color-mix(in srgb, var(--bb-selection) 88%, var(--bb-black));
+  }
+}
+.bb-button.bb-button--danger:not(:disabled):active {
+  background: var(--bb-pyrus-pressed); border-color: var(--bb-pyrus-pressed);
+}
+.bb-button.bb-button--blue:not(:disabled):active {
+  background: color-mix(in srgb, var(--bb-selection) 72%, var(--bb-black));
+  border-color: color-mix(in srgb, var(--bb-selection) 72%, var(--bb-black));
+}
 .bb-button--outline { background: transparent; }
 .bb-field {
   min-height: 44px; padding: .6rem .75rem; color: var(--bb-text);
