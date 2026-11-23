@@ -308,8 +308,8 @@ test("Team remove bars use Lucide minus below Character and BakuCore artwork on 
   assert.match(style, /\.removeCharacter,\.removeCore\{[\s\S]*?width:100%;min-height:36px/);
   assert.match(style, /\.removeCharacter:hover,\.removeCore:hover\{[\s\S]*?var\(--bb-pyrus-border\)/);
   assert.match(style, /\.removeCharacter:focus-visible,\.removeCore:focus-visible/);
-  assert.doesNotMatch(style, /\.removeCharacter,\.removeCore\{[\s\S]*?position:absolute/);
-  assert.doesNotMatch(style, /\.removeCharacter,\.removeCore\{[\s\S]*?opacity:0/);
+  assert.doesNotMatch(style, /\.removeCharacter,\.removeCore\{[^}]*position:absolute/);
+  assert.doesNotMatch(style, /\.removeCharacter,\.removeCore\{[^}]*opacity:0/);
   assert.match(style, /\.pairedCores\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\);align-items:start/);
 });
 
