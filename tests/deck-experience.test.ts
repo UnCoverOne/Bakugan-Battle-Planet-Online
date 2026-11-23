@@ -388,7 +388,7 @@ test("Save Deck footer uses a blue save action and neutral cancel button", async
   assert.match(dialog, /className="bb-button" onClick=\{\(\) => setPickerOpen\(false\)\}>Back to Save Deck<\/button>/);
   assert.doesNotMatch(dialog, /<ActionButton/);
   assert.match(designSystem, /\.bb-button\s*\{/);
-  assert.match(designSystem, /\.bb-button--blue\s*\{ background: var\(--bb-selection\)/);
+  assert.match(designSystem, /\.bb-button--blue\s*\{ background: var\(--bb-action-save\)/);
   assert.match(designSystem, /\.bb-button\.bb-button--blue:not\(:disabled\):not\(\[aria-disabled="true"\]\):hover/);
 });
 
@@ -409,8 +409,8 @@ test("Unsaved changes dialog uses red Discard and blue Save draft buttons", asyn
   assert.match(dialog, /setExitAfterSave\(true\); setSaveVisibility\("Draft"\); openSaveDialog\(\)/);
   assert.doesNotMatch(dialog, /<ActionButton/);
   assert.match(designSystem, /\.bb-button\s*\{/);
-  assert.match(designSystem, /\.bb-button--danger\s*\{ background: var\(--bb-pyrus\)/);
-  assert.match(designSystem, /\.bb-button--blue\s*\{ background: var\(--bb-selection\)/);
+  assert.match(designSystem, /\.bb-button--danger\s*\{ background: var\(--bb-action-discard\)/);
+  assert.match(designSystem, /\.bb-button--blue\s*\{ background: var\(--bb-action-save\)/);
   assert.match(designSystem, /\.bb-button\.bb-button--danger:not\(:disabled\):not\(\[aria-disabled="true"\]\):hover/);
   assert.match(designSystem, /\.bb-button\.bb-button--blue:not\(:disabled\):not\(\[aria-disabled="true"\]\):hover/);
   assert.match(designSystem, /\.bb-button\.bb-button--danger:not\(:disabled\):active/);
@@ -557,4 +557,32 @@ test("BakuCore filtering matches the Compendium's printed stats, effects and con
   assert.equal(coreMatchesFilters(differentPower, createEmptyCardFilters({ bPower: [String(withEffect.bonus)] })), false);
   assert.equal(coreMatchesFilters(withEffect, createEmptyCardFilters({ damage: [String(withEffect.damageBonus)] })), true);
   assert.equal(coreMatchesFilters(differentDamage, createEmptyCardFilters({ damage: [String(withEffect.damageBonus)] })), false);
+});
+
+
+test("Every save and discard action in the Deck Editor uses muted palette tokens", async () => {
+  const [palette, builderStyle, builder, saveDialog] = await Promise.all([
+    read("app/design-system.css"),
+    read("components/routes/DeckBuilder.module.css"),
+    read("components/routes/DeckBuilderScreen.tsx"),
+    read("components/routes/DeckSaveDialog.tsx"),
+  ]);
+  assert.match(palette, /--bb-deck-accent-border: #30718d/);
+  assert.match(palette, /--bb-deck-warning-border: #a94b4b/);
+  assert.match(palette, /--bb-action-save: var\(--bb-deck-accent-border\)/);
+  assert.match(palette, /--bb-action-discard: var\(--bb-deck-warning-border\)/);
+  assert.match(palette, /\.bb-button--blue\s*\{ background: var\(--bb-action-save\); border-color: var\(--bb-action-save\)/);
+  assert.match(palette, /\.bb-button--danger\s*\{ background: var\(--bb-action-discard\); border-color: var\(--bb-action-discard\)/);
+  for (const state of ["hover", "pressed"]) {
+    assert.match(palette, new RegExp("--bb-action-save-" + state + ": color-mix"));
+    assert.match(palette, new RegExp("--bb-action-discard-" + state + ": color-mix"));
+    assert.match(builderStyle, new RegExp("var\\(--bb-action-save-" + state + "\\)"));
+  }
+  assert.match(builderStyle, /\.saveButton\{[^}]*border:1px solid var\(--bb-action-save\);background:var\(--bb-action-save\)/);
+  assert.match(builder, /className=\{styles\.saveButton\} onClick=\{openSaveDialog\}/);
+  assert.match(builder, /className="bb-button bb-button--danger" onClick=\{\(\) => \{/);
+  assert.match(builder, /className="bb-button bb-button--blue"\s+onClick=\{\(\) => \{ setExitAfterSave/);
+  assert.match(saveDialog, /className="bb-button bb-button--blue" disabled=\{saveDisabled\} onClick=\{onSave\}/);
+  assert.match(saveDialog, /visibility === "Public" \? "Publish Deck" : visibility === "Draft" \? "Save Draft" : "Save Deck"/);
+  assert.match(saveDialog, /className="bb-button" onClick=\{onClose\}>Cancel<\/button>/);
 });

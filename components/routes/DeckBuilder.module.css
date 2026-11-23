@@ -8,8 +8,9 @@
 .deckName{min-width:0;flex:1 1 240px;width:0;padding:9px 3px;background:transparent;border:0;border-bottom:1px solid transparent;color:var(--bb-white);font:700 clamp(16px,1.7vw,22px)/1.2 var(--bb-font-interface,"Titillium Web",Arial,sans-serif);text-overflow:ellipsis}
 .deckName:hover,.deckName:focus{border-bottom-color:var(--bb-border-hover);outline:none}
 .format{min-height:40px;max-width:160px;padding:0 10px;border:1px solid var(--bb-border);background:var(--bb-panel);color:var(--bb-text);font:600 12px var(--bb-font-interface);cursor:pointer}
-.saveButton{display:inline-flex;align-items:center;min-height:40px;padding:0 18px;border:1px solid var(--bb-selection);background:var(--bb-selection);color:var(--bb-white);font:700 13px var(--bb-font-interface);cursor:pointer}
-.saveButton:hover{background:var(--bb-nav-indicator)}
+.saveButton{display:inline-flex;align-items:center;min-height:40px;padding:0 18px;border:1px solid var(--bb-action-save);background:var(--bb-action-save);color:var(--bb-white);font:700 13px var(--bb-font-interface);cursor:pointer}
+.saveButton:hover{background:var(--bb-action-save-hover);border-color:var(--bb-action-save-hover)}
+.saveButton:active{background:var(--bb-action-save-pressed);border-color:var(--bb-action-save-pressed)}
 .saveError{font-size:11px;color:#ffaaaa}
 .workspace{min-height:0;flex:1;display:grid;grid-template-columns:minmax(0,57fr) minmax(0,43fr);gap:22px;width:min(calc(100% - 32px),1600px);margin:16px auto;align-items:stretch}
 .browse,.deck{min-height:0;min-width:0;overflow:auto;overscroll-behavior:contain;padding:3px 6px 28px;scrollbar-gutter:stable}

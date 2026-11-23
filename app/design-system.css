@@ -93,6 +93,13 @@
   --bb-deck-accent-deep: #102c3b;
   --bb-deck-warning-border: #a94b4b;
   --bb-deck-warning-text: #ffd0d0;
+  /* Muted save/discard actions, aliased to established palette colours. */
+  --bb-action-save: var(--bb-deck-accent-border);
+  --bb-action-discard: var(--bb-deck-warning-border);
+  --bb-action-save-hover: color-mix(in srgb, var(--bb-action-save) 94%, var(--bb-white));
+  --bb-action-discard-hover: color-mix(in srgb, var(--bb-action-discard) 94%, var(--bb-white));
+  --bb-action-save-pressed: color-mix(in srgb, var(--bb-action-save) 82%, var(--bb-black));
+  --bb-action-discard-pressed: color-mix(in srgb, var(--bb-action-discard) 82%, var(--bb-black));
   --bb-deck-muted-light: #c2cdd7;
   --bb-deck-caption: #a7b8c6;
   --bb-deck-stat: #bfccd9;
@@ -163,25 +170,23 @@ body { line-height: 1.5; }
   .bb-button--primary:not(:disabled):hover { background: var(--bb-pyrus-hover); border-color: var(--bb-pyrus-hover); }
 }
 .bb-button--primary:not(:disabled):active { background: var(--bb-pyrus-pressed); border-color: var(--bb-pyrus-pressed); }
-/* Explicit action colours for confirmation dialogs. Keep the same shared
-   button dimensions and focus treatment as all other bb-button variants. */
-.bb-button--danger { background: var(--bb-pyrus); border-color: var(--bb-pyrus); color: var(--bb-white); }
-.bb-button--blue { background: var(--bb-selection); border-color: var(--bb-selection); color: var(--bb-white); }
+/* Save/discard variants share the restrained deck palette, not the brighter
+   Pyrus/Selection tokens that remain in use for other controls. */
+.bb-button--danger { background: var(--bb-action-discard); border-color: var(--bb-action-discard); color: var(--bb-white); }
+.bb-button--blue { background: var(--bb-action-save); border-color: var(--bb-action-save); color: var(--bb-white); }
 @media (hover: hover) and (pointer: fine) {
   .bb-button.bb-button--danger:not(:disabled):not([aria-disabled="true"]):hover {
-    background: var(--bb-pyrus-pressed); border-color: var(--bb-pyrus-pressed);
+    background: var(--bb-action-discard-hover); border-color: var(--bb-action-discard-hover);
   }
   .bb-button.bb-button--blue:not(:disabled):not([aria-disabled="true"]):hover {
-    background: color-mix(in srgb, var(--bb-selection) 88%, var(--bb-black));
-    border-color: color-mix(in srgb, var(--bb-selection) 88%, var(--bb-black));
+    background: var(--bb-action-save-hover); border-color: var(--bb-action-save-hover);
   }
 }
 .bb-button.bb-button--danger:not(:disabled):active {
-  background: var(--bb-pyrus-pressed); border-color: var(--bb-pyrus-pressed);
+  background: var(--bb-action-discard-pressed); border-color: var(--bb-action-discard-pressed);
 }
 .bb-button.bb-button--blue:not(:disabled):active {
-  background: color-mix(in srgb, var(--bb-selection) 72%, var(--bb-black));
-  border-color: color-mix(in srgb, var(--bb-selection) 72%, var(--bb-black));
+  background: var(--bb-action-save-pressed); border-color: var(--bb-action-save-pressed);
 }
 .bb-button--outline { background: transparent; }
 .bb-field {
