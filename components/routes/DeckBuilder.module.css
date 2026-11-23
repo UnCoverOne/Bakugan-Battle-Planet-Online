@@ -58,7 +58,7 @@
 .teamCharacter>button:first-child{width:100%;cursor:pointer}
 /* Same 24px faction and rolling tags as the Compendium, left-aligned beneath
    each Character. Wrap the tags rather than shrinking them on narrow screens. */
-.teamCharacterTags{display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:4px;min-width:0;width:100%;padding-top:8px}
+.teamCharacterTags{display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:4px;min-width:0;width:100%;padding-top:4px}
 /* Permanently visible action bars: Character removal follows its faction and
    rolling tags; Core removal follows artwork. Inspection remains independent. */
 .removeCharacter,.removeCore{
@@ -76,6 +76,8 @@
   outline:2px solid var(--bb-focus);outline-offset:2px;
 }
 .emptyCharacter{display:grid;place-items:center;width:100%;aspect-ratio:5/7;background:var(--bb-panel);border:1px dashed var(--bb-border-hover);color:var(--bb-muted);cursor:pointer}
+/* Give occupied Character rows a little more breathing room before their paired Cores. */
+.teamCharacter + .pairedCores{margin-top:4px}
 .pairedCores{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:4px}
 .coreSlot{min-width:0;display:grid;align-content:start;gap:3px}
 .coreSlot>button:first-child{width:100%;cursor:pointer}
