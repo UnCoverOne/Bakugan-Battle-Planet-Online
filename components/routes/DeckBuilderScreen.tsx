@@ -5,12 +5,12 @@ import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type MouseEvent } from "react";
-import { activeCardFilterCount, CARD_FILTER_LABELS, CORE_SET_OPTIONS, cardMatchesFilters, clearCardFilterFacets, coreMatchesFilters, createCardFilterOptionCatalogue, createEmptyCardFilters, restrictCardFilters, type CardFilterFacet, type CardFilterOptionCatalogue, type CardFilterState } from "../../lib/card-filters";
+import { activeCardFilterCount, CARD_FILTER_LABELS, CORE_SET_OPTIONS, cardMatchesFilters, coreMatchesFilters, createCardFilterOptionCatalogue, createEmptyCardFilters, restrictCardFilters, type CardFilterFacet, type CardFilterOptionCatalogue, type CardFilterState } from "../../lib/card-filters";
 import { createBuilderCardControls } from "../../lib/builder-card-selection";
 import { createCoreAdditionGuard } from "../../lib/builder-core-selection";
-import { coreForSet } from "../../lib/core-preview";
+import { CORE_EFFECT_OPTIONS, coreForSet } from "../../lib/core-preview";
 import { paginateBuilderGallery } from "../../lib/builder-gallery-pagination";
-import { builderSortOptions, normalizeBuilderSort, sortBuilderItems, type BuilderCategory, type BuilderSort, type BuilderGalleryItem } from "../../lib/builder-sorting";
+import { normalizeBuilderSort, sortBuilderItems, type BuilderCategory, type BuilderSort, type BuilderGalleryItem } from "../../lib/builder-sorting";
 import { BAKUGAN, CARD_BY_ID, CARDS, CORES, validateDeck, type DeckRecord } from "../../lib/data";
 import { cardPrintingKey, corePrintingKey, countConstructionCopies, preferredCardPrinting, preferredCorePrinting } from "../../lib/deck-printings";
 import { deckConstructionIdentity } from "../../lib/deck-validation";
@@ -26,8 +26,7 @@ import { CardInspector } from "../cards/CardInspector";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
 import { BakuganRollingStat } from "../cards/BakuganRollingStats";
 import { bakuganRollingValues } from "../../lib/bakugan-rolling";
-import { ActionButton } from "../design-system/primitives";
-import { CardFilterPanel } from "../filters/CardFilterPanel";
+import { DeckBuilderFilterSortDialog } from "./DeckBuilderFilterSortDialog";
 import styles from "./DeckBuilder.module.css";
 import { DeckSaveDialog } from "./DeckSaveDialog";
 import { CardsGallery } from "./CardsGallery";
@@ -42,27 +41,21 @@ import { useCompetitiveRules, clone, blankDraft, DeckState } from "./DeckRouteSh
 
 type BuilderView = "gallery" | "deck";
 
-type BuilderMenu =
-  | { surface: "gallery" | "deck"; panel: "filter" | "sort" }
-  | { surface: "deck"; panel: "save" | "leave" };
+type BuilderMenu = { surface: "deck"; panel: "save" | "leave" };
+type FilterSurface = "gallery" | "deck";
 
 type BuilderInspection =
   | { kind: "card"; card: GameCard }
   | { kind: "core"; coreId: string };
 
 const BUILDER_MAIN_DECK_FILTER_FACETS: readonly CardFilterFacet[] = [
-  "type",
-  "set",
-  "faction",
-  "cost",
-  "rarity",
-  "keyword",
+  "type", "set", "faction", "cost", "rarity", "keyword", "bPower", "damage",
 ];
 
 const BUILDER_GALLERY_FILTER_FACETS: Record<BuilderCategory, readonly CardFilterFacet[]> = {
   cards: BUILDER_MAIN_DECK_FILTER_FACETS,
-  characters: ["set", "faction", "coreType", "keyword"],
-  cores: ["set", "coreType"],
+  characters: ["set", "faction", "coreType", "bPower", "damage", "keyword"],
+  cores: ["set", "coreType", "keyword", "bPower", "damage", "faction"],
 };
 
 const DECK_FORMAT_OPTIONS = [
@@ -149,6 +142,10 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   })));
   const [factionFilterAuto, setFactionFilterAuto] = useState(typeof ui.factionFilterAuto === "boolean" ? ui.factionFilterAuto : Boolean(deck.bakuganIds.length));
   const [deckFilters, setDeckFilters] = useState<CardFilterState>(() => restoredFilters("deckFilters", createEmptyCardFilters()));
+  const [galleryCoreFilters, setGalleryCoreFilters] = useState<CardFilterState>(() =>
+    restoredFilters("galleryCoreFilters", createEmptyCardFilters()));
+  const [galleryFusionOnly, setGalleryFusionOnly] = useState(typeof ui.galleryFusionOnly === "boolean" ? ui.galleryFusionOnly : false);
+  const [filterSurface, setFilterSurface] = useState<FilterSurface | null>(null);
   const [exitAfterSave, setExitAfterSave] = useState(false);
   const [activeMenu, setActiveMenu] = useState<BuilderMenu | null>(null);
   const [inspection, setInspection] = useState<BuilderInspection | null>(null);
@@ -212,14 +209,14 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     latestDraft.current = {
       version: 1, routeId: id, deck, base: baseline.current,
       ui: { builderView, galleryDensity, galleryQuery, deckQuery, galleryCategory, gallerySort, deckSort,
-        galleryFilters, deckFilters, factionFilterAuto, saveName, saveDescription, saveVisibility, saveLeadCardId },
+        galleryFilters, deckFilters, galleryCoreFilters, galleryFusionOnly, factionFilterAuto, saveName, saveDescription, saveVisibility, saveLeadCardId },
     };
     setSaveState("dirty");
     const timer = window.setTimeout(() => {
       if (!sessionEnded.current && latestDraft.current) setSaveState(writeBuilderDraft(scope, latestDraft.current) ? "saved" : "error");
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [administratorEdit, scope, id, deck, builderView, galleryDensity, galleryQuery, deckQuery, galleryCategory, gallerySort, deckSort, galleryFilters, deckFilters, factionFilterAuto, saveName, saveDescription, saveVisibility, saveLeadCardId, setBuilderDeck, storageHealth.status]);
+  }, [administratorEdit, scope, id, deck, builderView, galleryDensity, galleryQuery, deckQuery, galleryCategory, gallerySort, deckSort, galleryFilters, deckFilters, galleryCoreFilters, galleryFusionOnly, factionFilterAuto, saveName, saveDescription, saveVisibility, saveLeadCardId, setBuilderDeck, storageHealth.status]);
 
   useEffect(() => {
     if (administratorEdit) return;
@@ -315,9 +312,16 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
       type: shared.type.filter((option) => option.value !== "Character"),
     };
   }, [catalogueRevision]);
-  const galleryFilterOptions = useMemo<CardFilterOptionCatalogue>(() => galleryCategory === "cores"
-    ? { ...cardFilterOptions, set: CORE_SET_OPTIONS }
-    : cardFilterOptions, [cardFilterOptions, galleryCategory]);
+  const coreFilterOptions = useMemo<CardFilterOptionCatalogue>(() => ({
+    ...cardFilterOptions,
+    set: CORE_SET_OPTIONS,
+    keyword: CORE_EFFECT_OPTIONS.map(({ value, label }) => ({ value, label })),
+    bPower: [...new Set(CORES.map(core => core.bonus))].sort((a, b) => a - b)
+      .map(value => ({ value: String(value), label: String(value) })),
+    damage: [...new Set(CORES.map(core => core.damageBonus))].sort((a, b) => a - b)
+      .map(value => ({ value: String(value), label: String(value) })),
+  }), [cardFilterOptions]);
+  const galleryFilterOptions = galleryCategory === "cores" ? coreFilterOptions : cardFilterOptions;
   const changeGalleryCategory = (next: BuilderCategory) => {
     const nextSets = next === "cores" ? CORE_SET_OPTIONS : cardFilterOptions.set;
     setGalleryFilters(current => ({ ...current, set: [...new Set(current.set.flatMap(value => {
@@ -328,11 +332,18 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     setGalleryCategory(next);
   };
   const effectiveGallerySort = normalizeBuilderSort(galleryCategory, gallerySort);
-  const galleryFilterFacets = BUILDER_GALLERY_FILTER_FACETS[galleryCategory];
+  const galleryFilterFacets = galleryCategory === "cards" && !galleryFilters.type.includes("Evo")
+    ? BUILDER_MAIN_DECK_FILTER_FACETS.filter(facet => facet !== "bPower" && facet !== "damage")
+    : BUILDER_GALLERY_FILTER_FACETS[galleryCategory];
+  // BakuCore effect/stat/conditional-faction choices must not inherit the
+  // automatic Team faction filter used by Character Cards.
+  const effectiveGalleryFilters = useMemo(() => galleryCategory === "cores"
+    ? { ...galleryCoreFilters, set: galleryFilters.set, coreType: galleryFilters.coreType }
+    : galleryFilters, [galleryCategory, galleryCoreFilters, galleryFilters]);
   // Page back to the beginning whenever the results or their ordering change.
   useEffect(() => {
     setGalleryPage(1);
-  }, [galleryCategory, galleryQuery, galleryFilters, effectiveGallerySort, factionFilterAuto]);
+  }, [galleryCategory, galleryQuery, galleryFilters, galleryCoreFilters, galleryFusionOnly, effectiveGallerySort, factionFilterAuto]);
 
   const searchIndex = useMemo(() => {
     void catalogueRevision;
@@ -343,8 +354,8 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
   const galleryItems = useMemo(() => {
     const query = deferredGalleryQuery.trim().toLowerCase();
     const effectiveFilters = restrictCardFilters(
-      galleryFilters,
-      BUILDER_GALLERY_FILTER_FACETS[galleryCategory],
+      effectiveGalleryFilters,
+      galleryFilterFacets,
     );
     const items: BuilderGalleryItem[] = galleryCategory === "cards" ? CARDS.filter((card) => card.type !== "Character").map((card) => ({
         kind: "card" as const,
@@ -369,6 +380,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
       if (galleryCategory === "cards" && item.kind !== "card") return false;
       if (galleryCategory === "characters" && item.kind !== "character") return false;
       if (galleryCategory === "cores" && item.kind !== "core") return false;
+      if (galleryCategory === "characters" && galleryFusionOnly && item.kind === "character" && !item.card.fusionPairId) return false;
       const core = item.kind === "core" ? item.core : null;
       const card = item.kind === "core" ? null : item.card;
       const searchable = item.kind === "core"
@@ -401,6 +413,8 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     factionFilterAuto,
     galleryCategory,
     galleryFilters,
+    effectiveGalleryFilters,
+    galleryFusionOnly,
     deferredGalleryQuery,
     effectiveGallerySort,
   ]);
@@ -540,7 +554,8 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
     const affected = issue.cardId && CARD_BY_ID.get(issue.cardId);
     return affected && cardPrintingKey(affected) === cardPrintingKey(card);
   })?.message;
-  const activeGalleryFilterCount = activeCardFilterCount(galleryFilters, galleryFilterFacets);
+  const activeGalleryFilterCount = activeCardFilterCount(effectiveGalleryFilters, galleryFilterFacets)
+    + (galleryCategory === "characters" && galleryFusionOnly ? 1 : 0);
   const activeDeckFilterCount = activeCardFilterCount(deckFilters, BUILDER_MAIN_DECK_FILTER_FACETS);
 
   const openSaveDialog = () => {
@@ -670,17 +685,27 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
           </nav>
           <div className={styles.browseTools}>
             <BuilderToolbar label="Browse" query={galleryQuery} setQuery={setGalleryQuery}
-              filterCount={activeGalleryFilterCount} onFilter={() => setActiveMenu({ surface: "gallery", panel: "filter" })}
-              onSort={() => setActiveMenu({ surface: "gallery", panel: "sort" })} />
+              filterCount={activeGalleryFilterCount} onFilter={() => setFilterSurface("gallery")} />
             <button type="button" className={styles.density} aria-label={galleryDensity === "detailed" ? "Compact cards" : "Detailed cards"}
               title={galleryDensity === "detailed" ? "Compact cards" : "Detailed cards"}
               onClick={() => setGalleryDensity(value => value === "detailed" ? "compact" : "detailed")}>
               <LucideIcon name={galleryDensity === "detailed" ? "layout-list" : "layout-grid"} />
             </button>
           </div>
-          <BuilderActiveFilterChips ariaLabel="Active filters" filters={galleryFilters} facets={galleryFilterFacets}
-            options={galleryFilterOptions} factionLabel={factionFilterAuto ? "Team faction" : undefined}
-            onChange={(next, facet) => { if (facet === "faction") setFactionFilterAuto(false); setGalleryFilters(next); }} />
+          <BuilderActiveFilterChips ariaLabel="Active filters" filters={effectiveGalleryFilters} facets={galleryFilterFacets}
+            options={galleryFilterOptions} factionLabel={galleryCategory === "characters" && factionFilterAuto ? "Team faction" : undefined}
+            labels={galleryCategory === "cores" ? { keyword: "Effects", faction: "Conditional Factions", coreType: "Core Type" } : undefined}
+            fusionOnly={galleryCategory === "characters" && galleryFusionOnly}
+            onClearFusion={() => setGalleryFusionOnly(false)}
+            onChange={(next, facet) => {
+              if (galleryCategory === "cores") {
+                if (facet === "set" || facet === "coreType") setGalleryFilters(current => ({ ...current, [facet]: next[facet] }));
+                else setGalleryCoreFilters(current => ({ ...current, [facet]: next[facet] }));
+              } else {
+                if (facet === "faction") setFactionFilterAuto(false);
+                setGalleryFilters(next);
+              }
+            }} />
           {galleryPagination.items.length ? (
             galleryCategory === "cores" ?
               <CoresGallery cores={galleryPagination.items.flatMap(item => item.kind === "core" ? [item.core] : [])}
@@ -793,8 +818,7 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
           </div>
           {deck.cardIds.length > 0 && <div className={styles.deckTools}>
             <BuilderToolbar label="Main Deck" query={deckQuery} setQuery={setDeckQuery}
-              filterCount={activeDeckFilterCount} onFilter={() => setActiveMenu({ surface: "deck", panel: "filter" })}
-              onSort={() => setActiveMenu({ surface: "deck", panel: "sort" })} />
+              filterCount={activeDeckFilterCount} onFilter={() => setFilterSurface("deck")} />
             <button type="button" className={styles.density} aria-label={galleryDensity === "detailed" ? "Compact cards" : "Detailed cards"}
               onClick={() => setGalleryDensity(value => value === "detailed" ? "compact" : "detailed")}>
               <LucideIcon name={galleryDensity === "detailed" ? "layout-list" : "layout-grid"} />
@@ -818,38 +842,34 @@ function DeckBuilderEditor({ id, returnTo: requestedReturn, scope, recovered }: 
         </aside>
       </div>
 
-      {activeMenu?.panel === "sort" && <BuilderMenuDialog title="Sort" eyebrow=""
-        onClose={() => setActiveMenu(null)}>
-        <div className={styles.builderOptionList}>
-          {builderSortOptions(activeMenu.surface === "gallery" ? galleryCategory : "cards").map(([value, label]) => (
-            <button type="button" key={value} onClick={() => {
-              if (activeMenu.surface === "gallery") setGallerySort(value); else setDeckSort(value);
-              setActiveMenu(null);
-            }}>{label}</button>
-          ))}
-        </div>
-      </BuilderMenuDialog>}
-
-      {activeMenu?.panel === "filter" && <BuilderMenuDialog title="Filters" eyebrow=""
-        onClose={() => setActiveMenu(null)} footer={<>
-          <ActionButton tone="quiet" onClick={() => {
-            if (activeMenu.surface === "gallery") {
-              setGalleryFilters(current => clearCardFilterFacets(current, galleryFilterFacets));
-              setFactionFilterAuto(false);
-            } else setDeckFilters(createEmptyCardFilters());
-          }}>Reset</ActionButton>
-          <ActionButton onClick={() => setActiveMenu(null)}>Done</ActionButton>
-        </>}>
-        <CardFilterPanel filters={activeMenu.surface === "gallery" ? galleryFilters : deckFilters}
-          facets={activeMenu.surface === "gallery" ? galleryFilterFacets : BUILDER_MAIN_DECK_FILTER_FACETS}
-          options={activeMenu.surface === "gallery" ? galleryFilterOptions : cardFilterOptions}
-          onChange={(next, facet) => {
-            if (activeMenu.surface === "gallery") {
-              if (facet === "faction") setFactionFilterAuto(false);
+      {filterSurface && <DeckBuilderFilterSortDialog key={filterSurface + ":" + galleryCategory}
+        category={filterSurface === "gallery" ? galleryCategory : "cards"}
+        context={filterSurface === "gallery"
+          ? "Browse · " + ({ cards: "Cards", characters: "Characters", cores: "BakuCores" }[galleryCategory])
+          : "Main Deck"}
+        filters={filterSurface === "gallery" ? effectiveGalleryFilters : deckFilters}
+        sort={filterSurface === "gallery" ? effectiveGallerySort : deckSort}
+        options={filterSurface === "gallery" ? galleryFilterOptions : cardFilterOptions}
+        fusionOnly={filterSurface === "gallery" && galleryCategory === "characters" && galleryFusionOnly}
+        onClose={() => setFilterSurface(null)}
+        onApply={({ filters: next, sort: nextSort, fusionOnly }) => {
+          if (filterSurface === "gallery") {
+            if (galleryCategory === "cores") {
+              setGalleryFilters(current => ({ ...current, set: next.set, coreType: next.coreType }));
+              setGalleryCoreFilters(current => ({ ...current, keyword: next.keyword,
+                bPower: next.bPower, damage: next.damage, faction: next.faction }));
+            } else {
+              if (next.faction.join("|") !== galleryFilters.faction.join("|")) setFactionFilterAuto(false);
               setGalleryFilters(next);
-            } else setDeckFilters(next);
-          }} />
-      </BuilderMenuDialog>}
+              if (galleryCategory === "characters") setGalleryFusionOnly(fusionOnly);
+            }
+            setGallerySort(nextSort);
+          } else {
+            setDeckFilters(next);
+            setDeckSort(nextSort);
+          }
+          setFilterSurface(null);
+        }} />}
 
       {activeMenu?.panel === "leave" && <BuilderMenuDialog title="Unsaved changes" eyebrow=""
         onClose={() => setActiveMenu(null)} footer={<>
@@ -909,14 +929,12 @@ function BuilderToolbar({
   setQuery,
   filterCount,
   onFilter,
-  onSort,
 }: {
   label: string;
   query: string;
   setQuery: (value: string) => void;
   filterCount: number;
   onFilter: () => void;
-  onSort: () => void;
 }) {
   return (
     <div className={styles.builderToolbar} role="search" aria-label={`${label} tools`}>
@@ -925,8 +943,10 @@ function BuilderToolbar({
         <LucideIcon name="search" size={18} className={styles.searchIcon} />
         <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${label.toLowerCase()}…`} />
       </label>
-      <button type="button" onClick={onSort} aria-label={`Sort ${label}`}><LucideIcon name="arrow-down-up" size={19} /> <span>Sort</span></button>
-      <button type="button" onClick={onFilter} aria-label={`Filter ${label}`}><LucideIcon name="sliders-horizontal" size={19} /> <span>Filter{filterCount ? ` (${filterCount})` : ""}</span></button>
+      <button type="button" onClick={onFilter} aria-haspopup="dialog"
+        aria-label={`Filters and sorting for ${label}`}>
+        <LucideIcon name="sliders-horizontal" size={19} /> <span>Filters{filterCount ? ` (${filterCount})` : ""}</span>
+      </button>
     </div>
   );
 }
@@ -937,6 +957,9 @@ function BuilderActiveFilterChips({
   facets,
   options,
   factionLabel,
+  labels,
+  fusionOnly = false,
+  onClearFusion,
   onChange,
 }: {
   ariaLabel: string;
@@ -944,6 +967,9 @@ function BuilderActiveFilterChips({
   facets: readonly CardFilterFacet[];
   options: CardFilterOptionCatalogue;
   factionLabel?: string;
+  labels?: Partial<Record<CardFilterFacet, string>>;
+  fusionOnly?: boolean;
+  onClearFusion?: () => void;
   onChange: (next: CardFilterState, facet: CardFilterFacet) => void;
 }) {
   const visible = restrictCardFilters(filters, facets);
@@ -951,7 +977,7 @@ function BuilderActiveFilterChips({
     <div className={styles.activeFilters} aria-label={ariaLabel}>
       {facets.flatMap((facet) => visible[facet].map((value) => {
         const option = options[facet].find((candidate) => candidate.value === value);
-        const facetLabel = facet === "faction" && factionLabel ? factionLabel : CARD_FILTER_LABELS[facet];
+        const facetLabel = facet === "faction" && factionLabel ? factionLabel : labels?.[facet] ?? CARD_FILTER_LABELS[facet];
         return (
           <button
             type="button"
@@ -965,6 +991,9 @@ function BuilderActiveFilterChips({
           </button>
         );
       }))}
+      {fusionOnly && <button type="button" onClick={onClearFusion}>
+        Fusions: Fusion Bakugan only <LucideIcon name="x" size={13} />
+      </button>}
     </div>
   );
 }

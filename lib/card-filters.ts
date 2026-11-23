@@ -1,5 +1,6 @@
 import { CARD_SET_INFO, cardSetCode } from "./content/catalogue";
 import type { Core, GameCard } from "./game";
+import { coreEffects } from "./core-preview";
 
 export const CARD_FILTER_FACETS = [
   "type",
@@ -230,5 +231,9 @@ export function coreMatchesFilters(core: Core, filters: CardFilterState) {
     || printingSets.has(setNameByCode.get(selected) ?? "")
   ));
   return setMatches
-    && (filters.coreType.length === 0 || filters.coreType.includes(core.type));
+    && (filters.coreType.length === 0 || filters.coreType.includes(core.type))
+    && (filters.bPower.length === 0 || filters.bPower.includes(String(core.bonus)))
+    && (filters.damage.length === 0 || filters.damage.includes(String(core.damageBonus)))
+    && (filters.keyword.length === 0 || coreEffects(core).some(effect => filters.keyword.includes(effect.kind)))
+    && (filters.faction.length === 0 || core.conditionalFactions?.some(faction => filters.faction.includes(faction)) === true);
 }

@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { CORES } from "../lib/data";
+import { coreEffects } from "../lib/core-preview";
+import { coreMatchesFilters, createEmptyCardFilters } from "../lib/card-filters";
 import { BUILDER_GALLERY_PAGE_SIZE, paginateBuilderGallery } from "../lib/builder-gallery-pagination";
 
 const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
@@ -457,4 +460,93 @@ test("Deck preview widens only the Featured Card column while preserving Charact
     assert.ok(newFeaturedWidth - oldFeaturedWidth > 3.95,
       "Almost all added width should go to Featured Card");
   }
+});
+
+
+test("Deck Editor reuses Compendium filter styling in a single draft-and-apply modal", async () => {
+  const [builder, dialog, dialogCss, compendium, filters, sorting] = await Promise.all([
+    read("components/routes/DeckBuilderScreen.tsx"),
+    read("components/routes/DeckBuilderFilterSortDialog.tsx"),
+    read("components/routes/DeckBuilderFilterSortDialog.module.css"),
+    read("components/routes/CompendiumFieldPicker.module.css"),
+    read("lib/card-filters.ts"),
+    read("lib/builder-sorting.ts"),
+  ]);
+  assert.match(builder, /<DeckBuilderFilterSortDialog/);
+  assert.match(builder, /setFilterSurface\("gallery"\)/);
+  assert.match(builder, /setFilterSurface\("deck"\)/);
+  assert.doesNotMatch(builder, /<CardFilterPanel/);
+  assert.doesNotMatch(builder, /panel: "sort"|panel: "filter"/);
+  assert.match(dialog, /import compendium from "\.\/CompendiumFieldPicker\.module\.css"/);
+  for (const cls of ["trigger", "chip", "option", "checked", "search"]) {
+    assert.ok(dialog.includes("compendium." + cls), cls + " uses Compendium selector classes");
+    assert.match(compendium, new RegExp("\\." + cls + "(?:\\{|\\s*\\{)"));
+  }
+  assert.match(dialog, /const \[draftFilters, setDraftFilters\] = useState/);
+  assert.match(dialog, /const \[draftSort, setDraftSort\] = useState/);
+  assert.match(dialog, /onApply\(\{ filters: draftFilters, sort: draftSort, fusionOnly: draftFusion \}\)/);
+  assert.match(dialog, />Cancel<\/button>/);
+  assert.match(dialog, />Show results<\/button>/);
+  assert.match(dialog, /const \[openField, setOpenField\] = useState/);
+  assert.match(dialog, /onKeyDown=\{onDialogKeyDown\}/);
+  assert.match(dialogCss, /@media\(max-width:800px\)/);
+  assert.match(dialogCss, /height:100dvh/);
+  assert.match(filters, /coreEffects\(core\)\.some\(effect => filters\.keyword\.includes\(effect\.kind\)\)/);
+  assert.match(sorting, /"count-desc", "Copies high–low"/);
+});
+
+test("Deck Editor's BakuCore, Fusion and Evo facets keep category-specific state", async () => {
+  const [builder, dialog] = await Promise.all([
+    read("components/routes/DeckBuilderScreen.tsx"),
+    read("components/routes/DeckBuilderFilterSortDialog.tsx"),
+  ]);
+  assert.match(builder, /const \[galleryCoreFilters, setGalleryCoreFilters\] = useState/);
+  assert.match(builder, /const \[galleryFusionOnly, setGalleryFusionOnly\] = useState/);
+  assert.match(builder, /galleryCoreFilters, galleryFusionOnly, factionFilterAuto/);
+  assert.match(builder, /galleryCategory === "cores"\s*\? \{ \.\.\.galleryCoreFilters, set: galleryFilters\.set, coreType: galleryFilters\.coreType \}/);
+  assert.match(builder, /galleryCategory === "characters" && galleryFusionOnly && item\.kind === "character" && !item\.card\.fusionPairId/);
+  assert.match(builder, /if \(next\.faction\.join\("\|"\) !== galleryFilters\.faction\.join\("\|"\)\) setFactionFilterAuto\(false\)/);
+  assert.match(dialog, /category === "cores"/);
+  assert.match(dialog, /field\("keyword", \{ label: "Effects"/);
+  assert.match(dialog, /field\("faction", \{ label: "Conditional Factions"/);
+  assert.match(dialog, /category === "characters"/);
+  assert.match(dialog, /key: "fusions"/);
+  assert.match(dialog, /filters\.type\.includes\("Evo"\)/);
+  assert.match(dialog, /key === "type" && !fieldDraft\.includes\("Evo"\) \? \{ bPower: \[\], damage: \[\] \}/);
+});
+
+
+test("Builder hides cross-category Character power filters when browsing non-Evo Cards", async () => {
+  const builder = await read("components/routes/DeckBuilderScreen.tsx");
+  assert.match(builder, /galleryCategory === "cards" && !galleryFilters\.type\.includes\("Evo"\)/);
+  assert.match(builder, /BUILDER_MAIN_DECK_FILTER_FACETS\.filter\(facet => facet !== "bPower" && facet !== "damage"\)/);
+  assert.match(builder, /restrictCardFilters\(\s*effectiveGalleryFilters,\s*galleryFilterFacets,/);
+});
+
+
+test("BakuCore filtering matches the Compendium's printed stats, effects and conditional factions", () => {
+  const conditional = CORES.find(core => Boolean(core.conditionalFactions?.length));
+  assert.ok(conditional, "A conditional-faction BakuCore should exist");
+  const faction = conditional.conditionalFactions![0];
+  const nonFactionCore = CORES.find(core => !core.conditionalFactions?.includes(faction));
+  assert.ok(nonFactionCore, "Another Core should lack this conditional faction");
+  assert.equal(coreMatchesFilters(conditional, createEmptyCardFilters({ faction: [faction] })), true);
+  assert.equal(coreMatchesFilters(nonFactionCore, createEmptyCardFilters({ faction: [faction] })), false);
+
+  const withEffect = CORES.find(core => coreEffects(core).length > 0);
+  assert.ok(withEffect, "A Core with a printable effect should exist");
+  const kind = coreEffects(withEffect)[0].kind;
+  const withoutEffect = CORES.find(core => !coreEffects(core).some(effect => effect.kind === kind));
+  assert.ok(withoutEffect, "Other Cores should lack this effect");
+  assert.equal(coreMatchesFilters(withEffect, createEmptyCardFilters({ keyword: [kind] })), true);
+  assert.equal(coreMatchesFilters(withoutEffect, createEmptyCardFilters({ keyword: [kind] })), false);
+
+  const differentPower = CORES.find(core => core.bonus !== withEffect.bonus);
+  const differentDamage = CORES.find(core => core.damageBonus !== withEffect.damageBonus);
+  assert.ok(differentPower);
+  assert.ok(differentDamage);
+  assert.equal(coreMatchesFilters(withEffect, createEmptyCardFilters({ bPower: [String(withEffect.bonus)] })), true);
+  assert.equal(coreMatchesFilters(differentPower, createEmptyCardFilters({ bPower: [String(withEffect.bonus)] })), false);
+  assert.equal(coreMatchesFilters(withEffect, createEmptyCardFilters({ damage: [String(withEffect.damageBonus)] })), true);
+  assert.equal(coreMatchesFilters(differentDamage, createEmptyCardFilters({ damage: [String(withEffect.damageBonus)] })), false);
 });
