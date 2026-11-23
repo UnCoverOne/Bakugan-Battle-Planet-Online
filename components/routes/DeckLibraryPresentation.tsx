@@ -1,14 +1,9 @@
 "use client";
 
-import { OriginalImage } from "@/components/media/OriginalImage";
 import Link from "next/link";
 import { type ReactNode } from "react";
-import { FACTIONS, FACTION_SYMBOLS } from "../../lib/card-filters";
-import { cardArtSource } from "../../lib/content/card-art";
-import { preferredCardPrinting } from "../../lib/deck-printings";
-import { BAKUGAN, type DeckFormat, type DeckRecord } from "../../lib/data";
-import { CardArt } from "../cards/CardArt";
-import styles from "./DeckRoutes.module.css";
+import { FACTIONS } from "../../lib/card-filters";
+import { type DeckFormat } from "../../lib/data";
 import library from "./DeckLibrary.module.css";
 
 export type LibraryView = "grid" | "list";
@@ -99,32 +94,4 @@ export function DeckToolbar({
       <button type="button" className={library.viewButton} title="List view" aria-label="List view" aria-pressed={view === "list"} onClick={() => setView("list")}><svg viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12M3 6h2M3 12h2M3 18h2"/></svg></button>
     </div>
   </div>;
-}
-
-/** Deck-detail team visual. Library tiles use DeckPreview's three portraits and featured card. */
-export function CharacterFan({ deck }: { deck: DeckRecord }) {
-  const characters = deck.bakuganIds.map((id) => BAKUGAN.find((candidate) => candidate.id === id));
-  return <div className={styles.characterFan}>
-    {Array.from({ length: 3 }, (_, index) => {
-      const character = characters[index];
-      return character ? <CardArt key={character.id} src={cardArtSource(preferredCardPrinting(character.character, deck.printingPreferences), "full")}
-        cardType={character.character.type} presentation="readable" loading="lazy" decoding="async" alt={character.name}/>
-      : <div className={styles.characterPlaceholder} key={`empty-${index}`} aria-label="Empty Character slot">?</div>;
-    })}
-  </div>;
-}
-
-export function DeckFactionTags({ factions }: { factions: string[] }) {
-  const visibleFactions = factions.filter((faction) => Boolean(FACTION_SYMBOLS[faction]));
-  if (!visibleFactions.length) return <span className={styles.emptyFactionTag}>No factions</span>;
-  return (
-    <div className={styles.factionTags} aria-label={`Factions: ${visibleFactions.join(", ")}`}>
-      {visibleFactions.map((faction) => (
-        <span className={styles.factionTag} key={faction}>
-          <OriginalImage src={FACTION_SYMBOLS[faction]} alt="" aria-hidden="true" />
-          {faction}
-        </span>
-      ))}
-    </div>
-  );
 }

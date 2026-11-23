@@ -2,12 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { type DeckRecord } from "../../lib/data";
-import { encodeDeckCode } from "../../lib/deck-transfer";
 import { useAppFields } from "../application/AppProvider";
-import { copyText } from "../application/ui";
-import { ActionButton } from "../design-system/primitives";
 import { clone } from "./DeckRouteShared";
-import { DeckDetailPresentation, DeckSharePanel, MissingDeck } from "./DeckDetailPresentation";
+import { DeckDetailPresentation, MissingDeck } from "./DeckDetailPresentation";
+import detailStyles from "./DeckDetail.module.css";
 
 export function DeckDetailScreen({ id }: { id: string }) {
   const router = useRouter();
@@ -23,16 +21,10 @@ export function DeckDetailScreen({ id }: { id: string }) {
         userId: deck.sourceDeckId ? deck.sourceCreatorUserId : authUser?.id,
         displayName: deck.sourceDeckId ? deck.sourceCreator ?? "Community Brawler" : profile.name,
       }}
-      sharePanel={<DeckSharePanel deck={deck} notify={notify} showCopyAction={false} />}
-      actions={(
-        <>
-          <ActionButton onClick={() => {
-            setBuilderDeck(clone(deck));
-            router.push(`/builder/${encodeURIComponent(deck.id)}`);
-          }}>Edit Deck</ActionButton>
-          <ActionButton tone="quiet" onClick={() => void copyText(encodeDeckCode(deck)).then(() => notify("Deck code copied."))}>Copy Code</ActionButton>
-        </>
-      )}
+      primaryAction={<button type="button" className={detailStyles.primaryAction} onClick={() => {
+        setBuilderDeck(clone(deck));
+        router.push("/builder/" + encodeURIComponent(deck.id));
+      }}>Edit Deck</button>}
     />
   );
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { validateDeck, type DeckRecord } from "../../lib/data";
@@ -8,12 +7,12 @@ import { rememberAccountIntent } from "../../lib/account-intent";
 import { DECK_LIMIT, uniqueDeckName } from "../../lib/deck-transfer";
 import { invalidateResponse } from "../../lib/response-cache";
 import { useAppFields } from "../application/AppProvider";
-import { ActionButton } from "../design-system/primitives";
 import styles from "./DeckRoutes.module.css";
 import { MotionValue } from "../design-system/MotionValue";
 import { clone, useOnlineStatus, DeckState } from "./DeckRouteShared";
 import { usePublicDeckCatalogue } from "./PublicDeckCatalogue";
-import { DeckDetailPresentation, DeckSharePanel, MissingDeck } from "./DeckDetailPresentation";
+import { DeckDetailPresentation, MissingDeck } from "./DeckDetailPresentation";
+import detailStyles from "./DeckDetail.module.css";
 
 export function PublicDeckDetailScreen({ id }: { id: string }) {
   const router = useRouter();
@@ -114,34 +113,21 @@ export function PublicDeckDetailScreen({ id }: { id: string }) {
       deck={deck}
       publicView
       notify={notify}
-      sharePanel={(
-        <DeckSharePanel
-          deck={deck}
-          copyAvailable={validateDeck(deck).isLegal}
-          onCopy={copy}
-          notify={notify}
-        />
-      )}
-      actions={(
+      primaryAction={<button type="button" className={detailStyles.primaryAction}
+        disabled={!validateDeck(deck).isLegal} onClick={copy}>Copy to My Decks</button>}
+      secondaryAction={catalogue.status === "online" ? (
+        <button type="button" className={detailStyles.secondaryAction} aria-pressed={favorite.viewerHasFavorited}
+          disabled={favoritePending} onClick={() => void toggleFavorite()}>
+          <MotionValue value={favorite.viewerHasFavorited}>{favorite.viewerHasFavorited ? "★ Favorited" : "☆ Favorite"}</MotionValue>
+          {" · "}<MotionValue value={favorite.favoriteCount} /> {favorite.favoriteCount === 1 ? "Favorite" : "Favorites"}
+        </button>
+      ) : undefined}
+      managementActions={catalogue.status === "online" && authUser?.roles?.includes("administrator") ? (
         <>
-          {catalogue.status === "online" && (
-            <ActionButton
-              aria-pressed={favorite.viewerHasFavorited}
-              disabled={favoritePending}
-              onClick={() => void toggleFavorite()}
-            >
-              <MotionValue value={favorite.viewerHasFavorited}>{favorite.viewerHasFavorited ? "★ Favorited" : "☆ Favorite"}</MotionValue> · <MotionValue value={favorite.favoriteCount} /> {favorite.favoriteCount === 1 ? "Favorite" : "Favorites"}
-            </ActionButton>
-          )}
-          {catalogue.status === "online" && authUser?.roles?.includes("administrator") && (
-            <>
-              <ActionButton tone="secondary" onClick={editAsAdministrator}>Edit as Administrator</ActionButton>
-              <ActionButton tone="quiet" onClick={() => void deleteAsAdministrator()}>Delete Deck</ActionButton>
-            </>
-          )}
-          <Link className={styles.textAction} href="/decks/public">Back to Public Decks</Link>
+          <button type="button" onClick={editAsAdministrator}>Edit as Administrator</button>
+          <button type="button" onClick={() => void deleteAsAdministrator()}>Delete Deck</button>
         </>
-      )}
+      ) : undefined}
     />
   );
 }
