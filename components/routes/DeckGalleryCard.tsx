@@ -23,18 +23,20 @@ export function DeckPreview({ deck }: { deck: DeckRecord }) {
   const selected = deckLeadCard(deck);
   const featured = selected ? preferredCardPrinting(selected, deck.printingPreferences) : undefined;
   return <div className={styles.preview} aria-label={`Three Bakugan and featured card for ${deck.name}`}>
-    <div className={styles.portraits}>
-      {Array.from({ length: 3 }, (_, index) => {
-        const character = characters[index];
-        return character
-          ? <CharacterPortrait key={index} name={character.name} src={cardArtSource(preferredCardPrinting(character.character, deck.printingPreferences), "full")} />
-          : <span className={styles.emptyPortrait} key={index} aria-label="Empty Bakugan slot">?</span>;
-      })}
-    </div>
-    <div className={styles.featuredCard}>
-      {featured
-        ? <CardArt src={cardArtSource(featured, "full")} cardType={featured.type} presentation="readable" alt={`Featured card: ${featured.displayName}`} loading="lazy" decoding="async" />
-        : <span className={styles.emptyCard}>No featured card</span>}
+    <div className={styles.previewArtwork}>
+      <div className={styles.portraits}>
+        {Array.from({ length: 3 }, (_, index) => {
+          const character = characters[index];
+          return character
+            ? <CharacterPortrait key={index} name={character.name} src={cardArtSource(preferredCardPrinting(character.character, deck.printingPreferences), "full")} />
+            : <span className={styles.emptyPortrait} key={index} aria-label="Empty Bakugan slot">?</span>;
+        })}
+      </div>
+      <div className={styles.featuredCard}>
+        {featured
+          ? <CardArt src={cardArtSource(featured, "full")} cardType={featured.type} presentation="readable" alt={`Featured card: ${featured.displayName}`} loading="lazy" decoding="async" />
+          : <span className={styles.emptyCard}>No featured card</span>}
+      </div>
     </div>
   </div>;
 }

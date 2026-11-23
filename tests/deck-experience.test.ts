@@ -428,3 +428,33 @@ test("Mobile Decks tiles retain the established Character crop and featured-card
   assert.match(library, /\.card\[data-deck-library-card\] \{[\s\S]*?grid-template-columns: minmax\(0, 35%\) minmax\(0, 1fr\)/);
   assert.match(library, /\.card\[data-deck-library-card\] \.cardFooter \{\s*grid-column: 2;/);
 });
+
+test("Deck preview widens only the Featured Card column while preserving Character dimensions", async () => {
+  const [component, style, saveStyle, libraryStyle] = await Promise.all([
+    read("components/routes/DeckGalleryCard.tsx"),
+    read("components/routes/DeckGalleryCard.module.css"),
+    read("components/routes/DeckSaveDialog.module.css"),
+    read("components/routes/DeckLibrary.module.css"),
+  ]);
+  assert.match(component, /<div className=\{styles\.previewArtwork\}>/);
+  assert.match(style, /\.preview\{width:100%;aspect-ratio:1\.16\/1;position:relative;overflow:visible\}/);
+  assert.match(style, /\.previewArtwork\{position:absolute;inset:0 auto 0 0;width:calc\(100% \+ 4px\);height:100%;display:grid/);
+  assert.match(style, /grid-template-columns:minmax\(0,calc\(38\.375% - 2\.69px\)\) minmax\(0,1fr\)/);
+  assert.match(style, /\.featuredCard img\{[^}]*object-fit:contain!important/);
+  assert.match(style, /\.portrait img\{[^}]*transform:translateY\(-15%\);object-fit:initial!important/);
+  const mobile = style.slice(style.indexOf("/* On mobile, keep the 1.16:1 deck preview"));
+  assert.match(mobile, /padding: 10px 7px 10px 10px;/);
+  assert.match(mobile, /grid-column: 1;\s*grid-row: 1;/);
+  assert.match(saveStyle, /\.preview\{width:100%;max-width:340px/);
+  assert.match(libraryStyle, /grid-template-columns: minmax\(0, 35%\) minmax\(0, 1fr\)/);
+  for (const width of [90, 120, 180, 340, 600]) {
+    const oldCharacterWidth = (width - 3) * (.444 / (.444 + .713));
+    const newCharacterWidth = (width + 4) * .38375 - 2.69;
+    assert.ok(Math.abs(newCharacterWidth - oldCharacterWidth) < .05,
+      "Character portrait width should not change");
+    const oldFeaturedWidth = width - 3 - oldCharacterWidth;
+    const newFeaturedWidth = width + 4 - 3 - newCharacterWidth;
+    assert.ok(newFeaturedWidth - oldFeaturedWidth > 3.95,
+      "Almost all added width should go to Featured Card");
+  }
+});
