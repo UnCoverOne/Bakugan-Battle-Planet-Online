@@ -87,7 +87,7 @@ function writeCardId(output: number[], id: string) {
   const match = /^([a-z0-9]+)-([1-9][0-9]*)$/.exec(id);
   const set = match ? SET_TAG_BY_PREFIX.get(match[1]) : undefined;
   const number = match ? Number(match[2]) : NaN;
-  if (set !== undefined && Number.isSafeInteger(number) && String(number) === match?.[2]
+  if (set !== undefined && set < 16 && Number.isSafeInteger(number) && String(number) === match?.[2]
     && number > 0 && number <= Math.floor(MAX_VARINT / 32)) {
     writeVarint(output, number * 32 + set * 2);
   } else {
