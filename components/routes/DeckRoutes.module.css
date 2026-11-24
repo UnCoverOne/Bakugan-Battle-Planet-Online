@@ -2,8 +2,9 @@
 .route{min-height:calc(100vh - 76px);padding-bottom:var(--space-9)}
 .state{width:min(calc(100% - 2 * var(--space-5)),var(--content-wide));margin:var(--space-5) auto;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--space-4);padding:var(--space-5);background:var(--bb-panel);border:1px solid var(--bb-border)}
 .stateIcon{width:3rem;height:3rem;display:grid;place-items:center;background:var(--bb-panel-inset);color:var(--bb-muted);font:700 24px var(--bb-font-interface)}
+.stateAction{display:flex;align-items:center;justify-content:flex-end}
 .state strong{color:var(--bb-text);font:700 17px var(--bb-font-interface)}
 .state p{margin:.35rem 0 0;line-height:1.5;color:var(--bb-muted)}
 .state_error .stateIcon{color:var(--bb-deck-warning-text)}
 .state_offline .stateIcon{color:var(--bb-deck-accent-soft)}
-@media(max-width:540px){.state{width:calc(100% - 2 * var(--space-4));grid-template-columns:1fr}.stateIcon{display:none}}
+@media(max-width:540px){.state{width:calc(100% - 2 * var(--space-4));grid-template-columns:1fr}.stateIcon{display:none}.stateAction{justify-content:flex-start}}
