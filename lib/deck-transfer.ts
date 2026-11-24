@@ -32,6 +32,7 @@ function cleanIds(value: unknown, label: string, allowed: Set<string>, exact?: n
   if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
     throw new Error(`${label} must be a list of catalogue IDs.`);
   }
+  if (value.length > 200) throw new Error(label + " contains too many entries.");
   const ids = value.map(String);
   if (exact != null && ids.length !== exact) throw new Error(`${label} must contain exactly ${exact} entries.`);
   const invalid = ids.filter((id) => !allowed.has(id));
