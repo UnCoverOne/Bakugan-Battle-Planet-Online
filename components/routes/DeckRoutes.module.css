@@ -6,9 +6,4 @@
 .state p{margin:.35rem 0 0;line-height:1.5;color:var(--bb-muted)}
 .state_error .stateIcon{color:var(--bb-deck-warning-text)}
 .state_offline .stateIcon{color:var(--bb-deck-accent-soft)}
-.factionTags{display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-2)}
-.factionTag,.emptyFactionTag{min-height:2rem;display:inline-flex;align-items:center;gap:.45rem;padding:.3rem .7rem;border:1px solid var(--bb-border);background:var(--bb-panel);color:var(--bb-text);font:600 12px var(--bb-font-interface)}
-.factionTag img{width:1.25rem;height:1.25rem;object-fit:contain}
-.textAction{min-height:2.875rem;display:inline-flex;align-items:center;padding:.65rem 1rem;color:var(--bb-link);text-decoration:none;font:600 13px var(--bb-font-interface)}
-.textAction:hover{text-decoration:underline}
 @media(max-width:540px){.state{width:calc(100% - 2 * var(--space-4));grid-template-columns:1fr}.stateIcon{display:none}}
