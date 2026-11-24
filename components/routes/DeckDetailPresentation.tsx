@@ -19,6 +19,7 @@ import { CardInspector } from "../cards/CardInspector";
 import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
 import { BakuganRollingStat, bakuganRollingValues } from "../cards/BakuganRollingStats";
 import { CardFactionTag } from "./CardFactionTag";
+import cardTileStyles from "./CardsGallery.module.css";
 import { DeckPreview } from "./DeckGalleryCard";
 import { DeckCreatorIdentity } from "../profile/DeckCreatorIdentity";
 import { useCompetitiveRules } from "./DeckRouteShared";
@@ -303,7 +304,7 @@ export function DeckDetailPresentation({ deck, publicView = false, notify, prima
         View Statistics
       </button>
       <div className={styles.layout}>
-        <main className={styles.contentMain}>
+        <div className={styles.contentMain}>
           <section className={styles.section} aria-labelledby="view-deck-team">
             <div className={styles.sectionHead}><h2 id="view-deck-team">The Team</h2>
               <span>{deck.bakuganIds.length}/3 Characters · {deck.coreIds.length}/6 BakuCores</span>
@@ -319,9 +320,9 @@ export function DeckDetailPresentation({ deck, publicView = false, notify, prima
                 return <div className={styles.teamGroup} key={character?.id ?? "empty-" + index}>
                   <div className={styles.characterColumn}>
                     {character && displayed ? <>
-                      <button type="button" className={styles.artButton}
+                      <button type="button" className={cardTileStyles.tile}
                         aria-label={"Inspect " + character.name} onClick={event => inspectCard(displayed, event.currentTarget)}>
-                        <span className={styles.artwork}><ResponsiveCardImage card={displayed} presentation="tile" alt={character.name} /></span>
+                        <span className={cardTileStyles.artwork}><ResponsiveCardImage card={displayed} presentation="tile" alt={character.name} /></span>
                       </button>
                       <div className={styles.characterTags}>
                         {factions.map(faction => <CardFactionTag key={faction} faction={faction} />)}
@@ -370,7 +371,7 @@ export function DeckDetailPresentation({ deck, publicView = false, notify, prima
               {!cards.length && <p className={styles.empty}>No Main Deck cards have been selected.</p>}
             </div>
           </section>
-        </main>
+        </div>
         <aside className={styles.statsSidebar} aria-label="Deck statistics">
           <DeckStatistics deck={deck} report={report} formats={legalFormats} rulesAvailable={rulesAvailable} />
         </aside>
