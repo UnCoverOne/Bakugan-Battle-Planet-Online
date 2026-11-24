@@ -18,7 +18,9 @@ test("View Deck uses the same preview as Deck Library in a full-width details he
 test("View Deck presents paired BakuCores and all main card types in order", async () => {
   const view = await read("components/routes/DeckDetailPresentation.tsx");
   assert.match(view, /const cardTypes = \["Action", "Hero", "Evo", "Baku-Gear", "Flip"\]/);
-  assert.match(view, /index \* 2 \+ offset/);
+  assert.match(view, /pairedCoreIds\[index\]\?\.\[offset\]/);
+  assert.match(view, /remainingCores\.splice\(index, 1\)/);
+  assert.match(view, /Unassigned BakuCores/);
   assert.match(view, /preferredCorePrinting/);
   assert.match(view, /preferredCardPrinting/);
   assert.match(view, /const sections = cardTypes\.map/);
