@@ -88,7 +88,10 @@ export function DeckLibraryScreen() {
       imported.leadCardId = imported.leadCardId && imported.cardIds.includes(imported.leadCardId)
         ? imported.leadCardId
         : imported.cardIds[0];
-      const report = validateDeck(imported, [], competitiveDeckSize);
+      if (imported.format === "competitive" && (competitiveRules.loading || competitiveRules.error || competitiveDeckSize <= 0)) {
+        throw new Error("Competitive rules are unavailable. Retry when the current ruleset has loaded.");
+      }
+      const report = validateDeck(imported, competitiveRules.restrictions, competitiveDeckSize);
       if (!report.isLegal) throw new Error(report.issues[0].message);
       setDecks((items: DeckRecord[]) => [imported, ...items]);
       setImportCode("");
@@ -154,8 +157,8 @@ export function DeckLibraryScreen() {
             <summary className={library.importToggle}>Import deck code</summary>
             <div className={library.importPanel}>
               <h3>Import a deck</h3>
-              <p>Paste a compatible BBP1 deck code to add it to your library.</p>
-              <textarea aria-label="Deck import code" value={importCode} onChange={(event) => setImportCode(event.target.value)} placeholder="BBP1.…"/>
+              <p>Paste a BBP2 code (or an older BBP1 code) to import its cards and format as a private deck.</p>
+              <textarea aria-label="Deck import code" value={importCode} onChange={(event) => setImportCode(event.target.value)} placeholder="BBP2.… or BBP1.…"/>
               {importError && <p className={library.importError} role="alert">{importError}</p>}
               <div className={library.importActions}><button type="button" disabled={!importCode.trim() || decks.length >= DECK_LIMIT} onClick={importDeck}>Validate & Import</button></div>
             </div>
