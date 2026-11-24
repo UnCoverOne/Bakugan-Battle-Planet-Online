@@ -46,7 +46,7 @@ test("public preview exposes the complete sharing and export surface", async () 
     Promise.resolve(deckRouteSource()),
     readFile(new URL("../lib/deck-image-export.ts", import.meta.url), "utf8"),
   ]);
-  for (const label of ["Copy to My Decks", "Copy Link", "Copy Code", "As a Text List", "As an Image", "Energy curve"]) {
+  for (const label of ["Copy to My Decks", "Copy Deck Link", "Copy Deck Code", "Export Text List", "Export Image", "Energy Curve"]) {
     assert.match(route, new RegExp(label));
   }
   assert.match(exporter, /Created by/);
