@@ -46,7 +46,8 @@ test("public copying and read-only details reuse validation and preserve attribu
   assert.match(route, /DeckDetailPresentation/);
   assert.match(route, /sourceDeckId:\s*deck\.id/);
   assert.match(route, /sourceCreator:/);
-  assert.match(route, /validateDeck\(deck\)/);
+  assert.match(route, /legalDeckFormats\(deck,/);
+  assert.match(route, /validateDeck\(deck,/);
   assert.match(route, /Copy to My Decks/);
   assert.match(persistence, /sourceDeckId:/);
   assert.match(persistence, /sourceCreator:/);
