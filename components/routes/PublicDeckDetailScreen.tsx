@@ -1,23 +1,22 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { validateDeck, type DeckRecord } from "../../lib/data";
+import { legalDeckFormats, validateDeck, type DeckRecord } from "../../lib/data";
 import { rememberAccountIntent } from "../../lib/account-intent";
 import { DECK_LIMIT, uniqueDeckName } from "../../lib/deck-transfer";
 import { invalidateResponse } from "../../lib/response-cache";
 import { useAppFields } from "../application/AppProvider";
-import { ActionButton } from "../design-system/primitives";
 import styles from "./DeckRoutes.module.css";
 import { MotionValue } from "../design-system/MotionValue";
-import { clone, useOnlineStatus, DeckState } from "./DeckRouteShared";
+import { clone, useCompetitiveRules, useOnlineStatus, DeckState } from "./DeckRouteShared";
 import { usePublicDeckCatalogue } from "./PublicDeckCatalogue";
-import { DeckDetailPresentation, DeckSharePanel, MissingDeck } from "./DeckDetailPresentation";
+import { DeckDetailPresentation, MissingDeck } from "./DeckDetailPresentation";
 
 export function PublicDeckDetailScreen({ id }: { id: string }) {
   const router = useRouter();
   const online = useOnlineStatus();
+  const competitive = useCompetitiveRules();
   const { decks, setDecks, setBuilderDeck, notify, authUser, promptAccount, catalogueRevision } = useAppFields(["decks", "setDecks", "setBuilderDeck", "notify", "authUser", "promptAccount", "catalogueRevision"]);
   void catalogueRevision;
   const [favoritePending, setFavoritePending] = useState(false);
@@ -68,8 +67,13 @@ export function PublicDeckDetailScreen({ id }: { id: string }) {
   };
   const copy = () => {
     if (decks.length >= DECK_LIMIT) return notify(`Deck limit reached (${DECK_LIMIT}).`);
-    const report = validateDeck(deck);
-    if (!report.isLegal) return notify(`This public deck cannot be copied: ${report.issues[0].message}`);
+    const rulesReady = !competitive.loading && !competitive.error;
+    const formats = legalDeckFormats(deck, rulesReady ? competitive.restrictions : [], rulesReady ? competitive.deckSize : 50)
+      .filter(format => rulesReady || format !== "competitive");
+    if (!formats.length) {
+      const report = validateDeck(deck, rulesReady ? competitive.restrictions : [], rulesReady ? competitive.deckSize : 50);
+      return notify("This public deck cannot be copied: " + (report.issues[0]?.message ?? "No confirmed legal formats."));
+    }
     const next = {
       ...clone(deck),
       id: globalThis.crypto.randomUUID(),
@@ -109,39 +113,19 @@ export function PublicDeckDetailScreen({ id }: { id: string }) {
       notify(error instanceof Error ? error.message : "Public deck could not be deleted.");
     }
   };
-  return (
-    <DeckDetailPresentation
-      deck={deck}
-      publicView
-      notify={notify}
-      sharePanel={(
-        <DeckSharePanel
-          deck={deck}
-          copyAvailable={validateDeck(deck).isLegal}
-          onCopy={copy}
-          notify={notify}
-        />
-      )}
-      actions={(
-        <>
-          {catalogue.status === "online" && (
-            <ActionButton
-              aria-pressed={favorite.viewerHasFavorited}
-              disabled={favoritePending}
-              onClick={() => void toggleFavorite()}
-            >
-              <MotionValue value={favorite.viewerHasFavorited}>{favorite.viewerHasFavorited ? "★ Favorited" : "☆ Favorite"}</MotionValue> · <MotionValue value={favorite.favoriteCount} /> {favorite.favoriteCount === 1 ? "Favorite" : "Favorites"}
-            </ActionButton>
-          )}
-          {catalogue.status === "online" && authUser?.roles?.includes("administrator") && (
-            <>
-              <ActionButton tone="secondary" onClick={editAsAdministrator}>Edit as Administrator</ActionButton>
-              <ActionButton tone="quiet" onClick={() => void deleteAsAdministrator()}>Delete Deck</ActionButton>
-            </>
-          )}
-          <Link className={styles.textAction} href="/decks/public">Back to Public Decks</Link>
-        </>
-      )}
-    />
-  );
+  return <DeckDetailPresentation
+    deck={deck}
+    publicView
+    notify={notify}
+    primaryAction={<button type="button" className="bb-button bb-button--primary" onClick={copy}>Copy to My Decks</button>}
+    secondaryAction={catalogue.status === "online" ? <button type="button" className="bb-button"
+      aria-pressed={favorite.viewerHasFavorited} disabled={favoritePending} onClick={() => void toggleFavorite()}>
+      <MotionValue value={favorite.viewerHasFavorited}>{favorite.viewerHasFavorited ? "★ Favorited" : "☆ Favorite"}</MotionValue>
+      {" · "}<MotionValue value={favorite.favoriteCount} />
+    </button> : undefined}
+    menuActions={catalogue.status === "online" && authUser?.roles?.includes("administrator") ? <>
+      <button type="button" onClick={editAsAdministrator}>Edit as Administrator</button>
+      <button type="button" data-danger="true" onClick={() => void deleteAsAdministrator()}>Delete Public Deck</button>
+    </> : undefined}
+  />;
 }
