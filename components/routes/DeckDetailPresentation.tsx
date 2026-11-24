@@ -358,10 +358,10 @@ export function DeckDetailPresentation({ deck, publicView = false, notify, prima
                   <div className={styles.subHead}><h3>{type} Cards</h3><span>{count}</span></div>
                   <div className={styles.gallery}>
                     {entries.map(({ card, count: quantity }) => <div className={styles.galleryItem} key={card.catalogId}>
-                      <button type="button" className={styles.artButton}
+                      <button type="button" className={cardTileStyles.tile}
                         aria-label={"Inspect " + card.displayName + ", " + String(quantity) + " copies"}
                         onClick={event => inspectCard(card, event.currentTarget)}>
-                        <span className={styles.artwork}><ResponsiveCardImage card={card} presentation="tile" alt={card.displayName} /></span>
+                        <span className={cardTileStyles.artwork}><ResponsiveCardImage card={card} presentation="tile" alt={card.displayName} /></span>
                       </button>
                       <div className={styles.quantity} aria-label={String(quantity) + " copies"}>×{quantity}</div>
                     </div>)}
