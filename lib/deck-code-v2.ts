@@ -187,7 +187,9 @@ function activePreferences(deck: DeckRecord): Preference[] {
   if (!deck.printingPreferences) return [];
   const preferences: Preference[] = [];
   const seen = new Set<string>();
-  for (const id of [...deck.bakuganIds, ...deck.cardIds]) {
+  // Main Deck ID groups are sorted in the wire format. Using a canonical
+  // source printing also makes preference encoding insensitive to input order.
+  for (const id of [...new Set([...deck.bakuganIds, ...deck.cardIds])].sort()) {
     const card = CARD_BY_ID.get(id);
     if (!card) continue;
     const key = cardPrintingKey(card);
