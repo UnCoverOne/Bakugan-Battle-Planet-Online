@@ -40,20 +40,34 @@ test("alternate core art leaves the canonical core gameplay identity unchanged",
   assert.equal(preferredCorePrinting(core).art, core.art);
 });
 
-test("deck codes preserve preferred printing artwork without changing playable IDs", () => {
-  const deck = STARTER_DECKS[0];
+test("BBP2 codes retain active non-default printings but discard unrelated preferences", () => {
   const core = CORES.find(item => item.printings?.length);
   assert.ok(core);
   assert.ok(alternateCard);
+  const [first, second] = alternateCard.printings;
+  const base = STARTER_DECKS[0];
+  const deck = {
+    ...base,
+    cardIds: [first.catalogId, ...base.cardIds.slice(1)],
+    coreIds: [core.id, ...base.coreIds.slice(1)],
+  };
   const preferences = {
-    [cardPrintingKey(alternateCard.printings[0])]: alternateCard.printings[1].catalogId,
+    [cardPrintingKey(first)]: second.catalogId,
     [corePrintingKey(core)]: core.printings![0].id,
+    "core:obsolete": "aa-printing-999",
   };
   const imported = decodeDeckCode(encodeDeckCode({ ...deck, printingPreferences: preferences }), () => "imported");
-  assert.deepEqual(imported.cardIds, deck.cardIds);
+  const frequencies = (ids: string[]) => ids.reduce((counts, id) => {
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+    return counts;
+  }, new Map<string, number>());
+  assert.deepEqual(frequencies(imported.cardIds), frequencies(deck.cardIds));
   assert.deepEqual(imported.coreIds, deck.coreIds);
   assert.deepEqual(imported.bakuganIds, deck.bakuganIds);
-  assert.deepEqual(imported.printingPreferences, preferences);
+  assert.deepEqual(imported.printingPreferences, {
+    [cardPrintingKey(first)]: second.catalogId,
+    [corePrintingKey(core)]: core.printings![0].id,
+  });
 });
 
 test("Character alternate printings cannot become duplicate team slots", () => {
