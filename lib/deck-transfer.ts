@@ -1,7 +1,10 @@
 import { BAKUGAN, CARD_BY_ID, CORES, type DeckFormat, type DeckRecord } from "./data";
+import { DECK_CODE_PREFIX_V2, decodeDeckCodeV2, encodeDeckCodeV2 } from "./deck-code-v2";
 
 export const DECK_LIMIT = 50;
-export const DECK_CODE_PREFIX = "BBP1.";
+export const DECK_CODE_PREFIX = DECK_CODE_PREFIX_V2;
+export const LEGACY_DECK_CODE_PREFIX = "BBP1.";
+const MAX_IMPORT_CODE_LENGTH = 100_000;
 
 type DeckCodePayload = {
   schema: 1;
@@ -58,54 +61,55 @@ function cleanDeckPrintingPreferences(value: unknown): Record<string, string> | 
   return Object.keys(result).length ? result : undefined;
 }
 
+/**
+ * All newly shared codes use compact BBP2. The older BBP1 decoder stays in
+ * place so existing posts and archived codes remain importable.
+ */
 export function encodeDeckCode(deck: DeckRecord) {
-  const payload: DeckCodePayload = {
-    schema: 1,
-    exportedAt: new Date().toISOString(),
-    deck: {
-      name: cleanName(deck.name),
-      bakuganIds: [...deck.bakuganIds],
-      coreIds: [...deck.coreIds],
-      cardIds: [...deck.cardIds],
-      visibility: deck.visibility,
-      format: deck.format ?? "standard",
-      leadCardId: deck.leadCardId,
-      description: deck.description,
-      printingPreferences: deck.printingPreferences,
-    },
-  };
-  return `${DECK_CODE_PREFIX}${bytesToBase64Url(textEncoder.encode(JSON.stringify(payload)))}`;
+  return encodeDeckCodeV2(deck);
 }
 
 export function decodeDeckCode(code: string, createId: () => string): DeckRecord {
+  if (code.length > MAX_IMPORT_CODE_LENGTH) throw new Error("Deck code is too long.");
   const compact = code.trim().replace(/\s+/g, "");
-  if (!compact.startsWith(DECK_CODE_PREFIX)) {
-    throw new Error(`Unsupported deck-code format. Expected a ${DECK_CODE_PREFIX} version prefix.`);
+  if (compact.startsWith(DECK_CODE_PREFIX_V2)) return decodeDeckCodeV2(compact, createId);
+  if (!compact.startsWith(LEGACY_DECK_CODE_PREFIX)) {
+    throw new Error("Unsupported deck-code format. Expected a BBP2. or BBP1. prefix.");
   }
   let payload: DeckCodePayload;
   try {
-    payload = JSON.parse(textDecoder.decode(base64UrlToBytes(compact.slice(DECK_CODE_PREFIX.length)))) as DeckCodePayload;
+    payload = JSON.parse(textDecoder.decode(base64UrlToBytes(compact.slice(LEGACY_DECK_CODE_PREFIX.length)))) as DeckCodePayload;
   } catch {
     throw new Error("The deck code is damaged or incomplete.");
   }
   if (payload?.schema !== 1 || !payload.deck || typeof payload.deck !== "object") {
     throw new Error("This deck-code version is not supported.");
   }
-  const format: DeckFormat = payload.deck.format === "singleton" ? "singleton" : "standard";
+  const format: DeckFormat = payload.deck.format === "singleton" || payload.deck.format === "competitive"
+    ? payload.deck.format : "standard";
   const now = new Date().toISOString();
-  const bakuganIds = cleanIds(payload.deck.bakuganIds, "Bakugan Team", new Set(BAKUGAN.map((item) => item.id)), 3);
+  const bakuganIds = cleanIds(payload.deck.bakuganIds, "Bakugan Team", new Set(BAKUGAN.map(item => item.id)), 3);
+  const coreIds = cleanIds(payload.deck.coreIds, "BakuCore kit", new Set(CORES.map(item => item.id)), 6);
+  // Legacy Competitive exports may contain more than 40 cards; the actual
+  // format-specific size is checked by the caller using the current ruleset.
+  const cardIds = cleanIds(payload.deck.cardIds, "Main Deck", new Set(CARD_BY_ID.keys()));
+  if (cardIds.length > 200) throw new Error("Main Deck contains too many cards.");
   return {
     id: createId(),
     name: cleanName(payload.deck.name),
     bakuganIds,
-    coreIds: cleanIds(payload.deck.coreIds, "BakuCore kit", new Set(CORES.map((item) => item.id)), 6),
-    cardIds: cleanIds(payload.deck.cardIds, "Main Deck", new Set(CARD_BY_ID.keys()), 40),
-    factions: [...new Set(bakuganIds.map((id) => BAKUGAN.find((item) => item.id === id)!.faction))],
+    coreIds,
+    cardIds,
+    factions: [...new Set(bakuganIds.flatMap(id => {
+      const character = BAKUGAN.find(item => item.id === id)!;
+      return character.character.factions?.length ? character.character.factions : [character.faction];
+    }))],
     visibility: payload.deck.visibility === "Public" ? "Public" : "Private",
     format,
     updatedAt: now,
     revision: 1,
-    leadCardId: typeof payload.deck.leadCardId === "string" && payload.deck.cardIds.includes(payload.deck.leadCardId) ? payload.deck.leadCardId : payload.deck.cardIds[0],
+    leadCardId: typeof payload.deck.leadCardId === "string" && cardIds.includes(payload.deck.leadCardId)
+      ? payload.deck.leadCardId : cardIds[0],
     description: typeof payload.deck.description === "string" ? payload.deck.description.slice(0, 500) : undefined,
     printingPreferences: cleanDeckPrintingPreferences(payload.deck.printingPreferences),
   };
