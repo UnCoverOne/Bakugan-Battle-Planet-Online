@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { validateDeck, type DeckRecord } from "../../lib/data";
+import { legalDeckFormats, type DeckRecord } from "../../lib/data";
 import { rememberAccountIntent } from "../../lib/account-intent";
 import { DECK_LIMIT, uniqueDeckName } from "../../lib/deck-transfer";
 import { invalidateResponse } from "../../lib/response-cache";
 import { useAppFields } from "../application/AppProvider";
 import styles from "./DeckRoutes.module.css";
 import { MotionValue } from "../design-system/MotionValue";
-import { clone, useOnlineStatus, DeckState } from "./DeckRouteShared";
+import { clone, useOnlineStatus, DeckState, useCompetitiveRules } from "./DeckRouteShared";
 import { usePublicDeckCatalogue } from "./PublicDeckCatalogue";
 import { DeckDetailPresentation, MissingDeck } from "./DeckDetailPresentation";
 import detailStyles from "./DeckDetail.module.css";
@@ -20,6 +20,7 @@ export function PublicDeckDetailScreen({ id }: { id: string }) {
   const { decks, setDecks, setBuilderDeck, notify, authUser, promptAccount, catalogueRevision } = useAppFields(["decks", "setDecks", "setBuilderDeck", "notify", "authUser", "promptAccount", "catalogueRevision"]);
   void catalogueRevision;
   const [favoritePending, setFavoritePending] = useState(false);
+  const rules = useCompetitiveRules();
   const catalogue = usePublicDeckCatalogue(online, authUser?.id);
   if (catalogue.status === "loading") {
     return <div className={styles.route}><DeckState tone="loading" role="status" title="Loading public deck" copy="Retrieving the current public catalogue…" /></div>;
@@ -29,6 +30,7 @@ export function PublicDeckDetailScreen({ id }: { id: string }) {
   }
   const deck = catalogue.decks.find((item) => item.id === id);
   if (!deck) return <MissingDeck id={id} publicDeck />;
+  const canCopy = legalDeckFormats(deck, rules.restrictions, rules.deckSize).some(format => format !== "competitive" || (!rules.loading && !rules.error));
   const favorite = catalogue.favorites[deck.id] ?? { favoriteCount: 0, viewerHasFavorited: false };
   const toggleFavorite = async () => {
     if (catalogue.status !== "online") return notify("Community Favorites are available while online.");
@@ -67,8 +69,7 @@ export function PublicDeckDetailScreen({ id }: { id: string }) {
   };
   const copy = () => {
     if (decks.length >= DECK_LIMIT) return notify(`Deck limit reached (${DECK_LIMIT}).`);
-    const report = validateDeck(deck);
-    if (!report.isLegal) return notify(`This public deck cannot be copied: ${report.issues[0].message}`);
+    if (!canCopy) return notify("This public deck is not legal in any verified format.");
     const next = {
       ...clone(deck),
       id: globalThis.crypto.randomUUID(),
@@ -114,9 +115,9 @@ export function PublicDeckDetailScreen({ id }: { id: string }) {
       publicView
       notify={notify}
       primaryAction={<button type="button" className={detailStyles.primaryAction}
-        disabled={!validateDeck(deck).isLegal} onClick={copy}>Copy to My Decks</button>}
+        disabled={!canCopy} onClick={copy}>Copy to My Decks</button>}
       secondaryAction={catalogue.status === "online" ? (
-        <button type="button" className={detailStyles.secondaryAction} aria-pressed={favorite.viewerHasFavorited}
+        <button type="button" aria-pressed={favorite.viewerHasFavorited}
           disabled={favoritePending} onClick={() => void toggleFavorite()}>
           <MotionValue value={favorite.viewerHasFavorited}>{favorite.viewerHasFavorited ? "★ Favorited" : "☆ Favorite"}</MotionValue>
           {" · "}<MotionValue value={favorite.favoriteCount} /> {favorite.favoriteCount === 1 ? "Favorite" : "Favorites"}
