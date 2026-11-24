@@ -387,7 +387,7 @@ export function DeckDetailPresentation({ deck, publicView = false, notify, prima
       {inspection.kind === "card"
         ? <CardInspector mode="embedded" card={inspection.card} allCards={CARDS}
           tab={inspectorTab} printingId={inspectorPrinting} onPrintingChange={setInspectorPrinting}
-          onSelectCard={card => setInspection({ kind: "card", card })} onTabChange={setInspectorTab}
+          onSelectCard={card => { setInspectorTab("overview"); setInspectorPrinting(""); setInspection({ kind: "card", card }); }} onTabChange={setInspectorTab}
           onClose={() => { setInspection(null); inspectorTrigger.current?.focus(); }}
           onShare={() => void copyText((globalThis.location?.origin ?? "") + "/compendium?card=" +
             encodeURIComponent(inspection.card.catalogId) + (inspectorPrinting ? "&printing=" + encodeURIComponent(inspectorPrinting) : ""))
