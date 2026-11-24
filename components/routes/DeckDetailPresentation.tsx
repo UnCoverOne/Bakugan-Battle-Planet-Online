@@ -62,6 +62,11 @@ export function DeckDetailPresentation({
     ? legalDeckFormats(deck, rules.restrictions, rules.deckSize)
     : null;
   const team = deck.bakuganIds.map((id) => BAKUGAN.find((candidate) => candidate.id === id));
+  const remainingCores = deck.coreIds.map((id, index) => ({ id, index }));
+  const pairedCoreIds = team.map(character => (character?.character.coreTypes ?? []).map(type => {
+    const index = remainingCores.findIndex(entry => CORES.find(core => core.id === entry.id)?.type === type);
+    return index < 0 ? undefined : remainingCores.splice(index, 1)[0].id;
+  }));
   const grouped = groupedDeckCards(deck);
   const sections = cardTypes.map((type) => ({
     type,
@@ -216,7 +221,7 @@ export function DeckDetailPresentation({
         </header>
 
         <div className={styles.contentLayout}>
-          <main className={styles.content}>
+          <div className={styles.content}>
             <section className={styles.section} aria-labelledby="deck-team-title">
               <div className={styles.sectionHeading}><h2 id="deck-team-title">The Team</h2><span>{deck.bakuganIds.length} / 3 Characters · {deck.coreIds.length} / 6 BakuCores</span></div>
               <div className={styles.teamGrid}>
@@ -224,7 +229,7 @@ export function DeckDetailPresentation({
                   const character = team[index];
                   const card = character ? preferredCardPrinting(character.character, deck.printingPreferences) : null;
                   return (
-                    <article className={styles.member} key={character?.id ?? "empty-" + index}>
+                    <article className={styles.member} key={index}>
                       {card ? (
                         <button type="button" className={styles.characterCard} onClick={(event) => inspectCard(card, event.currentTarget)}
                           aria-label={"Inspect " + character!.name + " Character card"}>
@@ -240,7 +245,7 @@ export function DeckDetailPresentation({
                       </div>
                       <div className={styles.pairedCores} aria-label={"BakuCores for team slot " + (index + 1)}>
                         {[0, 1].map((offset) => {
-                          const coreId = deck.coreIds[index * 2 + offset];
+                          const coreId = pairedCoreIds[index]?.[offset];
                           const original = CORES.find((candidate) => candidate.id === coreId);
                           const core = original ? preferredCorePrinting(original, deck.printingPreferences) : null;
                           return <div className={styles.core} key={index + "-" + offset}>
@@ -254,7 +259,7 @@ export function DeckDetailPresentation({
                   );
                 })}
               </div>
-              {deck.coreIds.length > 6 && <p className={styles.overflowNote}>This deck has {deck.coreIds.length - 6} extra BakuCores. See Statistics for legality issues.</p>}
+              {remainingCores.length > 0 && <p className={styles.overflowNote}>Unassigned BakuCores: {remainingCores.map(({ id }) => CORES.find(core => core.id === id)?.name ?? id).join(", ")}. See Statistics for legality issues.</p>}
             </section>
 
             <section className={styles.section} aria-labelledby="main-deck-title">
@@ -283,7 +288,7 @@ export function DeckDetailPresentation({
                 </section>
               )) : <p className={styles.emptyDeck}>No Main Deck cards have been added yet.</p>}
             </section>
-          </main>
+          </div>
 
           <aside className={styles.statsAside} aria-label="Deck statistics">
             <DeckStatistics deck={deck} report={report} typeCounts={typeCounts} rulesLoading={rules.loading} rulesError={rules.error} />
