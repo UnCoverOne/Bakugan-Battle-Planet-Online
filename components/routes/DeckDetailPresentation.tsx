@@ -103,7 +103,7 @@ function ShareOptions({ deck, publicView, notify }: {
   };
   return <div className={styles.shareOptions}>
     {publicView && <button type="button" onClick={() => void copy(window.location.href, "Public deck link copied.")}>
-      <span aria-hidden="true">↗</span><span>Copy Deck Link<small>Share this public deck's URL</small></span>
+      <span aria-hidden="true">↗</span><span>Copy Deck Link<small>Share this public deck&apos;s URL</small></span>
     </button>}
     <button type="button" onClick={() => void copy(encodeDeckCode(deck), "Deck code copied.")}>
       <span aria-hidden="true">⧉</span><span>Copy Deck Code<small>Copy an importable deck code</small></span>
