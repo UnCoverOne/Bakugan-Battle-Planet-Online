@@ -12,14 +12,7 @@ type DeckCodePayload = {
   deck: Pick<DeckRecord, "name" | "bakuganIds" | "coreIds" | "cardIds" | "visibility" | "format" | "leadCardId" | "description" | "printingPreferences">;
 };
 
-const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
-
-function bytesToBase64Url(bytes: Uint8Array) {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
 
 function base64UrlToBytes(value: string) {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
