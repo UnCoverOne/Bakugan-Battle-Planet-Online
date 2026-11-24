@@ -1,11 +1,9 @@
 "use client";
 
-import { OriginalImage } from "@/components/media/OriginalImage";
 import Link from "next/link";
 import { type ReactNode } from "react";
-import { FACTIONS, FACTION_SYMBOLS } from "../../lib/card-filters";
+import { FACTIONS } from "../../lib/card-filters";
 import { type DeckFormat } from "../../lib/data";
-import styles from "./DeckRoutes.module.css";
 import library from "./DeckLibrary.module.css";
 
 export type LibraryView = "grid" | "list";
@@ -96,19 +94,4 @@ export function DeckToolbar({
       <button type="button" className={library.viewButton} title="List view" aria-label="List view" aria-pressed={view === "list"} onClick={() => setView("list")}><svg viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12M3 6h2M3 12h2M3 18h2"/></svg></button>
     </div>
   </div>;
-}
-
-export function DeckFactionTags({ factions }: { factions: string[] }) {
-  const visibleFactions = factions.filter((faction) => Boolean(FACTION_SYMBOLS[faction]));
-  if (!visibleFactions.length) return <span className={styles.emptyFactionTag}>No factions</span>;
-  return (
-    <div className={styles.factionTags} aria-label={`Factions: ${visibleFactions.join(", ")}`}>
-      {visibleFactions.map((faction) => (
-        <span className={styles.factionTag} key={faction}>
-          <OriginalImage src={FACTION_SYMBOLS[faction]} alt="" aria-hidden="true" />
-          {faction}
-        </span>
-      ))}
-    </div>
-  );
 }
