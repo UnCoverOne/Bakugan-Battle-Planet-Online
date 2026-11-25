@@ -1,55 +1,6 @@
 /* Redesign: structural rules only; visual styling intentionally removed. */
-.creationScope,
 .lobbyScope {
   min-height: 100%;
-}
-
-
-.creationScope :global(header) {
-  min-height: 0;
-  grid-template-columns: 1fr;
-  overflow: visible;
-
-
-}
-
-.creationScope :global(header)::before,
-.creationScope :global(header)::after {
-  display: none;
-}
-
-.creationScope :global(header > div:nth-child(2)) {
-  display: none;
-}
-
-.creationScope :global(header > div:first-child) {
-  width: min(1180px, calc(100% - 2rem));
-  margin: 0 auto;
-  padding: 2.4rem 0 3rem;
-}
-
-
-.creationScope :global(header > div:first-child > p:first-child) {
-  display: inline-block;
-  padding: .12em .32em .16em .06em;
-  line-height: 1.45;
-  overflow: visible;
-}
-
-.creationScope :global(header h1) {
-  box-sizing: border-box;
-  max-width: 100%;
-  padding: .08em .18em .14em .04em;
-  line-height: 1;
-  overflow: visible;
-}
-
-.creationScope :global(header h1 > span),
-.creationScope :global(header h1 > strong) {
-  box-sizing: border-box;
-  padding: .02em .12em .08em .02em;
-  line-height: 1;
-  overflow: visible;
 }
 
 
@@ -171,11 +122,6 @@
 }
 
 @media (max-width: 680px) {
-  .creationScope :global(header > div:first-child) {
-    width: min(100% - 1rem, 1180px);
-    padding: 1.6rem 0 2.2rem;
-  }
-
   .lobbyScope :global([role="dialog"] > header + div) {
     grid-template-columns: 1fr;
     gap: .65rem;

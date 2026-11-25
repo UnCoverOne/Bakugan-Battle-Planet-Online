@@ -399,6 +399,34 @@ function classifyMatchError(error: unknown) {
   return error;
 }
 
+/** Code-only lobby discovery. Return only configuration, never seat or deck data. */
+export async function GET(request: Request) {
+  const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
+  try {
+    const code = (new URL(request.url).searchParams.get("code") ?? "").toUpperCase();
+    if (!/^[A-HJ-NP-Z2-9]{6}$/.test(code)) throw new ValidationError("Enter a valid six-character lobby code.");
+    const database = await getDatabase();
+    await enforceD1RateLimit(database, `${requestClientKey(request)}:lobby-lookup`, 30, 60_000);
+    const record = await load(code);
+    if (!record) return json({ error: "Match room not found.", code: "VALIDATION_ERROR", correlationId }, 404);
+    const state = record.state;
+    if (state.phase !== "lobby") throw new ConflictError("This lobby is no longer accepting players.");
+    const config = lobbyConfig(state);
+    const ranked = rankedSeries(state);
+    if (ranked && !await getSessionUser(request)) throw new AuthorizationError("Sign in to join a Ranked lobby.");
+    return json({
+      mode: ranked ? "ranked" : config.mode,
+      structure: state.format,
+      meta: config.meta,
+      ...(ranked ? { ruleset: { deckSize: ranked.deckSize ?? 50, restrictions: ranked.restrictions } } : {}),
+    });
+  } catch (error) {
+    return serverErrorResponse(classifyMatchError(error), correlationId, "Lobby lookup failed.", {
+      route: "/api/game", method: "GET", action: "lobby-lookup",
+    });
+  }
+}
+
 export async function POST(request: Request) {
   const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
   const coordinated = isInternalMatchRequest(request);

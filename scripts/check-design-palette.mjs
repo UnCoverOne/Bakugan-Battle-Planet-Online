@@ -14,6 +14,7 @@ const definitions = new Set(
 );
 const targets = [
   "components/routes/BlankDashboardScreen.module.css",
+  "components/routes/MatchCreationScreen.module.css",
   "components/application/SiteNavigation.module.css",
   "components/routes/DeckGalleryCard.module.css",
   "components/routes/BattleActivityPanel.module.css",
