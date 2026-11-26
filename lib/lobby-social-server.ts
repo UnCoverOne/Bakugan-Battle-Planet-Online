@@ -1,3 +1,4 @@
+import {assertLobbyAdmissionCutover} from "./lobby-cutover-server";
 import type {AccountDatabase} from "./account-server";
 import {createLobbySessionService} from "./lobby-session-server";
 import {ConflictError} from "./server-errors";
@@ -29,6 +30,7 @@ export async function acceptManagedInvitation(db:AccountDatabase,userId:string,i
       AND m.expires_at>? AND l.closed_at IS NULL`).bind(inviteId,userId,"account:"+userId,now).first<{membership_id:string;code:string;configuration_json:string}>();
   let row=await prior();
   if(!row){
+    await assertLobbyAdmissionCutover(db);
     try{
       await db.batch([
         db.prepare(`INSERT INTO lobby_memberships(id,lobby_id,identity_key,joined_at,last_seen_at,expires_at)

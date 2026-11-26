@@ -135,3 +135,6 @@
 @media(max-width:380px){.lobby{padding-inline:12px}.heading{gap:4px}.lobby h1{font-size:25px}.leave{padding-inline:4px;font-size:12px}.copyStatus{left:4px;top:calc(100% - 5px)}.slot{grid-template-columns:minmax(0,92px) minmax(0,1fr);position:relative}.compactSlot{grid-template-columns:minmax(0,76px) minmax(0,1fr)}.slot .deckDetails{padding-bottom:12px}.change{position:absolute;right:4px;bottom:0;padding:0}.actionBar{padding-inline:12px}}
 
 @media(max-height:500px) and (max-width:760px){.modalHeader{padding:8px 12px}.pickerTools{padding:6px 12px;gap:4px}.filters label{min-height:24px}.modalFooter{padding:6px 12px calc(6px + env(safe-area-inset-bottom))}.galleryScroll{min-height:48px}}
+
+.resultLink{color:var(--bb-link);font:600 13px/1.2 var(--bb-font-interface);white-space:nowrap;margin-right:auto}
+@media(max-width:850px){.resultLink{position:absolute;right:16px;bottom:100%;padding:6px 8px;background:var(--bb-nav)}}

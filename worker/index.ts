@@ -5,6 +5,7 @@ import handler from "vinext/server/app-router-entry";
 import { runWithExecutionContext } from "vinext/shims/request-context";
 import { normalizeMatchState, type MatchState } from "../lib/game";
 import { normalizeEngineState, persistTransition, projectMatchForPlayer, reduceMatch, type CommandEnvelope, type EngineBackedMatchState, type GameCommand } from "../lib/engine";
+import { LEGACY_LOBBY_CREATION_CLOSED } from "../lib/lobby-cutover";
 import { claimManagedController, publicControllerClaim } from "../lib/lobby-controller-server";
 import { managedSeriesForCode, managedSeatAllowed, hydrateManagedPresence } from "../lib/lobby-series-access";
 import { finalizeManagedSeries, managedSeriesMaintenanceCodes, reconcileManagedSeries, requestManagedDeparture } from "../lib/lobby-series-bridge";
@@ -811,15 +812,16 @@ async function runScheduled(_controller: ScheduledController, env: Env) {
   const cutoff = Date.now();
   const managedSchema = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'lobby_series_bindings'").first();
   const preserveManaged = managedSchema ? " AND code NOT IN (SELECT match_code FROM lobby_series_bindings WHERE status = 'active')" : "";
+  const preserveDrain = LEGACY_LOBBY_CREATION_CLOSED ? " AND CASE WHEN json_valid(state_json) THEN COALESCE(json_extract(state_json,'$.phase')='result' AND json_extract(state_json,'$.winner') IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(state_json,'$.series') WHERE key=json_extract(state_json,'$.winner') AND value>=CASE json_extract(state_json,'$.format') WHEN 'bo3' THEN 2 ELSE 1 END),0) ELSE 0 END" : "";
   await ensureSocialSchema(env.DB);
   await env.DB.batch([
     env.DB.prepare("CREATE TABLE IF NOT EXISTS rum_events (id TEXT PRIMARY KEY, route TEXT NOT NULL, metric TEXT NOT NULL, value REAL NOT NULL, device TEXT NOT NULL, created_at INTEGER NOT NULL)"),
     env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(cutoff),
     env.DB.prepare("DELETE FROM rate_limits WHERE window_start < ?").bind(cutoff - 86_400_000),
     env.DB.prepare("DELETE FROM rum_events WHERE created_at < ?").bind(cutoff - 7_776_000_000),
-    env.DB.prepare("DELETE FROM match_snapshots WHERE created_at < ?" + preserveManaged).bind(cutoff - 2_592_000_000),
-    env.DB.prepare("DELETE FROM match_presence WHERE code IN (SELECT code FROM matches WHERE updated_at < ?" + preserveManaged + ")").bind(cutoff - 2_592_000_000),
-    env.DB.prepare("DELETE FROM matches WHERE updated_at < ?" + preserveManaged).bind(cutoff - 2_592_000_000),
+    env.DB.prepare("DELETE FROM match_snapshots WHERE created_at < ?" + preserveManaged + (LEGACY_LOBBY_CREATION_CLOSED ? " AND code IN (SELECT code FROM matches WHERE 1=1" + preserveDrain + ")" : "")).bind(cutoff - 2_592_000_000),
+    env.DB.prepare("DELETE FROM match_presence WHERE code IN (SELECT code FROM matches WHERE updated_at < ?" + preserveManaged + preserveDrain + ")").bind(cutoff - 2_592_000_000),
+    env.DB.prepare("DELETE FROM matches WHERE updated_at < ?" + preserveManaged + preserveDrain).bind(cutoff - 2_592_000_000),
     env.DB.prepare("DELETE FROM match_replays WHERE NOT EXISTS (SELECT 1 FROM match_replay_participants WHERE match_replay_participants.replay_id = match_replays.replay_id)"),
     env.DB.prepare("UPDATE lobby_invitations SET status = 'expired', responded_at = ? WHERE status = 'pending' AND expires_at <= ?").bind(cutoff, cutoff),
     env.DB.prepare("DELETE FROM lobby_invitations WHERE status <> 'pending' AND COALESCE(responded_at, expires_at) < ?").bind(cutoff - 2_592_000_000),

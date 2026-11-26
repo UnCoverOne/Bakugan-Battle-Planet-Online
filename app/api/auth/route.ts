@@ -3,7 +3,7 @@ import {
   getAccountBan, getAccountRoles, getSessionUser, getUserByEmail, normalizeEmail, passwordRecordNeedsUpgrade,
   publicUser, revokeSession, validateAccountInput, verifyPassword,
 } from "../../../lib/account-server";
-import { deleteAccountData } from "../../../lib/account-data-server";
+import { ensureAccountDataSchema } from "../../../lib/account-data-server";
 import { assertSameOrigin, enforceD1RateLimit, requestClientKey } from "../../../lib/request-security";
 import {
   AuthenticationError,
@@ -234,13 +234,21 @@ export async function POST(request: Request) {
       if (String(body.confirmation ?? "").trim().toUpperCase() !== "DELETE") {
         throw new ValidationError("Type DELETE to confirm account removal.");
       }
-      await deleteAccountData(db, user.id);
-      await db.batch([
+      await ensureAccountDataSchema(db);
+      // Account deletion and its membership trigger must be in the same
+      // transaction; never delete decks/history before a rejected deletion.
+      try { await db.batch([
+        db.prepare("DELETE FROM user_data_entities WHERE user_id = ?").bind(user.id),
+        db.prepare("DELETE FROM user_match_history WHERE user_id = ?").bind(user.id),
+        db.prepare("DELETE FROM user_data WHERE user_id = ?").bind(user.id),
         db.prepare("DELETE FROM sessions WHERE user_id = ?").bind(user.id),
         db.prepare("DELETE FROM account_roles WHERE user_id = ?").bind(user.id),
         db.prepare("DELETE FROM account_bans WHERE user_id = ?").bind(user.id),
         db.prepare("DELETE FROM users WHERE id = ?").bind(user.id),
-      ]);
+      ]); } catch(error) {
+        if(error instanceof Error&&error.message.includes("LOBBY_ACCOUNT_ACTIVE"))throw new ConflictError("Leave your lobby before deleting your account.");
+        throw error;
+      }
       return json({ ok: true, correlationId }, 200, clearSessionCookie(request));
     }
     throw new ValidationError("Unknown account action.");

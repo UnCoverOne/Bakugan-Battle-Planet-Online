@@ -1,6 +1,7 @@
 "use client";
 
 import {useEffect,useRef,useState} from "react";
+import Link from "next/link";
 import {useLobbySession} from "../application/LobbySessionProvider";
 import {useLobbyChat} from "../application/LobbyChatProvider";
 import {LobbyChatPanel} from "../application/LobbyChatPanel";
@@ -140,7 +141,7 @@ export function ManagedLobby(){
         <div className={styles.feedback} role="status">{localError||session.error||""}</div>
         <div className={styles.actionBar}>
           {!wide&&<button type="button" className={styles.chatButton} aria-label={chat.unread?`Open chat, ${chat.unread} unread`:"Open chat"} onClick={()=>setChatOpen(true)}><ChatIcon/> Chat{chat.unread>0&&<span className={styles.unreadDot}/>}</button>}
-          <span className={styles.actionStatus}>{active?"Series in progress":""}</span>
+          <span className={styles.actionStatus}>{active?"Series in progress":""}</span>{!active&&room.previousSeriesId&&<Link className={styles.resultLink} href="/play/result">Last result</Link>}
           {active?<button className={styles.start} type="button" onClick={session.returnToGame}>Return to Game</button>:
             host?<button className={styles.start} type="button" disabled={busy||!p.canStart} onClick={()=>void start()}>{pending==="start-series"?"Starting…":"Start Game"}</button>:<span className={styles.guestAction}>Waiting for host</span>}
         </div>

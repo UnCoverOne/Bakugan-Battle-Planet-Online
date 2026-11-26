@@ -106,8 +106,8 @@ export function createLobbySessionService(database: D1Database, clock = Date.now
   };
   const leave = async (identity: LobbyIdentity, membershipId: string) => {
     const at = now();
-    // Active series departure must be coordinated with game settlement. Until
-    // that integration is implemented, reject rather than silently abandon it.
+    // Online active series departure is coordinated by MatchRoom. Idle and
+    // local Training departures can be resolved by this atomic write.
     const result = await database.prepare(`UPDATE lobby_memberships SET left_at = ?, departure_reason = 'left'
       WHERE id = ? AND identity_key = ? AND left_at IS NULL AND expires_at > ? AND EXISTS (
         SELECT 1 FROM lobby_sessions WHERE id = lobby_memberships.lobby_id AND (current_series_id IS NULL OR mode = 'training')

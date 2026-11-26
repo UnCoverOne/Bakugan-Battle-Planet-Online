@@ -50,7 +50,7 @@ function EnabledLobbySessionProvider({children}){
     if(generation!==epoch.current)throw new Error("Account changed during lobby recovery.");
     const old=recoveryRef.current,prior=memberOf(old),next=memberOf(result);
     // Keep controller secrets in the existing session credential store, never in the lobby response cache.
-    const {claim,training,...publicResult}=result;
+    const {claim,training,result:completedResult,...publicResult}=result;
     recoveryRef.current=publicResult;setRecovery(publicResult);availability.current=false;setUnavailable(false);setError("");
     if(prior&&(!next||prior.membership.id!==next.membership.id)){
       const oldSeries=prior.lobby.currentSeriesId??prior.lobby.previousSeriesId;
@@ -198,7 +198,13 @@ function EnabledLobbySessionProvider({children}){
   },[refresh]);
   const returnToLobby=useCallback(async()=>{await flushTraining();router.push("/play/lobby");},[flushTraining,router]);
   const returnToGame=useCallback(()=>router.push("/play/match"),[router]);
-  const value=useMemo(()=>({enabled:true,recovery,error,unavailable,busy,refresh,command,claimGame,claimedSeries,checkpointError,flushTraining,returnToLobby,returnToGame}),
-    [recovery,error,unavailable,busy,refresh,command,claimGame,claimedSeries,checkpointError,flushTraining,returnToLobby,returnToGame]);
+  const recoverResult=useCallback(async()=>{
+    const current=memberOf(recoveryRef.current),seriesId=current?.lobby.previousSeriesId;
+    if(!seriesId)throw new Error("No previous series.");
+    const response=await command({action:"recover-result",membershipId:current.membership.id,seriesId});
+    return response.result;
+  },[command]);
+  const value=useMemo(()=>({enabled:true,recovery,error,unavailable,busy,refresh,command,claimGame,claimedSeries,checkpointError,flushTraining,returnToLobby,returnToGame,recoverResult}),
+    [recovery,error,unavailable,busy,refresh,command,claimGame,claimedSeries,checkpointError,flushTraining,returnToLobby,returnToGame,recoverResult]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

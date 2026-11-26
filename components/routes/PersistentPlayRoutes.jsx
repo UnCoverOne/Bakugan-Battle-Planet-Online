@@ -2,6 +2,7 @@
 import {useEffect,useRef,useState} from "react";
 import {usePathname,useRouter} from "next/navigation";
 import {ManagedLobby} from "./ManagedLobby";
+import {ManagedSeriesResult} from "./ManagedSeriesResult";
 import {LobbyChatPanel} from "../application/LobbyChatPanel";
 import {useLobbySession} from "../application/LobbySessionProvider";
 import {useAppFields} from "../application/AppProvider";
@@ -73,7 +74,7 @@ function ManagedGame({legacy}){
     attempted.current=seriesId;
     void claim();
   },[seriesId,claimed,session.unavailable]);
-  if(completed&&!seriesId)return <>{legacy}<div className={styles.gameReturn}><Button onClick={()=>void session.returnToLobby()}>Return to Lobby</Button></div></>;
+  if(completed&&!seriesId)return <ManagedSeriesResult/>;
   if(!claimed)return <Status title="Recovering gameplay"><p>{claimError||"Connecting your game controller."}</p><Button disabled={claiming} onClick={async()=>{await session.refresh();void claim();}}>Retry</Button>{claimError&&r.lobby?.mode!=="training"&&<Button disabled={claiming} onClick={()=>{if(window.confirm("Take over this game from the other device?"))void claim(true);}}>Take over controller</Button>}<Button onClick={()=>void session.returnToLobby()}>Return to Lobby</Button></Status>;
   if(session.checkpointError?.startsWith("Training checkpoint changed"))return <Status title="Training recovery required"><p role="alert">{session.checkpointError}</p><Button disabled={claiming} onClick={()=>void claim()}>Recover checkpoint</Button><Button onClick={()=>void session.returnToLobby()}>Return to Lobby</Button></Status>;
   return <>
