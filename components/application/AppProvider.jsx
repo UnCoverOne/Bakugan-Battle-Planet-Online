@@ -1490,16 +1490,22 @@ export function AppProvider({ children }) {
   }, [authUser, loadCloud]);
 
   const installManagedMatch = useCallback(async (claim) => {
-    const {primeMatchStore}=await import("../game-screen-v2/matchStore");
+    const {primeMatchStore,readMatchStore}=await import("../game-screen-v2/matchStore");
+    if(!claim.isCurrent())return false;
     if(!claim.online){
       const {initializeLocalReplayJournal}=await import("../../lib/replay-journal");
       // A fresh server genesis can begin a local replay. A recovered later
       // checkpoint must not replace the earlier local journal.
-      if(claim.state.gameNumber===1&&claim.state.phase==="startingPlayer")initializeLocalReplayJournal(claim.state,authUser?.id??claim.playerId);
+      if(!claim.isCurrent())return false;
+      if(claim.checkpointRevision===1&&claim.state.gameNumber===1&&claim.state.phase==="startingPlayer")initializeLocalReplayJournal(claim.state,authUser?.id??claim.playerId);
+      const existing=readMatchStore().match;
+      if(existing?.id===claim.state.id&&existing.version>claim.state.version)primeMatchStore({match:null});
     }
+    if(!claim.isCurrent())return false;
     setPlayerId(claim.playerId);setMatchCapability(claim.capability||"");setMatchControllerId(claim.controllerId||"");
     setOnline(claim.online);setMatch(claim.state);setFormat(claim.state.format);setMatchMode(claim.online?"online":"solo");
     primeMatchStore({route:"match",match:claim.state,online:claim.online,playerId:claim.playerId,capability:claim.capability||"",controllerId:claim.controllerId||"",settings});
+    return true;
   },[authUser?.id,settings,setPlayerId,setMatchCapability,setMatchControllerId,setOnline,setMatch,setFormat,setMatchMode]);
   const clearManagedMatch = useCallback((seriesId) => {
     if(snapshotRef.current?.match?.id!==seriesId)return;

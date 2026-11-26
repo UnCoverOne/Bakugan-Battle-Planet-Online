@@ -13,8 +13,10 @@ const memberOf=value=>value?.status==="member"?value:null;
 const seriesOf=value=>value?.status==="member"?{lobbyId:value.lobby.id,seriesId:value.lobby.currentSeriesId}:null;
 const HEARTBEAT_MS=12000;
 async function requestSession(body,headers={},signal){
+  const timeout=AbortSignal.timeout(10000);
+  const requestSignal=signal?AbortSignal.any([signal,timeout]):timeout;
   const response=await fetch("/api/lobby/session",{
-    method:body?"POST":"GET",cache:"no-store",credentials:"same-origin",signal,
+    method:body?"POST":"GET",cache:"no-store",credentials:"same-origin",signal:requestSignal,
     headers:{"content-type":"application/json",...headers},...(body?{body:JSON.stringify(body)}:{}),
   });
   const result=await response.json().catch(()=>null);
@@ -38,8 +40,8 @@ function EnabledLobbySessionProvider({children}){
   appRef.current=app;pathRef.current=pathname;
   const [recovery,setRecovery]=useState(initial),[error,setError]=useState(""),[unavailable,setUnavailable]=useState(false),[busy,setBusy]=useState(false);
   const [claimedSeries,setClaimedSeries]=useState(null),[checkpointError,setCheckpointError]=useState("");
-  const recoveryRef=useRef(initial),epoch=useRef(0),queue=useRef(Promise.resolve()),abort=useRef(null),refreshing=useRef(false);
-  const claimRef=useRef(null),checkpoint=useRef(null),lastMembership=useRef(null);
+  const recoveryRef=useRef(initial),epoch=useRef(0),queue=useRef(Promise.resolve()),abort=useRef(null),refreshing=useRef(null),availability=useRef(false);
+  const checkpoint=useRef(null);
   const identity=app.authChecking?"checking":app.authUser?.id??"guest";
   const authenticatedReady=app.ready&&!app.authChecking&&(!app.authUser||app.accountDataReady);
   const accept=useCallback((result,generation)=>{
@@ -47,14 +49,26 @@ function EnabledLobbySessionProvider({children}){
     const old=recoveryRef.current,prior=memberOf(old),next=memberOf(result);
     // Keep controller secrets in the existing session credential store, never in the lobby response cache.
     const {claim,training,...publicResult}=result;
-    recoveryRef.current=publicResult;setRecovery(publicResult);setUnavailable(false);setError("");
+    recoveryRef.current=publicResult;setRecovery(publicResult);availability.current=false;setUnavailable(false);setError("");
     if(prior&&(!next||prior.membership.id!==next.membership.id)){
       const oldSeries=prior.lobby.currentSeriesId??prior.lobby.previousSeriesId;
       if(oldSeries)appRef.current.clearManagedMatch(oldSeries);
-      claimRef.current=null;checkpoint.current=null;setClaimedSeries(null);
+      checkpoint.current=null;setClaimedSeries(null);
       if(!next&&result.status==="none")appRef.current.notify("Lobby membership ended.");
     }
-    lastMembership.current=next?.membership.id??null;
+    // Do not announce every heartbeat. Compare two verified observations of
+    // the same membership while the user is browsing elsewhere.
+    if(prior&&next&&prior.membership.id===next.membership.id&&!["/play/lobby","/play/match"].includes(pathRef.current)){
+      const before=prior.preparation?.seats?.find(s=>!s.own),after=next.preparation?.seats?.find(s=>!s.own);
+      const oldSeries=prior.lobby.currentSeriesId,newSeries=next.lobby.currentSeriesId;
+      const message=!oldSeries&&newSeries?"Game started. Return to your lobby to play."
+        :oldSeries&&!newSeries?"Series completed."
+        :after&&before?.membershipId!==after.membershipId?"Opponent joined your lobby."
+        :before&&!after?"Opponent left your lobby."
+        :before?.connected&&!after?.connected?"Opponent disconnected."
+        :!before?.ready&&after?.ready?"Opponent is ready.":"";
+      if(message)appRef.current.notify(message);
+    }
     if(shouldEnterStartedSeries(pathRef.current,seriesOf(old),seriesOf(result)))router.push("/play/match");
     return result;
   },[router]);
@@ -71,10 +85,9 @@ function EnabledLobbySessionProvider({children}){
     return next;
   },[]);
   const refresh=useCallback(()=>{
-    if(refreshing.current)return Promise.resolve(recoveryRef.current);
-    refreshing.current=true;
+    if(refreshing.current)return refreshing.current;
     const generation=epoch.current;
-    return enqueue(async(g,signal)=>{
+    const pending=enqueue(async(g,signal)=>{
       let current=memberOf(recoveryRef.current),result;
       if(current){
         try{result=await requestSession({action:"heartbeat",membershipId:current.membership.id},{},signal);}
@@ -85,18 +98,22 @@ function EnabledLobbySessionProvider({children}){
           if(member)try{await requestSession({action:"heartbeat",scope,membershipId:member.id},{},signal);}catch(cause){if(cause.status!==409&&cause.status!==403&&cause.status!==401)throw cause;}
         }
         result=await requestSession(null,{},signal);
-      }else result=await requestSession(null,{},signal);
+      }else {
+        result=await requestSession(null,{},signal);
+        if(result.status==="member")result=await requestSession({action:"heartbeat",membershipId:result.membership.id},{},signal);
+      }
       return accept(result,g);
     }).catch(cause=>{
-      if(generation===epoch.current){setUnavailable(true);setError(cause.message||"Lobby recovery failed.");}
+      if(generation===epoch.current){availability.current=true;setUnavailable(true);setError(cause.message||"Lobby recovery failed.");}
       return null;
-    }).finally(()=>{if(generation===epoch.current)refreshing.current=false;});
+    }).finally(()=>{if(generation===epoch.current)refreshing.current=null;});
+    refreshing.current=pending;return pending;
   },[accept,enqueue]);
   useLayoutEffect(()=>{
-    epoch.current+=1;abort.current?.abort();abort.current=new AbortController();queue.current=Promise.resolve();refreshing.current=false;
+    epoch.current+=1;abort.current?.abort();abort.current=new AbortController();queue.current=Promise.resolve();refreshing.current=null;availability.current=false;
     const old=memberOf(recoveryRef.current);
     if(old){const id=old.lobby.currentSeriesId??old.lobby.previousSeriesId;if(id)appRef.current.clearManagedMatch(id);}
-    recoveryRef.current=initial;setRecovery(initial);setError("");setUnavailable(false);setBusy(false);claimRef.current=null;checkpoint.current=null;setClaimedSeries(null);setCheckpointError("");
+    recoveryRef.current=initial;setRecovery(initial);setError("");setUnavailable(false);setBusy(false);checkpoint.current=null;setClaimedSeries(null);setCheckpointError("");
     if(!authenticatedReady)return ()=>abort.current?.abort();
     void refresh();
     const timer=window.setInterval(()=>void refresh(),HEARTBEAT_MS);
@@ -109,6 +126,7 @@ function EnabledLobbySessionProvider({children}){
     return enqueue(async(g,signal)=>{
       let current=recoveryRef.current;
       if(["create","join"].includes(body.action)){
+        if(availability.current)throw new Error("Verify membership before creating or joining a lobby.");
         if(current.status==="identity-required"){
           await requestSession({action:"bootstrap"},{},signal);
           current=accept(await requestSession(null,{},signal),g);
@@ -117,7 +135,10 @@ function EnabledLobbySessionProvider({children}){
       }
       const result=await requestSession(body,headers,signal);
       return accept(result,g);
-    }).catch(cause=>{if(generation===epoch.current)setError(cause.message||"Lobby command failed.");throw cause;})
+    }).catch(cause=>{if(generation===epoch.current){
+      if(!cause.status||cause.status>=500){availability.current=true;setUnavailable(true);}
+      setError(cause.message||"Lobby command failed.");
+    }throw cause;})
       .finally(()=>{if(generation===epoch.current)setBusy(false);});
   },[accept,enqueue]);
   const claimGame=useCallback(async(takeover=false)=>{
@@ -133,7 +154,7 @@ function EnabledLobbySessionProvider({children}){
       if(!saved?.state||saved.state.id!==seriesId)throw new Error("Invalid Training checkpoint.");
       checkpoint.current={seriesId,membershipId:current.membership.id,revision:saved.revision,version:saved.state.version,blocked:false};
       setCheckpointError("");
-      result={state:saved.state,playerId:current.membership.id,capability:"",controllerId:""};
+      result={state:saved.state,playerId:current.membership.id,capability:"",controllerId:"",checkpointRevision:saved.revision};
     }else{
       const offer=current.controller;
       if(!offer||offer.seriesId!==seriesId)throw new Error("Controller recovery unavailable. Refresh the lobby.");
@@ -143,8 +164,9 @@ function EnabledLobbySessionProvider({children}){
       if(!result?.capability||!result?.controllerId||result.state?.id!==seriesId)throw new Error("Incomplete controller recovery.");
     }
     if(generation!==epoch.current||memberOf(recoveryRef.current)?.lobby.currentSeriesId!==seriesId)throw new Error("Series changed during recovery.");
-    await appRef.current.installManagedMatch({...result,online:!isTraining});
-    claimRef.current=seriesId;setClaimedSeries(seriesId);
+    const isCurrent=()=>generation===epoch.current&&memberOf(recoveryRef.current)?.lobby.currentSeriesId===seriesId;
+    if(!await appRef.current.installManagedMatch({...result,online:!isTraining,isCurrent})||!isCurrent())throw new Error("Series changed during recovery.");
+    setClaimedSeries(seriesId);
     return result.state;
   },[command]);
   const flushTraining=useCallback(()=>{
@@ -168,7 +190,7 @@ function EnabledLobbySessionProvider({children}){
     return ()=>clearTimeout(timer);
   },[app.match?.version,claimedSeries,authenticatedReady,flushTraining]);
   useEffect(()=>{
-    const replaced=()=>{claimRef.current=null;setClaimedSeries(null);void refresh();};
+    const replaced=()=>{setClaimedSeries(null);void refresh();};
     window.addEventListener("bbp-match-session-replaced",replaced);
     return ()=>window.removeEventListener("bbp-match-session-replaced",replaced);
   },[refresh]);

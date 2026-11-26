@@ -21,3 +21,7 @@ See [managed series bridge](lobby-series-bridge.md) for the transactional engine
 ## Preparation
 
 See [authoritative preparation](lobby-preparation.md) for the new versioned preparation commands, initial series creation, automatic AI assignment and local Training registration. The public gate remains closed.
+
+## Application integration
+
+See [application-wide persistent lobby integration](lobby-client-integration.md). The global provider, route guards, managed controller claim, Training checkpoint synchronization and direct invitation-code flow are staged behind the common cutover gate. Unified chat and the final visual redesign are still outstanding, as are legacy social invitations and account reconciliation tests.

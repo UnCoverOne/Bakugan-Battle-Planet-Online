@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
 import Link from "next/link";
-import {usePathname,useRouter,useSearchParams} from "next/navigation";
+import {usePathname,useRouter} from "next/navigation";
 import {useLobbySession} from "../application/LobbySessionProvider";
 import {useAppFields} from "../application/AppProvider";
 import {lobbyRouteDecision} from "../../lib/lobby-client-routing";
@@ -78,12 +78,12 @@ function ManagedLobby(){
       return previous.length<p.requiredDeckCount?[...previous,deck]:previous;
     });
   };
-  const copy=async()=>{try{await navigator.clipboard.writeText(room.code);}catch{setLocalError("Could not copy room code.");}};
+  const copy=async(invitation=false)=>{try{await navigator.clipboard.writeText(invitation?new URL("/play?join="+encodeURIComponent(room.code),window.location.origin).href:room.code);}catch{setLocalError("Could not copy invitation.");}};
   const leave=()=>{if(window.confirm(active?"Leave lobby and forfeit or abandon the active series?":"Leave this lobby?"))void send("leave");};
   const canEdit=host&&!active&&room.mode!=="ranked"&&!session.busy;
   const configuration=p.configuration;
   return <section className={styles.screen}>
-    <header className={styles.heading}><h1>{room.mode.toUpperCase()} LOBBY</h1>{room.mode!=="training"&&<Button onClick={()=>void copy()}>{room.code} · Copy</Button>}<Button disabled={session.busy} onClick={leave}>Leave Lobby</Button></header>
+    <header className={styles.heading}><h1>{room.mode.toUpperCase()} LOBBY</h1>{room.mode!=="training"&&<><Button onClick={()=>void copy()}>{room.code} · Copy</Button><Button onClick={()=>void copy(true)}>Copy invite link</Button></>}<Button disabled={session.busy} onClick={leave}>Leave Lobby</Button></header>
     <div className={styles.settings}>
       <label>Structure<select className="bb-field" disabled={!canEdit} value={configuration.structure} onChange={e=>updateSettings({structure:e.target.value})}><option value="bo1">Best of One</option><option value="bo3">Best of Three</option></select></label>
       <label>Format<select className="bb-field" disabled={!canEdit} value={configuration.format} onChange={e=>updateSettings({format:e.target.value})}><option value="standard">Standard</option><option value="singleton">Singleton</option><option value="competitive">Competitive</option></select></label>
@@ -133,6 +133,7 @@ function ManagedGame({legacy}){
   },[seriesId,claimed,session.unavailable]);
   if(completed&&!seriesId)return <>{legacy}<div className={styles.gameReturn}><Button onClick={()=>void session.returnToLobby()}>Return to Lobby</Button></div></>;
   if(!claimed)return <Status title="Recovering gameplay"><p>{claimError||"Connecting your game controller."}</p><Button disabled={claiming} onClick={async()=>{await session.refresh();void claim();}}>Retry</Button>{claimError&&r.lobby?.mode!=="training"&&<Button disabled={claiming} onClick={()=>{if(window.confirm("Take over this game from the other device?"))void claim(true);}}>Take over controller</Button>}<Button onClick={()=>void session.returnToLobby()}>Return to Lobby</Button></Status>;
+  if(session.checkpointError?.startsWith("Training checkpoint changed"))return <Status title="Training recovery required"><p role="alert">{session.checkpointError}</p><Button disabled={claiming} onClick={()=>void claim()}>Recover checkpoint</Button><Button onClick={()=>void session.returnToLobby()}>Return to Lobby</Button></Status>;
   return <>
     {match.phase==="lobby"?<ManagedGamePreparation/>:legacy}
     <div className={styles.gameReturn}><Button onClick={()=>void session.returnToLobby()}>Return to Lobby</Button>

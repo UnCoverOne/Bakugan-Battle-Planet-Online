@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { deckIsLegalForFormat, validateDeck, type DeckRecord } from "../../lib/data";
 import type { DeckRestriction } from "../../lib/deck-validation";
@@ -24,6 +24,7 @@ const MODES: readonly { id: MatchModeChoice; label: string; icon: LucideIconName
 export function MatchCreationScreen() {
   const router = useRouter();
   const lobbySession=useLobbySession();
+  const searchParams=useSearchParams();
   const {
     format,
     setFormat,
@@ -42,7 +43,9 @@ export function MatchCreationScreen() {
   } = useAppFields(["format", "setFormat", "setMatchMode", "decks", "joinCode", "setJoinCode", "createOnline", "joinOnline", "setMatch", "setOnline", "profile", "playerId", "authUser", "catalogueRevision"]);
   const [mode, setMode] = useState<MatchModeChoice>("casual");
   const [structure, setStructure] = useState<"bo1" | "bo3">(format === "bo3" ? "bo3" : "bo1");
-  const [roomCode, setRoomCode] = useState(() => normalizeRoomCode(storedJoinCode));
+  const inviteCode=lobbySession.enabled?searchParams?.get("join")??"":"";
+  const [roomCode, setRoomCode] = useState(() => normalizeRoomCode(inviteCode||storedJoinCode));
+  useEffect(()=>{if(inviteCode)setRoomCode(normalizeRoomCode(inviteCode));},[inviteCode]);
   const [busyAction, setBusyAction] = useState<"create" | "join" | "">("");
   const [joinError, setJoinError] = useState("");
   const [error, setError] = useState("");

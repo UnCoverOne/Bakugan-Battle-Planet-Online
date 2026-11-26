@@ -1,3 +1,5 @@
+import { PERSISTENT_LOBBY_ENABLED } from "../../../../lib/lobby-cutover";
+import { managedSeriesForCode } from "../../../../lib/lobby-series-access";
 import { getDatabase, getSessionUser } from "../../../../lib/account-server";
 import type { AccountMatchSessionSummary } from "../../../../lib/account-match-session";
 import { normalizeMatchState, type MatchState } from "../../../../lib/game";
@@ -31,6 +33,7 @@ async function associatePresentedMatchSeat(database: D1Database, request: Reques
   const playerId = String(request.headers.get(MATCH_PLAYER_HEADER) ?? "");
   if (!/^[A-Z2-9]{6}$/.test(code) || !playerId) return false;
   if (!request.headers.get(MATCH_CAPABILITY_HEADER) || !request.headers.get(MATCH_CONTROLLER_HEADER)) return false;
+  if (await managedSeriesForCode(database,code))return false;
   if (!await authenticateMatchSeat(database, request, code, playerId)) return false;
   return associateMatchSeatAccount(database, code, playerId, userId, Date.now());
 }
@@ -40,6 +43,7 @@ export async function GET(request: Request) {
   try {
     const user = await getSessionUser(request);
     if (!user) throw new AuthenticationError();
+    if(PERSISTENT_LOBBY_ENABLED)return Response.json({sessions:[]},{headers:{"cache-control":"no-store"}});
     const database = await getDatabase();
     await ensureMatchSessionSchema(database);
     await ensureReplayArchiveSchema(database);
@@ -67,6 +71,7 @@ export async function GET(request: Request) {
 
     const sessions: AccountMatchSessionSummary[] = [];
     for (const row of response.results ?? []) {
+      if(await managedSeriesForCode(database,row.code))continue;
       let state: MatchState;
       try {
         state = normalizeMatchState(JSON.parse(row.state_json) as MatchState);

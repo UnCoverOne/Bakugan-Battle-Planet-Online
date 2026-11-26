@@ -12,6 +12,7 @@ import { invalidateResponse } from "../../lib/response-cache";
 import { usePublicDeckCatalogue } from "./PublicDeckCatalogue";
 import { useCompetitiveRules, useOnlineStatus } from "./DeckRouteShared";
 import { DeckGalleryBody } from "./DeckGalleryCard";
+import { useLobbySession } from "../application/LobbySessionProvider";
 import { useAppFields } from "../application/AppProvider";
 import styles from "./BlankDashboardScreen.module.css";
 
@@ -30,6 +31,8 @@ function localMatchSummary(match: any): string {
 }
 
 export function BlankDashboardScreen() {
+  const lobbySession=useLobbySession();
+  const activeLobby=lobbySession.enabled&&lobbySession.recovery.status==="member"?lobbySession.recovery.lobby:null;
   const {
     authUser, match, online, matchCapability, matchControllerId,
     accountMatchSessions, resumeCurrentMatch, resumingCurrentMatch,
@@ -92,7 +95,7 @@ export function BlankDashboardScreen() {
   const accountSession = !canResumeLocal && authUser && Array.isArray(accountMatchSessions)
     ? accountMatchSessions[0]
     : null;
-  const canResume = canResumeLocal || Boolean(accountSession);
+  const canResume = !lobbySession.enabled&&(canResumeLocal || Boolean(accountSession));
   const isResuming = Boolean(resumingCurrentMatch || (accountSession && resumingMatchCode === accountSession.code));
   const accountTime = accountSession ? formatTime(accountSession.updatedAt) : null;
   const accountPhase = accountSession?.phase === "lobby" ? "Lobby" : accountSession?.phase === "intermission" ? "Between Games" : "Match in Progress";
@@ -141,8 +144,8 @@ export function BlankDashboardScreen() {
                 ) : (
                   <Link href="/play" className={`${styles.action} ${styles.primary}`}>
                     <span className={styles.actionCopy}>
-                      <span className={styles.actionTitle}>PLAY</span>
-                      <span className={styles.actionSubtitle}>Start a New Game</span>
+                      <span className={styles.actionTitle}>{activeLobby?"RETURN TO LOBBY":"PLAY"}</span>
+                      <span className={styles.actionSubtitle}>{activeLobby?(activeLobby.currentSeriesId?"Series in progress":"Lobby open"):lobbySession.enabled&&(lobbySession.unavailable||lobbySession.recovery.status==="checking")?"Check lobby status":"Start a New Game"}</span>
                     </span>
                     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="m8 5.5 11 6.5-11 6.5v-13Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>
                   </Link>
