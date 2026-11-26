@@ -1,14 +1,17 @@
+import { PERSISTENT_LOBBY_ENABLED } from "../../../../lib/lobby-cutover";
+import { activeManagedSeat } from "../../../../lib/lobby-controller-server";
+import { createLobbySessionService } from "../../../../lib/lobby-session-server";
 import { getDatabase } from "../../../../lib/account-server";
 import { resolveLobbyIdentities, issueGuestIdentity } from "../../../../lib/lobby-identity-server";
 import { executeLobbyCommand, lobbyRecovery } from "../../../../lib/lobby-session-commands";
 import { assertSameOrigin, enforceD1RateLimit, requestClientKey } from "../../../../lib/request-security";
-import { serverErrorResponse, ServiceUnavailableError, ValidationError } from "../../../../lib/server-errors";
+import { serverErrorResponse, ServiceUnavailableError, ValidationError, ConflictError, AuthorizationError } from "../../../../lib/server-errors";
 
 export const dynamic = "force-dynamic";
 // A single intentional cutover gate, not a per-mode flag. Do not remove until
 // legacy entry points, game authorization, migration and settlement are bridged.
 function assertSessionCutover(): void {
-  throw new ServiceUnavailableError("Persistent lobby integration is not yet enabled.");
+  if (!PERSISTENT_LOBBY_ENABLED) throw new ServiceUnavailableError("Persistent lobby integration is not yet enabled.");
 }
 const json = (body: unknown, cookie?: string) => Response.json(body, { headers: {
   "cache-control": "no-store, max-age=0", ...(cookie ? { "set-cookie": cookie } : {}),
@@ -35,7 +38,43 @@ async function handle(request: Request) {
       if (identities.primary) return json(await lobbyRecovery(database, identities));
       return json({ status: "identity-required", retry: true }, await issueGuestIdentity(database, request));
     }
-    return json(await executeLobbyCommand(database, identities, body));
+    if(body.action==="claim-controller"||body.action==="leave"||body.action==="leave-guest"){
+      const identity=body.action==="leave-guest"||body.scope==="guest"?identities.guest:identities.primary;
+      const member=identity?await createLobbySessionService(database).activeMembership(identity):null;
+      if(member&&member.id===body.membershipId&&identity){
+        const seat=await activeManagedSeat(database,identity,member.id,body.action==="claim-controller"&&typeof body.seriesId==="string"?body.seriesId:undefined);
+        if(seat){
+          if(body.action==="claim-controller"){
+            const recovery=await lobbyRecovery(database,identities);
+            if(recovery.status!=="member"||recovery.membership.id!==member.id)throw new ConflictError("Resolve membership before claiming a controller.");
+          }
+          const {env}=await import("cloudflare:workers");
+          const path=body.action==="claim-controller"?"lobby-claim":"lobby-departure";
+          const headers=new Headers({"content-type":"application/json"});
+          for(const name of ["cookie","x-match-capability","x-match-controller"]){
+            const value=request.headers.get(name);if(value)headers.set(name,value);
+          }
+          const response=await env.MATCHES.getByName(seat.code).fetch(`https://match.internal/${path}?code=${seat.code}`,{
+            method:"POST",headers,body:JSON.stringify({...body,scope:body.action==="leave-guest"?"guest":body.scope}),
+          });
+          const result=await response.json() as Record<string,unknown>;
+          if(!response.ok)return Response.json(result,{status:response.status,headers:{"cache-control":"no-store"}});
+          return json({...await lobbyRecovery(database,identities),...(body.action==="claim-controller"?{claim:result}:{})});
+        }
+      }
+      if(body.action==="claim-controller")throw new AuthorizationError("Active series membership required.");
+    }
+    const result=await executeLobbyCommand(database, identities, body);
+    if(body.action==="start-series"&&"series" in result&&result.series.status==="active"&&result.status==="member"&&result.lobby.mode!=="training"){
+      const identity=identities.primary!;
+      const seat=await activeManagedSeat(database,identity,result.membership.id,result.series.seriesId);
+      if(seat){
+        const {env}=await import("cloudflare:workers");
+        const response=await env.MATCHES.getByName(seat.code).fetch(`https://match.internal/lobby-activate?code=${seat.code}`,{method:"POST"});
+        if(!response.ok)throw new ServiceUnavailableError("Series created; retry recovery to activate gameplay.");
+      }
+    }
+    return json(result);
   } catch (error) {
     return serverErrorResponse(error, correlationId, "Lobby session unavailable.", { route: "/api/lobby/session", method: request.method });
   }

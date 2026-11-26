@@ -1,3 +1,4 @@
+import { controllerOffer } from "./lobby-controller-server";
 import { executePreparationCommand, prepareRecovery } from "./lobby-preparation-server";
 import { startPreparedSeries, trainingCheckpoint } from "./lobby-prepared-start";
 import { createLobbySessionService } from "./lobby-session-server";
@@ -29,8 +30,11 @@ export async function lobbyRecovery(database: D1Database, identities: Identities
   const identity = identities.primary;
   if (!identity) return { status: "identity-required" as const };
   const membership = account ?? guest;
-  return membership ? { status: "member" as const, membership, lobby: await service.read(identity), preparation: await prepareRecovery(database, identity) }
-    : { status: "none" as const };
+  if(!membership)return {status:"none" as const};
+  const lobby=await service.read(identity);
+  if(!lobby)return {status:"none" as const};
+  return {status:"member" as const,membership,lobby,preparation:await prepareRecovery(database,identity),
+    controller:lobby.mode!=="training"&&lobby.currentSeriesId?await controllerOffer(database,identity,membership.id,lobby.currentSeriesId):null};
 }
 export async function executeLobbyCommand(database: D1Database, identities: Identities, body: Record<string, unknown>) {
   const service = createLobbySessionService(database);

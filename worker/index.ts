@@ -5,6 +5,7 @@ import handler from "vinext/server/app-router-entry";
 import { runWithExecutionContext } from "vinext/shims/request-context";
 import { normalizeMatchState, type MatchState } from "../lib/game";
 import { normalizeEngineState, persistTransition, projectMatchForPlayer, reduceMatch, type CommandEnvelope, type EngineBackedMatchState, type GameCommand } from "../lib/engine";
+import { claimManagedController, publicControllerClaim } from "../lib/lobby-controller-server";
 import { managedSeriesForCode, managedSeatAllowed, hydrateManagedPresence } from "../lib/lobby-series-access";
 import { finalizeManagedSeries, managedSeriesMaintenanceCodes, reconcileManagedSeries, requestManagedDeparture } from "../lib/lobby-series-bridge";
 import { resolveLobbyIdentities } from "../lib/lobby-identity-server";
@@ -277,6 +278,40 @@ export class MatchRoom {
 
     // These private paths are only reachable through the MATCHES binding;
     // the public Worker never forwards arbitrary paths to this object.
+    if (request.method === "POST" && url.pathname === "/lobby-claim") {
+      return this.withSessionMutation(async () => {
+        try {
+          const code=String(url.searchParams.get("code")??"").toUpperCase();
+          if(!/^[A-Z2-9]{6}$/.test(code)) throw new ValidationError("Invalid series code.");
+          const identities=await resolveLobbyIdentities(this.env.DB,request);
+          if(!identities.primary)throw new AuthorizationError("Verified membership required.");
+          const body=await request.json() as Record<string,unknown>;
+          const claim=await claimManagedController(this.env.DB,request,identities.primary,body,code,(playerId,version)=>
+            this.state.getWebSockets(playerId).some(socket=>{
+              const a=socket.deserializeAttachment?.() as MatchSocketAttachment|undefined;
+              return !a || a.capabilityVersion===version;
+            }));
+          if(claim.rotated)for(const socket of this.state.getWebSockets(claim.playerId)){
+            const a=socket.deserializeAttachment?.() as MatchSocketAttachment|undefined;
+            if(!a||a.capabilityVersion<claim.capabilityVersion)try{socket.close(SESSION_REPLACED_CLOSE_CODE,SESSION_REPLACED_REASON);}catch{}
+          }
+          await this.state.storage.put("snapshot",claim.state);
+          await this.state.storage.setAlarm(nextMatchAlarmAt(claim.state));
+          return matchRoomJson(publicControllerClaim(claim));
+        }catch(error){return serverErrorResponse(error,crypto.randomUUID(),"Controller recovery failed.",{route:"/lobby-claim",method:"POST"});}
+      });
+    }
+    if (request.method === "POST" && url.pathname === "/lobby-activate") {
+      return this.withSessionMutation(async()=>{
+        const code=String(url.searchParams.get("code")??"").toUpperCase();
+        const binding=await managedSeriesForCode(this.env.DB,code);
+        if(binding?.status!=="active")return matchRoomJson({error:"Series not active."},409);
+        const row=await this.env.DB.prepare("SELECT state_json FROM matches WHERE code=?").bind(code).first<{state_json:string}>();
+        if(!row)return matchRoomJson({error:"Series unavailable."},409);
+        await this.publish(normalizeMatchState(JSON.parse(row.state_json) as MatchState));
+        return matchRoomJson({accepted:true});
+      });
+    }
     if (request.method === "POST" && url.pathname === "/lobby-maintenance") {
       return this.withSessionMutation(async () => {
         const code = String(url.searchParams.get("code") ?? "").toUpperCase();
@@ -307,6 +342,7 @@ export class MatchRoom {
       return this.withSessionMutation(async () => {
       const code = String(url.searchParams.get("code") ?? "").toUpperCase();
       if (!/^[A-Z2-9]{6}$/.test(code)) return matchRoomJson({ error: "Room code is invalid.", code: "VALIDATION_ERROR" }, 400);
+      if(await managedSeriesForCode(this.env.DB,code))return matchRoomJson({error:"Recover this series through its lobby.",code:"CONFLICT_ERROR"},409);
       const body = await request.json().catch(() => null) as ResumeSeatRequest | null;
       const userId = typeof body?.userId === "string" ? body.userId : "";
       const expectedCapabilityVersion = Number(body?.expectedCapabilityVersion);
