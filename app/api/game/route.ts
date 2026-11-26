@@ -30,7 +30,7 @@ import {
   type CommandEnvelope,
   type EngineBackedMatchState,
 } from "../../../lib/engine";
-import { managedSeriesForCode } from "../../../lib/lobby-series-access";
+import { managedSeriesForCode, hydrateManagedPresence } from "../../../lib/lobby-series-access";
 import { isInternalMatchRequest } from "../../../lib/internal-request";
 import { ensureMatchSessionSchema } from "../../../lib/match-session-schema";
 import {
@@ -266,6 +266,7 @@ async function touchPresence(code: string, playerId: string, now = Date.now()) {
 
 async function hydratePresence(state: MatchState) {
   const database = await getDatabase();
+  if (await hydrateManagedPresence(database, state)) return state;
   await database.batch(state.players.map((player) => database.prepare(
     "INSERT OR IGNORE INTO match_presence (code, player_id, last_seen, connected) VALUES (?, ?, ?, ?)",
   ).bind(state.code, player.id, player.lastSeen, player.connected ? 1 : 0)));
@@ -449,6 +450,8 @@ export async function POST(request: Request) {
       let result: ReturnType<typeof initializeMatch> | null = null;
       for (let attempt = 0; attempt < 12; attempt += 1) {
         code = roomCode();
+        // Managed engine codes remain reserved even after snapshot retention.
+        if (await managedSeriesForCode(database, code)) continue;
         result = initializeMatch(code, body.format, [player], {
           commandId: identity.commandId,
           actorId: player.id,

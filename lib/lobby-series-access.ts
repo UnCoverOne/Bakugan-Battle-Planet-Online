@@ -1,3 +1,6 @@
+import type { MatchState } from "./game";
+import { LOBBY_DISCONNECTED_AFTER_MS } from "./lobby-session";
+
 export type ManagedSeriesBinding = { id: string; lobby_id: string; match_code: string; status: "initializing" | "active" | "completed"; start_command_id: string };
 
 export async function managedSeriesForCode(database: D1Database, code: string) {
@@ -23,3 +26,23 @@ export async function managedSeatAllowed(database: D1Database, code: string, pla
   return Boolean(row);
 }
 
+
+/** Managed game presence is application-wide. A match WebSocket closing
+ * because the player visits Decks/Compendium must not start a disconnect
+ * forfeit timer. Use the authoritative lobby heartbeat instead. */
+export async function hydrateManagedPresence(database: D1Database, state: MatchState, now = Date.now()) {
+  const binding = await managedSeriesForCode(database, state.code);
+  if (!binding) return false;
+  const rows = await database.prepare(`SELECT s.player_id, m.last_seen_at, m.expires_at, m.left_at,
+    EXISTS (SELECT 1 FROM lobby_series_departures d WHERE d.series_id = s.series_id AND d.membership_id = m.id) AS departing
+    FROM lobby_series_seats s JOIN lobby_memberships m ON m.id = s.membership_id WHERE s.series_id = ?`)
+    .bind(binding.id).all<{ player_id: string; last_seen_at: number; expires_at: number; left_at: number | null; departing: number }>();
+  const byPlayer = new Map((rows.results ?? []).map(row => [row.player_id, row]));
+  for (const player of state.players) {
+    const row = byPlayer.get(player.id);
+    player.connected = Boolean(row && binding.status === "active" && row.left_at == null && !row.departing &&
+      row.expires_at > now && now - row.last_seen_at < LOBBY_DISCONNECTED_AFTER_MS);
+    if (row) player.lastSeen = row.last_seen_at;
+  }
+  return true;
+}

@@ -13,3 +13,7 @@ Expiry sweeps now skip active series until game concession/settlement and creden
 The read-only inventory helper identifies all legacy account seats, including malformed snapshots, and distinguishes completed from unfinished series. It is not a migration or a public endpoint. Do not silently pick the most recent unfinished match. Before cutover, reconcile conflicting seats and guests, preserve unfinished series, settle/expire only via the authoritative engine, and prove no legacy create/join path bypasses membership. Completed legacy games do not establish persistent lobby membership because legacy clients never recorded explicit departure.
 
 Remaining work: controller/seat binding and revocation, actual engine series bridge and active-series leave/expiry, guest and account sign-in/out/deletion UI reconciliation, global application heartbeat, route/navigation changes, invitation routing, legacy data migration, shared chat and readiness. Production migration 0017 and 0016 are required before enabling the endpoint. Run D1/Durable Object and browser concurrency tests before cutover.
+
+## Managed engine bridge
+
+See [managed series bridge](lobby-series-bridge.md) for the transactional engine/series binding, credential fencing, private coordinator departure operations and scheduled recovery. The public session endpoint remains gated until canonical lobby preparation, Training, credential recovery and all entry points are migrated.

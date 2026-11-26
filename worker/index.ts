@@ -5,7 +5,7 @@ import handler from "vinext/server/app-router-entry";
 import { runWithExecutionContext } from "vinext/shims/request-context";
 import { normalizeMatchState, type MatchState } from "../lib/game";
 import { normalizeEngineState, persistTransition, projectMatchForPlayer, reduceMatch, type CommandEnvelope, type EngineBackedMatchState, type GameCommand } from "../lib/engine";
-import { managedSeriesForCode, managedSeatAllowed } from "../lib/lobby-series-access";
+import { managedSeriesForCode, managedSeatAllowed, hydrateManagedPresence } from "../lib/lobby-series-access";
 import { finalizeManagedSeries, managedSeriesMaintenanceCodes, reconcileManagedSeries, requestManagedDeparture } from "../lib/lobby-series-bridge";
 import { resolveLobbyIdentities } from "../lib/lobby-identity-server";
 import { createLobbySessionService } from "../lib/lobby-session-server";
@@ -536,6 +536,7 @@ export class MatchRoom {
     if (managedResult) { await this.publish(managedResult); return; }
     const row = managed ? await this.env.DB.prepare("SELECT state_json FROM matches WHERE code = ?").bind(stored.code).first<{ state_json: string }>() : null;
     const snapshot = normalizeEngineState(normalizeMatchState(row ? JSON.parse(row.state_json) as MatchState : stored));
+    if (managed) await hydrateManagedPresence(this.env.DB, snapshot, now);
     if (["lobby", "result"].includes(snapshot.phase)) {
       if (!this.state.getWebSockets().length) await this.state.storage.deleteAll();
       else await this.state.storage.setAlarm(nextMatchAlarmAt(snapshot, now));
@@ -559,9 +560,11 @@ export class MatchRoom {
 
     let transition = await runCommand(snapshot, "system", { type: "RESOLVE_DEADLINE" }, "deadline");
     if (!transition.changed) {
-      const presence = await this.env.DB.prepare(
-        "SELECT player_id, last_seen FROM match_presence WHERE code = ? AND connected = 0 ORDER BY last_seen ASC LIMIT 1",
-      ).bind(snapshot.code).first<{ player_id: string; last_seen: number }>();
+      const disconnected = managed ? snapshot.players.filter(player => !player.connected).sort((a,b) => a.lastSeen - b.lastSeen)[0] : undefined;
+      const presence = managed ? (disconnected ? { player_id: disconnected.id, last_seen: disconnected.lastSeen } : null)
+        : await this.env.DB.prepare(
+          "SELECT player_id, last_seen FROM match_presence WHERE code = ? AND connected = 0 ORDER BY last_seen ASC LIMIT 1",
+        ).bind(snapshot.code).first<{ player_id: string; last_seen: number }>();
       if (presence && now - Number(presence.last_seen) >= MATCH_RECONNECT_GRACE_MS) {
         transition = await runCommand(snapshot, presence.player_id, { type: "CONCEDE", reason: "disconnect" }, `disconnect:${presence.player_id}`);
       }

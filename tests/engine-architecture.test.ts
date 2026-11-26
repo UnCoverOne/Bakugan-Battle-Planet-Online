@@ -239,3 +239,26 @@ test("legacy phases have a structured modern projection", () => {
     legacy: "handLimit",
   });
 });
+
+test("internal series forfeiture ends BO3 from gameplay or intermission without advancing game number", () => {
+  const playing = initializeMatch("ABC234","bo3",[player("p1"),player("p2")], {
+    commandId:"create-forfeit", actorId:"p1", issuedAt:1_800_000_000_000, randomSeed:"forfeit-seed",requestHash:"create",
+  }).state;
+  const command = {type:"FORFEIT_SERIES",playerId:"p1",reason:"left"} as const;
+  assert.throws(() => reduceMatch(playing,envelope(playing,{commandId:"unauthorized-forfeit",actorId:"p1",command})), /server authority/);
+  const early = reduceMatch(playing,envelope(playing,{commandId:"series-forfeit",actorId:"system",command})).state;
+  assert.equal(early.phase,"result");
+  assert.equal(early.winner,"p2");
+  assert.equal(early.series.p2,2);
+  assert.equal(early.gameNumber,1);
+  const intermission = structuredClone(playing);
+  intermission.phase="result";
+  intermission.winner="p1";
+  intermission.series.p1=1;
+  intermission.resultReason="Game complete";
+  const late = reduceMatch(intermission,envelope(intermission,{commandId:"intermission-forfeit",actorId:"system",command})).state;
+  assert.equal(late.phase,"result");
+  assert.deepEqual(late.series,{p1:1,p2:2});
+  assert.equal(late.gameNumber,intermission.gameNumber);
+  assert.equal(late.winner,"p2");
+});
