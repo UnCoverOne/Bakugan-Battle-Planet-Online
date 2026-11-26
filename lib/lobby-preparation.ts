@@ -1,4 +1,6 @@
-import { BAKUGAN, CARD_BY_ID, canonicalDeckRecord, validateDeck, type DeckRecord } from "./data";
+import { BAKUGAN, CARD_BY_ID, canonicalDeckRecord, deckLeadCard, validateDeck, type DeckRecord } from "./data";
+import { deckSetName } from "./deck-set";
+import { cardPrintingKey, preferredCardPrinting } from "./deck-printings";
 import { deckAllowedInMeta } from "./meta-formats";
 import { deckConstructionIdentity } from "./deck-validation";
 import type { LobbyConfiguration, LobbyMode } from "./lobby-session";
@@ -59,5 +61,11 @@ export function clearPreparationReadiness(preparation: LobbyPreparation): LobbyP
   return {...preparation,members:Object.fromEntries(Object.entries(preparation.members).map(([id,value])=>[id,{...value,ready:false}]))};
 }
 export function deckPreview(deck: DeckRecord) {
-  return {id:deck.id,name:deck.name,bakuganIds:deck.bakuganIds,factions:deck.factions,leadCardId:deck.leadCardId,format:deck.format};
+  const lead=deckLeadCard(deck);
+  // Expose only artwork preferences for the three displayed characters and
+  // featured card, never preferences for the hidden main-deck cards.
+  const cards=[...deck.bakuganIds.map(id=>BAKUGAN.find(b=>b.id===id)?.character),lead].filter((card):card is NonNullable<typeof card>=>Boolean(card));
+  const printingPreferences=Object.fromEntries(cards.map(card=>[cardPrintingKey(card),preferredCardPrinting(card,deck.printingPreferences).catalogId]));
+  return {id:deck.id,name:deck.name,bakuganIds:deck.bakuganIds,factions:deck.factions,leadCardId:lead?.catalogId,format:deck.format,
+    printingPreferences,setName:deckSetName(deck)};
 }

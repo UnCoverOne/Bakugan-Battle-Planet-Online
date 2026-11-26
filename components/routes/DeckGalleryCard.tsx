@@ -18,7 +18,7 @@ export function CharacterPortrait({ src, name }: { src: string; name: string }) 
   </span>;
 }
 
-export function DeckPreview({ deck }: { deck: DeckRecord }) {
+export function DeckPreview({ deck }: { deck: Pick<DeckRecord, "name" | "bakuganIds" | "cardIds" | "leadCardId" | "printingPreferences"> }) {
   const characters = deck.bakuganIds.slice(0, 3).map(id => BAKUGAN.find(b => b.id === id));
   const selected = deckLeadCard(deck);
   const featured = selected ? preferredCardPrinting(selected, deck.printingPreferences) : undefined;

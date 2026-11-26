@@ -17,6 +17,8 @@ const targets = [
   "components/routes/MatchCreationScreen.module.css",
   "components/application/SiteNavigation.module.css",
   "components/routes/DeckGalleryCard.module.css",
+  "components/routes/ManagedLobby.module.css",
+  "components/application/LobbyChatPanel.module.css",
   "components/routes/BattleActivityPanel.module.css",
 ];
 const errors = [];
