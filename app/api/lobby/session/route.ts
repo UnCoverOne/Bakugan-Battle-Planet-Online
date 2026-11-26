@@ -65,7 +65,7 @@ async function handle(request: Request) {
       if(body.action==="claim-controller")throw new AuthorizationError("Active series membership required.");
     }
     const result=await executeLobbyCommand(database, identities, body);
-    if(body.action==="start-series"&&"series" in result&&result.series.status==="active"&&result.status==="member"&&result.lobby.mode!=="training"){
+    if(body.action==="start-series"&&"series" in result&&result.series?.status==="active"&&result.status==="member"&&result.lobby.mode!=="training"){
       const identity=identities.primary!;
       const seat=await activeManagedSeat(database,identity,result.membership.id,result.series.seriesId);
       if(seat){

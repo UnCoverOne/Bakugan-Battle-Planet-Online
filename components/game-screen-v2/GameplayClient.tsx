@@ -1,4 +1,5 @@
 "use client";
+import { PERSISTENT_LOBBY_ENABLED } from "../../lib/lobby-cutover";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -1186,6 +1187,7 @@ export function GameplayClient() {
   }, []);
 
   const exit = () => {
+    if(PERSISTENT_LOBBY_ENABLED){router.push("/play/lobby");return;}
     writeGameRoute("play");
     window.location.reload();
   };
@@ -1198,7 +1200,7 @@ export function GameplayClient() {
       return;
     }
     if (!finalizeCompletedMatchExit()) return;
-    router.replace("/play/result");
+    router.replace(PERSISTENT_LOBBY_ENABLED?"/play/lobby":"/play/result");
   };
 
   if (storedState.route === "match") {

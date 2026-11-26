@@ -16,6 +16,7 @@ import {
 } from "./alternateWinPresentation";
 import styles from "./MatchResultDialog.module.css";
 import { MatchResultSocial } from "../social/MatchResultSocial";
+import { PERSISTENT_LOBBY_ENABLED } from "../../lib/lobby-cutover";
 import { useAppFields } from "../application/AppProvider";
 import {
   MATCH_UPDATE_EVENT,
@@ -295,7 +296,7 @@ export function MatchStateCoordinator() {
     : null;
 
   useEffect(() => {
-    if (returnState.route !== "match" || returnState.match?.phase !== "lobby") return;
+    if (PERSISTENT_LOBBY_ENABLED || returnState.route !== "match" || returnState.match?.phase !== "lobby") return;
     writeGameRoute("lobby");
     router.replace("/play/lobby");
   }, [returnState.match?.phase, returnState.route, router]);
@@ -363,7 +364,7 @@ export function MatchStateCoordinator() {
           }}
           onContinue={() => {
             if (isCompletedSeriesResult(returnState.match)) {
-              if (finalizeCompletedMatchExit()) router.replace("/play/result");
+              if (finalizeCompletedMatchExit()) router.replace(PERSISTENT_LOBBY_ENABLED?"/play/lobby":"/play/result");
               return;
             }
             void nextSeriesGame();
