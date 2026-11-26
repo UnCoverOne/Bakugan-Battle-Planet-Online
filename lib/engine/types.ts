@@ -45,6 +45,7 @@ export type GameCommand =
   | { type: "DISCARD_TO_HAND_LIMIT"; cardIds: string[] }
   | { type: "CHAT"; message: string }
   | { type: "CONCEDE"; reason?: "disconnect" }
+  | { type: "FORFEIT_SERIES"; playerId: string; reason: "left" | "expired" }
   | { type: "NEXT_TURN" }
   | { type: "START_NEXT_SERIES_GAME" }
   | { type: "ACK_GAME_RESULT" }

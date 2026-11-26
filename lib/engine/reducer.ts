@@ -4,6 +4,7 @@ import {
   beginCorePlacement,
   cloneMatch,
   concedeMatch,
+  completeMatch,
   createMatch,
   discardToHandLimit,
   energizeCard,
@@ -158,6 +159,32 @@ function dispatchCommand(input: MatchState, actorId: string, command: GameComman
       }
       return state;
     }
+    case "FORFEIT_SERIES": {
+      if (actorId !== "system") throw new EngineCommandError("UNKNOWN_ACTOR", "Series forfeiture requires server authority.");
+      const winner = input.players.find(player => player.id !== command.playerId);
+      if (input.players.length !== 2 || !winner || !input.players.some(player => player.id === command.playerId)) {
+        throw new EngineCommandError("UNKNOWN_ACTOR", "The forfeiting player does not occupy a series seat.");
+      }
+      const target = input.format === "bo3" ? 2 : 1;
+      if (input.phase === "result" && Math.max(0, ...Object.values(input.series)) >= target) {
+        throw new EngineCommandError("SERIES_COMPLETE", "The series has already ended.");
+      }
+      const state = cloneMatch(input);
+      const reason = command.reason === "expired" ? "Opponent lobby membership expired" : "Opponent left the lobby";
+      if (state.phase !== "result") completeMatch(state, winner.id, reason);
+      // During intermission the last game's result already exists. End the
+      // series without incrementing gameNumber or manufacturing extra games.
+      state.series[winner.id] = target;
+      state.winner = winner.id;
+      state.resultReason = reason;
+      state.stepLabel = "Series forfeited";
+      state.resultAcknowledgedBy = [];
+      const ranked = rankedSeries(state);
+      if (ranked) ranked.stage = "complete";
+      state.version = input.version + 1;
+      state.log.push({ id: `${issuedAt}-series-forfeit-${state.version}`, at: issuedAt, kind: "system", message: reason + ". Series forfeited." });
+      return state;
+    }
     case "NEXT_TURN": return nextTurn(input);
     case "ACK_GAME_RESULT": return acknowledgeGameResult(input, actorId);
     case "START_NEXT_SERIES_GAME": {
@@ -198,7 +225,7 @@ export function reduceMatch(input: MatchState, envelope: CommandEnvelope): Reduc
   }
   assertEnvelope(before, envelope);
   const currentMetadata = ensureEngineMetadata(before);
-  if (currentMetadata.fault?.suspended && !["CHAT", "CONCEDE"].includes(envelope.command.type)) throw new EngineCommandError("MATCH_SUSPENDED", `Match suspended for engine investigation: ${currentMetadata.fault.code}.`);
+  if (currentMetadata.fault?.suspended && !["CHAT", "CONCEDE", "FORFEIT_SERIES"].includes(envelope.command.type)) throw new EngineCommandError("MATCH_SUSPENDED", `Match suspended for engine investigation: ${currentMetadata.fault.code}.`);
   assertCommandAllowedInPhase(before, envelope.command);
   let next: EngineBackedMatchState;
   let runtimeBudget: NonNullable<ReturnType<typeof ensureEngineMetadata>["runtimeBudget"]>;

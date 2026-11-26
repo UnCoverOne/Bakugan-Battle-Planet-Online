@@ -172,11 +172,14 @@ export async function persistInitialMatch(
   events: readonly GameEvent[],
   receipt: CommandReceipt,
   seat?: PersistedSeat,
+  managed?: { seats: readonly PersistedSeat[]; statements: readonly D1PreparedStatement[] },
 ) {
   await ensureEngineEventStore(database);
   trimLegacyLog(state);
   const statements = [
-    database.prepare("INSERT OR IGNORE INTO matches (code, state_json, previous_state_json, updated_at) VALUES (?, ?, NULL, ?)")
+    database.prepare(managed
+      ? "INSERT INTO matches (code, state_json, previous_state_json, updated_at) VALUES (?, ?, NULL, ?)"
+      : "INSERT OR IGNORE INTO matches (code, state_json, previous_state_json, updated_at) VALUES (?, ?, NULL, ?)")
       .bind(state.code, JSON.stringify(state), receipt.issuedAt),
     ...events.map((event) => eventInsert(database, state.code, event, receipt.commandId)),
     receiptInsert(database, state.code, receipt),
@@ -187,6 +190,8 @@ export async function persistInitialMatch(
         WHERE code = ? AND json_extract(state_json, '$.${ENGINE_METADATA_KEY}.lastCommandId') = ?
       )`).bind(state.code, state.version, JSON.stringify(state), receipt.issuedAt, state.code, receipt.commandId),
     ...(seat ? [seatInsert(database, state.code, receipt.commandId, seat)] : []),
+    ...(managed ? managed.seats.map(candidate => seatInsert(database, state.code, receipt.commandId, candidate)) : []),
+    ...(managed?.statements ?? []),
   ];
   const results = await database.batch(statements);
   return Number(results[0]?.meta?.changes ?? 0) > 0;
