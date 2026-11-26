@@ -513,7 +513,7 @@ export async function POST(request: Request) {
     if (!body.code) throw new ValidationError("Room code required.");
     const code = body.code.toUpperCase();
     const managed = await managedSeriesForCode(await getDatabase(), code);
-    if (managed && ["join", "lobby-settings", "lobby-deck", "ranked-roster"].includes(body.action)) {
+    if (managed && ["join", "lobby-settings", "lobby-deck", "ranked-roster", "chat"].includes(body.action)) {
       throw new ConflictError("This series uses persistent lobby preparation.");
     }
     let record = await load(code);
