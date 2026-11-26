@@ -1,0 +1,9 @@
+.panel{display:flex;flex-direction:column;min-width:0;min-height:0;gap:8px;height:100%;color:var(--bb-text);font-family:var(--bb-font-interface)}
+.header{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0}
+.header h2{margin:0;font-size:16px;font-weight:700}.header small,.muted,.footer{color:var(--bb-muted);font-size:13px}
+.history{flex:1;min-height:100px;max-height:48dvh;overflow:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:12px;padding:8px 4px;scrollbar-width:thin}
+.message,.system{flex:none;min-width:0;font-size:14px;overflow-wrap:anywhere;white-space:pre-wrap}
+.message>div,.system>div{display:flex;align-items:baseline;gap:8px}.message time,.system time{color:var(--bb-muted);font-size:11px}.message p,.system p{margin:2px 0 0}.system{color:var(--bb-muted);font-size:12px}.system>div{float:left;margin-right:8px}.system p{margin:0}
+.composer{display:flex;align-items:stretch;gap:8px;flex:none}.composer input{flex:1;min-width:0}.composer button{min-width:68px;flex:none}
+.footer{margin:0;padding:8px 0}.historyButton{color:var(--bb-link);background:transparent;border:0;cursor:pointer;font:inherit;font-size:12px;padding:8px;min-height:32px}.historyButton:disabled{opacity:.6}
+.error{font-size:12px;color:var(--bb-text);overflow-wrap:anywhere}.error button{color:var(--bb-link);background:none;border:0;font:inherit;cursor:pointer}

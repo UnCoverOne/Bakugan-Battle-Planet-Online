@@ -1,5 +1,8 @@
 "use client";
 
+import { useLobbySession } from "../application/LobbySessionProvider";
+import { useLobbyChat } from "../application/LobbyChatProvider";
+import { LobbyChatPanel } from "../application/LobbyChatPanel";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { cardEventLogEntries, chatEntries, eventLogEntries, matchTimeLabel, normalizeChatMessage } from "../../lib/chat";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
@@ -40,6 +43,9 @@ function cardEventActor(match: MatchState | null, playerId: string | undefined) 
 }
 
 export function MatchCommunicationLayer() {
+  const lobby=useLobbySession(),lobbyChat=useLobbyChat();
+  const managed=lobby.enabled;
+  const systemOnly=lobby.recovery?.lobby?.mode==="training";
   const communication = useMatchSelector((state): CommunicationState => ({
     active: state.route === "match",
     online: state.online,
@@ -123,7 +129,7 @@ export function MatchCommunicationLayer() {
 
   const sendChat = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (sending) return;
+    if (managed || sending) return;
     const message = normalizeChatMessage(draft);
     const stored = readMatchStore();
     const current: CommunicationState = { active: stored.route === "match", online: stored.online, match: stored.match, playerId: stored.playerId };
@@ -205,13 +211,14 @@ export function MatchCommunicationLayer() {
           data-active={chatOpen ? "true" : "false"}
           aria-controls="match-chat-panel"
           aria-expanded={chatOpen}
-          aria-label={chatOpen ? "Close match chat" : "Open match chat"}
+          aria-label={chatOpen ? "Close chat" : managed&&lobbyChat.unread ? `Open lobby chat, ${lobbyChat.unread} unread messages` : "Open match chat"}
           onClick={toggleChat}
         >
           <svg className={styles.buttonIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path d="M4 5h16v11H9l-5 4V5Z" />
             <path d="M8 9h8M8 12h5" />
           </svg>
+          {managed&&lobbyChat.unread>0&&<span className={styles.chatUnread} aria-hidden="true"/>}
         </button>
       </div>
 
@@ -339,6 +346,7 @@ export function MatchCommunicationLayer() {
           onFocusCapture={() => setChatFocused(true)}
           onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setChatFocused(false); }}
         >
+          {managed ? (chatOpen ? <LobbyChatPanel systemOnly={systemOnly}/> : null) : <>
           <header>
             <div>
               <span>PLAYER COMMS</span>
@@ -375,6 +383,7 @@ export function MatchCommunicationLayer() {
             </button>
           </form>
           {error ? <p className={styles.chatError} role="alert">{error}</p> : null}
+          </>}
         </section>
       </div>
     </>

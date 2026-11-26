@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useLobbyChat } from "./LobbyChatProvider";
 import { useLobbySession } from "./LobbySessionProvider";
 import { useAppFields } from "./AppProvider";
 import { ProfileAvatar } from "../profile/ProfileAvatar";
@@ -53,11 +54,12 @@ function Destinations({ mobile, onNavigate }) {
   const pathname = usePathname();
   const active = navigationDestination(pathname);
   const session=useLobbySession();
+  const chat=useLobbyChat();
   const inLobby=session.enabled&&session.recovery.status==="member";
   return <nav className={mobile ? styles.mobileNav : styles.desktopNav} aria-label="Primary navigation">
     {PRIMARY_DESTINATIONS.map(({ href, label, icon }) =>
-      <Link key={href} href={href==="/play"&&inLobby?"/play/lobby":href} className={styles.navLink} data-play={href==="/play"?"true":undefined} data-persistent={session.enabled?"true":undefined} aria-current={active === href ? "page" : undefined} onClick={onNavigate}>
-        {mobile && <NavIcon name={href==="/play"&&inLobby?"users":icon}/>}<span>{href==="/play"&&inLobby?"RETURN TO LOBBY":label}</span>
+      <Link key={href} href={href==="/play"&&inLobby?"/play/lobby":href} className={styles.navLink} data-play={href==="/play"?"true":undefined} data-persistent={session.enabled?"true":undefined} aria-label={href==="/play"&&inLobby&&chat.unread?`Return to lobby, ${chat.unread} unread messages`:undefined} aria-current={active === href ? "page" : undefined} onClick={onNavigate}>
+        {mobile && <NavIcon name={href==="/play"&&inLobby?"users":icon}/>}<span>{href==="/play"&&inLobby?"RETURN TO LOBBY":label}</span>{href==="/play"&&inLobby&&chat.unread>0&&<span className={styles.chatUnread} aria-hidden="true"/>}
       </Link>
     )}
   </nav>;

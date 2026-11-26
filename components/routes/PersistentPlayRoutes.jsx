@@ -2,6 +2,7 @@
 import {useEffect,useRef,useState} from "react";
 import Link from "next/link";
 import {usePathname,useRouter} from "next/navigation";
+import {LobbyChatPanel} from "../application/LobbyChatPanel";
 import {useLobbySession} from "../application/LobbySessionProvider";
 import {useAppFields} from "../application/AppProvider";
 import {lobbyRouteDecision} from "../../lib/lobby-client-routing";
@@ -106,6 +107,7 @@ function ManagedLobby(){
       <Button onClick={()=>setEditing(false)}>Cancel</Button><Button disabled={session.busy} onClick={async()=>{if(await send("select-decks",{decks:draft}))setEditing(false);}}>Confirm selection</Button>
     </section>}
     {(localError||session.error)&&<p role="alert">{localError||session.error}</p>}
+    <div className={styles.lobbyChat}><LobbyChatPanel systemOnly={room.mode==="training"}/></div>
     <div className={styles.actions}>{active?<Button onClick={session.returnToGame}>Return to Game</Button>:host?<Button disabled={session.busy||!p.canStart} onClick={()=>void send("start-series",{commandId:crypto.randomUUID()})}>Start Game</Button>:<span>Waiting for host</span>}</div>
   </section>;
 }
@@ -174,5 +176,6 @@ function ManagedGamePreparation(){
       {state.players[0]?.id===actor&&<Button disabled={busy||!lobbyCanStart(state)} onClick={()=>void send("start-match")}>Start Game</Button>}
     </>}
     {error&&<p role="alert">{error}</p>}
+    <div className={styles.lobbyChat}><LobbyChatPanel systemOnly={!stored.online}/></div>
   </Status>;
 }

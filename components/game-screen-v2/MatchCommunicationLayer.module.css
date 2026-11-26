@@ -744,3 +744,5 @@
   .chatDock {
   }
 }
+
+.communicationButton{position:relative}.chatUnread{position:absolute;top:5px;right:5px;width:7px;height:7px;background:var(--bb-link);border-radius:50%;pointer-events:none}
