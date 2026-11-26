@@ -12,6 +12,7 @@ const configuration = { structure: "bo1", format: "standard", meta: "battle-braw
 function fixture() {
   const sql = new DatabaseSync(":memory:");
   sql.exec(readFileSync("migrations/0016_lobby_sessions.sql", "utf8"));
+  sql.exec(readFileSync("migrations/0017_lobby_guest_identity.sql", "utf8"));
   let time = 100000, counter = 0;
   function prepare(query: string) {
     let values: (string | number | null)[] = [];
@@ -77,4 +78,40 @@ test("series references never determine membership and active-series joins are b
   assert.equal((await service.read(alice))?.previousSeriesId, "series-1");
   assert.equal(lobbyPrimaryAction(false, true), "start-game");
   assert.equal(await service.leave(alice, a.membershipId), true);
+});
+
+test("admission receipts survive departure and do not open a second room", async () => {
+  const { sql, service } = fixture();
+  const admission = { commandId: "create-1", requestKey: "create:casual:bo1" };
+  const a = await service.create(alice, "casual", "ABC234", configuration, admission);
+  assert.deepEqual(await service.create(alice, "casual", "ABC235", configuration, admission), a);
+  await assert.rejects(service.create(alice, "casual", "ABC235", configuration, { ...admission, requestKey: "different" }), /LOBBY_COMMAND_REUSED/);
+  const b = await service.joinByCode(bob, "ABC234", "join-1");
+  assert.equal(await service.leave(bob, b.membershipId), true);
+  assert.equal(await service.leave(alice, a.membershipId), true);
+  assert.deepEqual(await service.joinByCode(bob, "ABC234", "join-1"), b);
+  assert.deepEqual(await service.create(alice, "casual", "ABC235", configuration, admission), a);
+  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM lobby_sessions").get()?.n, 1);
+  assert.equal(await service.activeMembership(alice), null);
+});
+test("guest adoption preserves membership and rejects an occupied account", async () => {
+  const { service } = fixture();
+  const g = await service.create(carol, "training", "ABC234", configuration);
+  const a = await service.create(alice, "casual", "ABC235", configuration);
+  assert.equal(await service.adoptGuest(carol, alice, g.membershipId), false);
+  assert.equal(await service.leave(alice, a.membershipId), true);
+  assert.equal(await service.adoptGuest(carol, alice, g.membershipId), true);
+  assert.equal(await service.activeMembership(carol), null);
+  assert.equal((await service.activeMembership(alice))?.id, g.membershipId);
+  assert.equal(await service.heartbeat(carol, g.membershipId), false);
+});
+test("expired active series are reserved pending settlement, not silently removed", async () => {
+  const { sql, service, advance } = fixture();
+  const a = await service.create(alice, "casual", "ABC234", configuration);
+  sql.prepare("UPDATE lobby_sessions SET current_series_id = ? WHERE id = ?").run("series", a.lobbyId);
+  advance(LOBBY_MEMBERSHIP_TTL_MS);
+  assert.equal(await service.expire(), 0);
+  assert.equal(await service.heartbeat(alice, a.membershipId), false);
+  assert.equal((await service.activeMembership(alice))?.id, a.membershipId);
+  assert.equal(await service.leave(alice, a.membershipId), false);
 });
