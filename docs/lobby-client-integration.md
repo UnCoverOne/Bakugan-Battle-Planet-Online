@@ -23,3 +23,7 @@ See [persistent lobby communication](lobby-chat.md). The common chat provider an
 ## Responsive presentation
 
 See [managed lobby presentation](lobby-presentation.md) for the shared responsive layout and deck picker that replace the transitional preparation UI. The common cutover gate remains closed.
+
+## Final integration and retirement
+
+See [migration and retirement](lobby-cutover.md) for managed social invitations, account safeguards, previous-series result recovery, legacy inventory and source/asset audit. The gate remains disabled.

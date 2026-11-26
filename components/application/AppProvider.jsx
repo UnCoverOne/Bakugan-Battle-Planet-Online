@@ -675,6 +675,7 @@ export function AppProvider({ children }) {
     if (retainSession && userId) {
       try { localStorage.setItem("bbp-skipped-account-session-v1", userId); } catch {}
     }
+    if(PERSISTENT_LOBBY_ENABLED){clearBrowserMatchCredentials();setMatchCapability("");setMatchControllerId("");setMatch(null);setOnline(false);void import("../game-screen-v2/matchStore").then(({primeMatchStore})=>primeMatchStore({match:null,online:false,capability:"",controllerId:""}));}
     activeAccountId.current = "";
     cloudLoaded.current = false;
     setAccountDataReady(false);
@@ -685,7 +686,7 @@ export function AppProvider({ children }) {
     setAuthError("");
     if (message) notify(message);
     router.push("/");
-  }, [applySnapshot, authUser?.id, notify, persistAccountRecovery, router]);
+  }, [applySnapshot, authUser?.id, notify, persistAccountRecovery, router, setMatch, setOnline, setMatchCapability, setMatchControllerId]);
 
   const putCloud = useCallback(async (data, baseline) => {
     let latest = { revisions: accountRevisions.current, data: null, errors: [] };
