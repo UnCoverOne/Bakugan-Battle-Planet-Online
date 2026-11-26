@@ -1,0 +1,13 @@
+# Managed lobby presentation
+
+The managed preparation route uses one shared lobby layout for Training, Casual and Ranked. The prior transitional controls are replaced by ManagedLobby and LobbyDeckPicker. The legacy fallback remains present while PERSISTENT_LOBBY_ENABLED is false. No new gameplay rules are introduced.
+
+- At 1200px and wider: two flat player seats and a 300–340px chat column, divided by one vertical line.
+- At 761–1199px: two seats, with chat in a modal overlay. At 760px and below: own seat first, opponent second, and a full-screen chat overlay. The action bar is fixed above mobile navigation at 850px and below.
+- Ready/Unready occupies its own 108×44px seat control. Start Game/Return to Game occupies a separate 152×48px action slot (144px on mobile). The guest waiting label occupies that same slot without an enabled start button. Settings and decks are read-only during a series. Structure is inherited and displayed read-only; format and meta retain the staged host permissions (Ranked fixed Competitive/Battle Brawlers).
+- Existing Deck Gallery artwork, character crop, featured printing and faction assets are reused. Casual and Training opponent previews are projected by the server, with only the featured card and displayed artwork preferences. Ranked opponents have count-only placeholders, compressed into three compact slots on narrow screens. Training AI is read-only; a failed automatic assignment can be retried, not rerolled.
+- The modal deck picker uses native dialog focus containment, a fixed header/footer, scrollable two-column gallery (single column full-screen on narrow screens), compatible-only default, search, faction/favourite filters, and name/update/latest-set sorting. Selection is provisional until the server confirms. Partial Ranked rosters can be committed but cannot ready until all three legal distinct decks are selected. Changing rules revalidates the draft; an external change to the committed selection blocks stale confirmation. An empty selection can be confirmed to clear previous decks.
+- The chat panel is shared with gameplay and preserves unread/draft state. Training has system messages only. The local seat uses existing profile avatar; opponent fallback uses initials because the staged projection does not supply cosmetics. The bot uses the existing bot icon.
+- Design uses only established Midnight/Pyrus tokens and local fonts. No new artwork or card assets are introduced.
+
+Remaining: rendered browser and accessibility verification, complete build and tests, account/invitation migration, legacy session reconciliation, and end-to-end Cloudflare cutover. The staged flag is intentionally false.

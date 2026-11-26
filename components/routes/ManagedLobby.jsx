@@ -60,9 +60,9 @@ function BrawlerSeat({seat,mode,count,own=false,ai=false,active,busy,onEdit,onRe
     </footer>
   </section>;
 }
-function RuleField({label,value,editable,children,onChange}){
+function RuleField({label,value,editable,children,onChange,disabled=false}){
   return <label className={styles.ruleField}><span>{label}</span>{editable?
-    <select value={value} aria-label={label} onChange={event=>onChange(event.target.value)}>{children}</select>:
+    <select value={value} disabled={disabled} aria-label={label} onChange={event=>onChange(event.target.value)}>{children}</select>:
     <span className={styles.ruleValue}>{value}</span>}</label>;
 }
 export function ManagedLobby(){
@@ -72,10 +72,12 @@ export function ManagedLobby(){
   const [picker,setPicker]=useState(null),[chatOpen,setChatOpen]=useState(false),[localError,setLocalError]=useState(""),[copyState,setCopyState]=useState(""),[pending,setPending]=useState(null);
   const wide=useWideLobby(),syncKey=useRef(""),copyTimer=useRef(null),inFlight=useRef(false),startId=useRef(null);
   useEffect(()=>{
-    if(!room||!p||active||syncKey.current===room.id)return;
-    syncKey.current=room.id;
+    if(!room||!p||active)return;
+    const key=`${r.membership.id}:${room.previousSeriesId??"initial"}`;
+    if(syncKey.current===key)return;
+    syncKey.current=key;
     void session.command({action:"sync-preparation",membershipId:r.membership.id}).catch(()=>{});
-  },[room?.id,Boolean(p),active]);
+  },[r.membership?.id,room?.previousSeriesId,Boolean(p),active]);
   useEffect(()=>{setPicker(null);setChatOpen(false);setLocalError("");setCopyState("");startId.current=null;},[r.membership?.id]);
   useEffect(()=>{if(active)setPicker(null);},[active]);
   useEffect(()=>{if(wide)setChatOpen(false);},[wide]);
@@ -91,7 +93,7 @@ export function ManagedLobby(){
   };
   const configuration=p.configuration,count=p.requiredDeckCount;
   const opponent=room.mode==="training"?{name:p.ai?.name??"Mira Nova",connected:true,ready:p.ai?.ready,deckCount:p.ai?.deck?1:0,decks:p.ai?.deck?[p.ai.deck]:[]}:p.seats.find(s=>!s.own);
-  const canEdit=host&&!active&&room.mode!=="ranked"&&!busy;
+  const canEdit=host&&!active&&room.mode!=="ranked";
   const updateSettings=patch=>void send("update-settings",{...configuration,...patch});
   const copy=async(invitation=false)=>{
     try{
@@ -121,10 +123,10 @@ export function ManagedLobby(){
     </header>
     <div className={styles.settings}>
       <RuleField label="Structure" value={configuration.structure==="bo3"?"Best of Three":"Best of One"}/>
-      <RuleField label="Format" value={canEdit?configuration.format:formatNames[configuration.format]} editable={canEdit} onChange={format=>updateSettings({format})}>
+      <RuleField label="Format" value={canEdit?configuration.format:formatNames[configuration.format]} editable={canEdit} disabled={busy} onChange={format=>updateSettings({format})}>
         <option value="standard">Standard</option><option value="singleton">Singleton</option>
       </RuleField>
-      <RuleField label="Meta" value={canEdit?configuration.meta:metaName(configuration.meta)} editable={canEdit} onChange={meta=>updateSettings({meta})}>
+      <RuleField label="Meta" value={canEdit?configuration.meta:metaName(configuration.meta)} editable={canEdit} disabled={busy} onChange={meta=>updateSettings({meta})}>
         {LOBBY_METAS.map(meta=><option key={meta.id} value={meta.id}>{meta.name}</option>)}
       </RuleField>
     </div>
@@ -138,9 +140,9 @@ export function ManagedLobby(){
         <div className={styles.feedback} role="status">{localError||session.error||""}</div>
         <div className={styles.actionBar}>
           {!wide&&<button type="button" className={styles.chatButton} aria-label={chat.unread?`Open chat, ${chat.unread} unread`:"Open chat"} onClick={()=>setChatOpen(true)}><ChatIcon/> Chat{chat.unread>0&&<span className={styles.unreadDot}/>}</button>}
-          <span className={styles.actionStatus}>{active?"Series in progress":host?"": "Waiting for host"}</span>
+          <span className={styles.actionStatus}>{active?"Series in progress":""}</span>
           {active?<button className={styles.start} type="button" onClick={session.returnToGame}>Return to Game</button>:
-            host?<button className={styles.start} type="button" disabled={busy||!p.canStart} onClick={()=>void start()}>{pending==="start-series"?"Starting…":"Start Game"}</button>:<span className={styles.guestAction} aria-hidden="true"/>}
+            host?<button className={styles.start} type="button" disabled={busy||!p.canStart} onClick={()=>void start()}>{pending==="start-series"?"Starting…":"Start Game"}</button>:<span className={styles.guestAction}>Waiting for host</span>}
         </div>
       </div>
       {wide&&<aside className={styles.chatColumn}><LobbyChatPanel systemOnly={room.mode==="training"}/></aside>}

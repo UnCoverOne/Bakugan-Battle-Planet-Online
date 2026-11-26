@@ -8,6 +8,7 @@ import {LucideIcon} from "../design-system/LucideIcon";
 import {FACTIONS,FACTION_SYMBOLS} from "../../lib/card-filters";
 import {deckSetCode,deckSetName} from "../../lib/deck-set";
 import {CARD_SET_CODES} from "../../lib/content/catalogue";
+import {proposedDeckSelection,sameDeckSelection} from "../../lib/lobby-picker-state";
 import {deckProblem,rosterProblem} from "../../lib/lobby-preparation";
 import styles from "./ManagedLobby.module.css";
 
@@ -51,7 +52,7 @@ export function LobbyModal({children,className,onCancel,labelledBy}){
     {children}
   </dialog>;
 }
-const deckSignature=decks=>JSON.stringify(decks.map(deck=>[deck.id,deck.name,deck.format,deck.bakuganIds,deck.coreIds,deck.cardIds,deck.leadCardId,deck.printingPreferences]));
+const deckSignature=deck=>JSON.stringify([deck.id,deck.name,deck.format,deck.bakuganIds,deck.coreIds,deck.cardIds,deck.leadCardId,deck.printingPreferences]);
 const setIndex=deck=>CARD_SET_CODES.indexOf(deckSetCode(deck));
 const sortDecks=(a,b,sort)=>sort==="name"?a.name.localeCompare(b.name):
   sort==="set"?setIndex(b)-setIndex(a)||a.name.localeCompare(b.name):
@@ -60,9 +61,9 @@ const sortDecks=(a,b,sort)=>sort==="name"?a.name.localeCompare(b.name):
 export function LobbyDeckPicker({decks,committed,configuration,ruleset,mode,limit,slot,onCancel,onConfirm,busy,error}){
   const [draft,setDraft]=useState(()=>[...committed]),[query,setQuery]=useState(""),[faction,setFaction]=useState("all"),
     [sort,setSort]=useState("updated"),[favourites,setFavourites]=useState(false),[showIncompatible,setShowIncompatible]=useState(false);
-  const original=useRef(deckSignature(committed)),[replacement,setReplacement]=useState(committed[slot]?.id??null);
-  const changed=deckSignature(draft)!==original.current;
-  const stale=deckSignature(committed)!==original.current;
+  const original=useRef([...committed]),[replacement,setReplacement]=useState(committed[slot]?.id??null);
+  const changed=!sameDeckSelection(draft,original.current,deckSignature);
+  const stale=!sameDeckSelection(committed,original.current,deckSignature);
   const ruleUnavailable=mode==="ranked"&&!ruleset;
   const problem=ruleUnavailable?"Rules unavailable":rosterProblem(draft,mode,configuration,ruleset,false);
   const choices=useMemo(()=>{
@@ -72,29 +73,20 @@ export function LobbyDeckPicker({decks,committed,configuration,ruleset,mode,limi
     for(const deck of draft)saved.set(deck.id,deck);
     return [...saved.values()].map(deck=>{
       const selected=draft.some(d=>d.id===deck.id);
-      const candidate=limit===1?[deck]:replacement&&draft.some(d=>d.id===replacement)?
-        draft.map(d=>d.id===replacement?deck:d):[...draft,deck];
+      const candidate=proposedDeckSelection(draft,deck,limit,replacement);
       const invalid=ruleUnavailable?"Rules unavailable":deckProblem(deck,configuration,ruleset);
-      const duplicate=!selected&&!invalid&&candidate.length<=limit&&rosterProblem(candidate,mode,configuration,ruleset,false)==="Already selected";
-      return {deck,selected,problem:invalid||(duplicate?"Already selected":null),full:!selected&&candidate.length>limit};
+      const duplicate=!selected&&!invalid&&candidate!==null&&rosterProblem(candidate,mode,configuration,ruleset,false)==="Already selected";
+      return {deck,selected,problem:invalid||(duplicate?"Already selected":null),full:!selected&&candidate===null};
     }).sort((a,b)=>sortDecks(a.deck,b.deck,sort));
   },[decks,draft,replacement,configuration,ruleset,mode,limit,sort,ruleUnavailable]);
   const visible=choices.filter(({deck,selected,problem})=>
     (selected||showIncompatible||!problem)&&(!query.trim()||deck.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))&&
-    (faction==="all"||deck.factions?.includes(faction))&&(!favourites||deck.favourite));
+    (faction==="all"||deck.factions?.includes(faction))&&(!favourites||deck.favourite||decks.some(saved=>saved.id===deck.id&&saved.favourite)));
   const choose=({deck,selected,problem,full})=>{
     if(busy||stale)return;
-    if(selected){
-      setDraft(old=>old.filter(d=>d.id!==deck.id));
-      if(replacement===deck.id)setReplacement(null);
-      return;
-    }
-    if(problem||full)return;
-    if(limit===1){setDraft([deck]);return;}
-    if(replacement&&draft.some(d=>d.id===replacement)){
-      setDraft(old=>old.map(d=>d.id===replacement?deck:d));setReplacement(null);return;
-    }
-    setDraft(old=>[...old,deck]);
+    if(!selected&&(problem||full))return;
+    setDraft(old=>proposedDeckSelection(old,deck,limit,replacement)??old);
+    if(replacement&&(!selected||replacement===deck.id))setReplacement(null);
   };
   return <LobbyModal className={styles.picker} onCancel={()=>{if(!busy)onCancel();}} labelledBy="lobby-picker-title">
     <div className={styles.modalContent}>

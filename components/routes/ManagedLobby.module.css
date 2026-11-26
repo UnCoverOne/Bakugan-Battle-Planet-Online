@@ -24,7 +24,7 @@
 .identityText{min-width:0}
 .identityText h2{margin:0;font:700 19px/1.15 var(--bb-font-interface);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .identityText>span,.deckHeader,.seatHint,.deckSet{color:var(--bb-muted);font-size:12px;line-height:1.35}
-.status{display:flex;align-items:center;gap:6px;color:var(--bb-muted);font-size:12px;line-height:1.2;max-width:90px}
+.status{display:flex;align-items:center;gap:6px;color:var(--bb-muted);font-size:12px;line-height:1.2;width:90px;max-width:90px;min-height:30px}
 .status[data-ready="true"]{color:var(--bb-success)}.statusDot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
 .deckHeader{display:flex;justify-content:space-between;gap:8px;min-height:18px;align-items:center}
 .slots{display:grid;gap:8px;min-width:0}
@@ -41,16 +41,16 @@
 .problem{color:var(--bb-deck-warning-text);font-size:12px;line-height:1.2}
 .change{color:var(--bb-link);font-size:12px;white-space:nowrap;min-width:18px;align-self:end;padding-bottom:6px}
 .seatFooter{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:44px;margin-top:auto}
-.seatHint{flex:1;min-width:0;overflow-wrap:anywhere}
+.seatHint{flex:1;min-width:0;max-height:44px;overflow:auto;overflow-wrap:anywhere}
 .readyButton,.start,.secondary,.confirm,.chatButton{border:0;border-radius:0;display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:none;color:var(--bb-white);font:700 14px/1.2 var(--bb-font-interface);cursor:pointer;box-sizing:border-box;white-space:nowrap}
 .readyButton{width:108px;height:44px;background:var(--bb-selection)}
 .readyButton[data-ready="true"],.secondary,.chatButton{background:var(--bb-panel)}
 .readyButton:not(:disabled):hover,.secondary:not(:disabled):hover,.chatButton:not(:disabled):hover{background:var(--bb-panel-hover)}
 .readyButton:disabled{background:var(--bb-panel);color:var(--bb-muted);opacity:.65}
-.feedback{color:var(--bb-deck-warning-text);font-size:13px;min-height:22px;margin-top:8px;overflow-wrap:anywhere}
+.feedback{color:var(--bb-deck-warning-text);font-size:13px;height:40px;margin-top:8px;overflow:auto;overflow-wrap:anywhere}
 .actionBar{display:flex;align-items:center;justify-content:flex-end;gap:12px;min-height:52px;padding-top:6px}
 .actionStatus{color:var(--bb-muted);font-size:13px;text-align:right}
-.start,.guestAction{width:152px;height:48px;flex:none}
+.start,.guestAction{width:152px;height:48px;flex:none}.guestAction{display:grid;place-items:center;color:var(--bb-muted);font-size:13px;text-align:center}
 .start,.confirm{background:var(--bb-pyrus)}
 .start:not(:disabled):hover,.confirm:not(:disabled):hover{background:var(--bb-pyrus-hover)}
 .start:not(:disabled):active,.confirm:not(:disabled):active{background:var(--bb-pyrus-pressed)}
@@ -62,7 +62,7 @@
 .chatColumn :global([role="log"]),.chatModalBody :global([role="log"]){max-height:none;min-height:0}
 @media(min-width:1200px){.workspace{grid-template-columns:minmax(0,1fr) clamp(300px,24vw,340px)}}
 @media(max-width:1199px){.workspace{gap:0}}
-@media(min-width:761px) and (max-width:1360px){.slot{grid-template-columns:minmax(0,110px) minmax(0,1fr);position:relative;gap:10px}.compactSlot{grid-template-columns:minmax(0,88px) minmax(0,1fr)}.change{position:absolute;right:4px;bottom:2px;padding:0}.slot .deckDetails{padding-bottom:12px}.identity{grid-template-columns:40px minmax(0,1fr);gap:8px}.identity .avatar{width:40px;height:40px}.status{grid-column:2;max-width:none;min-height:14px}.identity{min-height:66px}}
+@media(min-width:761px) and (max-width:1360px){.slot{grid-template-columns:minmax(0,110px) minmax(0,1fr);position:relative;gap:10px}.compactSlot{grid-template-columns:minmax(0,88px) minmax(0,1fr)}.change{position:absolute;right:4px;bottom:2px;padding:0}.slot .deckDetails{padding-bottom:12px}.identity{grid-template-columns:40px minmax(0,1fr);gap:8px}.identity .avatar{width:40px;height:40px}.status{grid-column:2;width:auto;max-width:none;min-height:14px}.identity{min-height:66px}}
 /* Modal uses the browser top layer rather than a route-specific z-index. */
 .picker,.chatModal{padding:0;border:0;border-radius:0;background:var(--bb-page);color:var(--bb-text);box-sizing:border-box;max-width:calc(100vw - 32px);max-height:85dvh;margin:auto;overflow:hidden}
 .picker{width:1000px;height:min(720px,85dvh)}
@@ -101,7 +101,7 @@
   .lobby h1{font-size:28px;line-height:1.1}
   .invitation{flex-basis:100%}.copyStatus{top:auto;left:100%;margin-left:4px}
   .actionBar{position:fixed;left:0;right:0;bottom:calc(68px + env(safe-area-inset-bottom));z-index:299;background:var(--bb-nav);padding:8px 16px;min-height:64px;box-sizing:border-box;gap:8px}
-  .actionStatus{font-size:12px}
+  .actionStatus{display:none}
   .start,.guestAction{width:144px}
 }
 @media(max-width:760px){
@@ -110,7 +110,7 @@
   .ruleField:first-child .ruleValue{height:30px;background:transparent;padding:0}
   .seats{grid-template-columns:1fr;gap:12px}
   .seat{padding:12px;gap:10px}.identity{min-height:44px;grid-template-columns:40px minmax(0,1fr) auto;gap:8px}
-  .avatar{width:40px;height:40px}.identityText h2{font-size:18px}
+  .avatar{width:40px;height:40px}.identityText h2{font-size:18px}.status{width:82px;max-width:82px}
   .slot{height:116px;grid-template-columns:minmax(0,110px) minmax(0,1fr) auto;gap:10px}
   .compactSlot{height:92px;grid-template-columns:minmax(0,82px) minmax(0,1fr) auto}
   .deckName{font-size:16px}.change{font-size:11px}
@@ -132,4 +132,6 @@
   .pickerStatus{flex-basis:100%;min-height:16px}
   .confirm{width:120px}.chatModalBody{padding-bottom:calc(16px + env(safe-area-inset-bottom))}
 }
-@media(max-width:380px){.lobby{padding-inline:12px}.heading{gap:4px}.lobby h1{font-size:25px}.leave{padding-inline:4px;font-size:12px}.copyStatus{left:4px;top:calc(100% - 5px)}.slot{grid-template-columns:minmax(0,92px) minmax(0,1fr);position:relative}.compactSlot{grid-template-columns:minmax(0,76px) minmax(0,1fr)}.slot .deckDetails{padding-bottom:12px}.change{position:absolute;right:4px;bottom:0;padding:0}.actionBar{padding-inline:12px}.actionStatus{max-width:92px}}
+@media(max-width:380px){.lobby{padding-inline:12px}.heading{gap:4px}.lobby h1{font-size:25px}.leave{padding-inline:4px;font-size:12px}.copyStatus{left:4px;top:calc(100% - 5px)}.slot{grid-template-columns:minmax(0,92px) minmax(0,1fr);position:relative}.compactSlot{grid-template-columns:minmax(0,76px) minmax(0,1fr)}.slot .deckDetails{padding-bottom:12px}.change{position:absolute;right:4px;bottom:0;padding:0}.actionBar{padding-inline:12px}}
+
+@media(max-height:500px) and (max-width:760px){.modalHeader{padding:8px 12px}.pickerTools{padding:6px 12px;gap:4px}.filters label{min-height:24px}.modalFooter{padding:6px 12px calc(6px + env(safe-area-inset-bottom))}.galleryScroll{min-height:48px}}

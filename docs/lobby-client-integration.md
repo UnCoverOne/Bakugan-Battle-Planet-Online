@@ -19,3 +19,7 @@ The routing helper and two regression tests were copied from the committed GitHu
 ## Unified communication
 
 See [persistent lobby communication](lobby-chat.md). The common chat provider and membership-scoped API are staged behind the same disabled cutover flag. Final responsive placement remains part of the next design phase.
+
+## Responsive presentation
+
+See [managed lobby presentation](lobby-presentation.md) for the shared responsive layout and deck picker that replace the transitional preparation UI. The common cutover gate remains closed.

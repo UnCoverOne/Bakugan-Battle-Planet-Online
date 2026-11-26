@@ -29,5 +29,8 @@ test("Ranked projection contains counts, never opposing deck identities or accou
   assert.doesNotMatch(JSON.stringify(ranked),/Secret opposing deck|account:private/);
   const casual=projectPreparation({...room,mode:"casual",configuration:standard},100001);
   assert.match(JSON.stringify(casual.seats[1].decks),/Secret opposing deck/);
-  assert.doesNotMatch(JSON.stringify(casual.seats[1].decks),/"cardIds"/);
+  assert.doesNotMatch(JSON.stringify(casual.seats[1].decks),/"cardIds"|"coreIds"/);
+  const preview=casual.seats[1].decks[0];
+  assert.ok("setName" in preview);
+  assert.ok(Object.keys(preview.printingPreferences??{}).length<=4);
 });
