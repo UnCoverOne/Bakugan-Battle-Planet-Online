@@ -13,6 +13,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useLobbySession } from "../application/LobbySessionProvider";
 import type { LobbyInviteSummary, SocialAccountSummary, SocialSnapshot } from "../../lib/social";
 import { socialTitleLabel } from "../../lib/social";
 import { readJsonResponse } from "../../lib/json-response";
@@ -59,6 +60,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
   } = useAppFields(["authUser", "notify", "requestAccountAccess", "setFormat", "setJoinCode", "setMatchMode"]);
   const router = useRouter();
   const [snapshot, setSnapshot] = useState<SocialSnapshot>(EMPTY_SNAPSHOT);
+  const lobbySession=useLobbySession();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const requestId = useRef(0);
@@ -166,10 +168,13 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     });
     const result = await readJsonResponse(response, "Social action returned an invalid response.") as {
       error?: string;
-      lobby?: { code: string; format: "bo1" | "bo3" };
+      lobby?: { code: string; format: "bo1" | "bo3"; joined?: boolean };
     };
     if (!response.ok) throw new Error(result.error ?? "Social action failed.");
     if (action === "accept-invite" && result.lobby) {
+      if(lobbySession.enabled){
+        setOpen(false);await lobbySession.refresh();router.push("/play");notify("Lobby invitation accepted.");return;
+      }
       setMatchMode("join");
       setJoinCode(result.lobby.code);
       setFormat(result.lobby.format);
@@ -189,7 +194,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     };
     if (success[action]) notify(success[action]);
     await refresh();
-  }, [authUser, notify, refresh, requestAccountAccess, router, setFormat, setJoinCode, setMatchMode, snapshot.activeLobby?.code]);
+  }, [authUser, notify, refresh, requestAccountAccess, router, setFormat, setJoinCode, setMatchMode, snapshot.activeLobby?.code, lobbySession]);
 
   const value = useMemo(() => ({ snapshot, open, setOpen, loading, refresh, perform }), [snapshot, open, loading, refresh, perform]);
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;

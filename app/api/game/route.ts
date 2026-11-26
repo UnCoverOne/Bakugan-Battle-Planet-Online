@@ -30,7 +30,7 @@ import {
   type CommandEnvelope,
   type EngineBackedMatchState,
 } from "../../../lib/engine";
-import { PERSISTENT_LOBBY_ENABLED } from "../../../lib/lobby-cutover";
+import { PERSISTENT_LOBBY_ENABLED, LEGACY_LOBBY_CREATION_CLOSED } from "../../../lib/lobby-cutover";
 import { managedSeriesForCode, hydrateManagedPresence } from "../../../lib/lobby-series-access";
 import { isInternalMatchRequest } from "../../../lib/internal-request";
 import { ensureMatchSessionSchema } from "../../../lib/match-session-schema";
@@ -421,6 +421,7 @@ export async function POST(request: Request) {
     const body = parseBody(parsed);
     action = body.action;
     if(PERSISTENT_LOBBY_ENABLED&&(body.action==="create"||body.action==="join"))throw new ConflictError("Create or join through the persistent lobby.");
+    if(LEGACY_LOBBY_CREATION_CLOSED&&body.action==="create")throw new ConflictError("New legacy rooms are temporarily closed for lobby migration.");
     const clientKey = requestClientKey(request);
     await enforceD1RateLimit(await getDatabase(), `${clientKey}:${body.action === "chat" ? "chat" : "game"}`, body.action === "chat" ? 30 : 180, 60_000);
     if (body.action === "create" || body.action === "join" || body.action === "lobby-deck") await applyDatabaseCardOverrides(await getDatabase());
