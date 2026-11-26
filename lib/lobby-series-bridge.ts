@@ -10,17 +10,10 @@ import { isCompletedSeriesResult } from "./match-result-navigation";
 import type { LobbyIdentity, LobbyDeparture } from "./lobby-session";
 import { ConflictError } from "./server-errors";
 
-export type ManagedSeriesBinding = { id: string; lobby_id: string; match_code: string; status: "initializing" | "active" | "completed"; start_command_id: string };
+import { managedSeriesForCode, type ManagedSeriesBinding } from "./lobby-series-access";
+
 export type ManagedSeat = PersistedSeat & { membershipId: string };
 const key = (identity: LobbyIdentity) => `${identity.kind}:${identity.id}`;
-
-export async function managedSeriesForCode(database: D1Database, code: string) {
-  // Legacy installations can run before the additive migrations are applied.
-  const table = await database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'lobby_series_bindings'").first();
-  if (!table) return null;
-  return database.prepare("SELECT id, lobby_id, match_code, status, start_command_id FROM lobby_series_bindings WHERE match_code = ?")
-    .bind(code).first<ManagedSeriesBinding>();
-}
 
 /** Internal only: prepared state must be produced by canonical deck validation,
  * readiness checks and engine initialization, never received from a browser.
@@ -69,21 +62,6 @@ export async function persistManagedSeries(database: D1Database, input: {
   const saved = await lookup();
   if (!saved) throw new ConflictError("Series initialization was not committed.");
   return saved;
-}
-
-/** Managed credentials cannot outlive their membership or series. Legacy
- * seats retain their existing capability policy until migrated. */
-export async function managedSeatAllowed(database: D1Database, code: string, playerId: string, now = Date.now()) {
-  const binding = await managedSeriesForCode(database, code);
-  if (!binding) return true;
-  if (binding.status !== "active") return false;
-  const row = await database.prepare(`SELECT 1 AS allowed FROM lobby_series_seats s
-    JOIN lobby_memberships m ON m.id = s.membership_id JOIN lobby_sessions l ON l.id = m.lobby_id
-    WHERE s.series_id = ? AND s.player_id = ? AND m.left_at IS NULL AND m.expires_at > ?
-      AND l.current_series_id = s.series_id AND NOT EXISTS (
-        SELECT 1 FROM lobby_series_departures d WHERE d.series_id = s.series_id AND d.membership_id = m.id)`)
-    .bind(binding.id, playerId, now).first();
-  return Boolean(row);
 }
 
 async function loadState(database: D1Database, code: string) {
@@ -147,6 +125,36 @@ export async function resolveManagedDepartures(database: D1Database, code: strin
     if (!await persistTransition(database, { code, next: result.state, previous: state, expectedVersion: state.version,
       events: result.events, receipt: result.receipt })) throw new ConflictError("Series changed; retry departure resolution.");
   }
-  await finalizeManagedSeries(database, code);
+  // Publish the terminal result to still-authorized players before revoking
+  // the engine controllers in finalizeManagedSeries.
   return loadState(database, code);
+}
+
+/** Called only inside the match coordinator's serialized operation. */
+export async function reconcileManagedSeries(database: D1Database, code: string, now = Date.now()) {
+  const binding = await managedSeriesForCode(database, code);
+  if (!binding || binding.status !== "active") return null;
+  const expired = await database.prepare(`SELECT m.id FROM lobby_series_seats s JOIN lobby_memberships m ON m.id = s.membership_id
+    WHERE s.series_id = ? AND m.left_at IS NULL AND m.expires_at <= ? ORDER BY m.expires_at,m.sequence`)
+    .bind(binding.id, now).all<{ id: string }>();
+  for (const member of expired.results ?? []) await requestManagedDeparture(database, { code, membershipId: member.id, reason: "expired" }, now);
+  const departed = await resolveManagedDepartures(database, code);
+  if (departed) return departed;
+  const state = await loadState(database, code);
+  return isCompletedSeriesResult(state) ? state : null;
+}
+
+export async function managedSeriesMaintenanceCodes(database: D1Database, now = Date.now()) {
+  const table = await database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'lobby_series_bindings'").first();
+  if (!table) return [];
+  const rows = await database.prepare(`SELECT b.match_code FROM lobby_series_bindings b
+    JOIN matches g ON g.code = b.match_code WHERE b.status = 'active' AND (
+      EXISTS (SELECT 1 FROM lobby_series_departures d WHERE d.series_id = b.id)
+      OR EXISTS (SELECT 1 FROM lobby_series_seats s JOIN lobby_memberships m ON m.id = s.membership_id
+        WHERE s.series_id = b.id AND m.left_at IS NULL AND m.expires_at <= ?)
+      OR (json_extract(g.state_json,'$.phase') = 'result' AND EXISTS (
+        SELECT 1 FROM json_each(g.state_json,'$.series') score
+        WHERE score.value >= CASE json_extract(g.state_json,'$.format') WHEN 'bo3' THEN 2 ELSE 1 END))
+    ) ORDER BY b.created_at LIMIT 100`).bind(now).all<{ match_code: string }>();
+  return (rows.results ?? []).map(row => row.match_code);
 }

@@ -23,3 +23,16 @@ test("series-forfeit command is internal and completion follows archival", () =>
   assert.doesNotMatch(publicRoute, /"forfeit-series"/);
   assert.ok(bridge.indexOf("await archiveCompletedMatch(database, state)") < bridge.indexOf("UPDATE lobby_series_bindings SET status = 'completed'"));
 });
+
+test("managed seats are fenced and maintenance is serialized", () => {
+  const auth = source("lib/match-seat-auth.ts");
+  const access = source("lib/lobby-series-access.ts");
+  const worker = source("worker/index.ts");
+  assert.match(auth, /managedSeatAllowed\(database, code, playerId\)/);
+  assert.match(access, /m.expires_at > \?/);
+  assert.match(access, /lobby_series_departures/);
+  assert.match(worker, /url.pathname === "\/lobby-maintenance"[\s\S]*withSessionMutation/);
+  assert.match(worker, /url.pathname === "\/lobby-departure"[\s\S]*withSessionMutation/);
+  assert.match(worker, /await finalizeManagedSeries\(this.env.DB, match.code\)/);
+  assert.match(source("wrangler.jsonc"), /"\* \* \* \* \*"/);
+});

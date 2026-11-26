@@ -1,4 +1,5 @@
 import { ensureMatchSessionSchema } from "./match-session-schema";
+import { managedSeatAllowed } from "./lobby-series-access";
 
 export const MATCH_CAPABILITY_HEADER = "x-match-capability";
 export const MATCH_CONTROLLER_HEADER = "x-match-controller";
@@ -59,6 +60,7 @@ export function capabilityHashesMatch(left: string, right: string) {
 
 export async function loadMatchSeatCredential(database: D1Database, code: string, playerId: string) {
   await ensureMatchSessionSchema(database);
+  if (!await managedSeatAllowed(database, code, playerId)) return null;
   return database.prepare(`SELECT capability_hash, capability_version, controller_id
     FROM match_seats WHERE code = ? AND player_id = ?`)
     .bind(code, playerId).first<MatchSeatCredential>();

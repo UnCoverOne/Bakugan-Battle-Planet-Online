@@ -30,6 +30,7 @@ import {
   type CommandEnvelope,
   type EngineBackedMatchState,
 } from "../../../lib/engine";
+import { managedSeriesForCode } from "../../../lib/lobby-series-access";
 import { isInternalMatchRequest } from "../../../lib/internal-request";
 import { ensureMatchSessionSchema } from "../../../lib/match-session-schema";
 import {
@@ -380,6 +381,7 @@ export async function GET(request: Request) {
     if (!/^[A-HJ-NP-Z2-9]{6}$/.test(code)) throw new ValidationError("Enter a valid six-character lobby code.");
     const database = await getDatabase();
     await enforceD1RateLimit(database, `${requestClientKey(request)}:lobby-lookup`, 30, 60_000);
+    if (await managedSeriesForCode(database, code)) throw new ConflictError("Use the lobby invitation code instead.");
     const record = await load(code);
     if (!record) return json({ error: "Match room not found.", code: "VALIDATION_ERROR", correlationId }, 404);
     const state = record.state;
@@ -505,6 +507,10 @@ export async function POST(request: Request) {
 
     if (!body.code) throw new ValidationError("Room code required.");
     const code = body.code.toUpperCase();
+    const managed = await managedSeriesForCode(await getDatabase(), code);
+    if (managed && ["join", "lobby-settings", "lobby-deck", "ranked-roster"].includes(body.action)) {
+      throw new ConflictError("This series uses persistent lobby preparation.");
+    }
     let record = await load(code);
     if (!record) return json({ error: "Match room not found.", code: "VALIDATION_ERROR", correlationId }, 404);
 
@@ -514,7 +520,7 @@ export async function POST(request: Request) {
       }
       if (!await authenticateSeat(request, code, body.playerId)) throw new AuthorizationError("Invalid match seat capability.");
       const account = await getSessionUser(request);
-      await associateMatchSeatAccount(await getDatabase(), code, body.playerId, account?.id, Date.now());
+      if (!managed) await associateMatchSeatAccount(await getDatabase(), code, body.playerId, account?.id, Date.now());
       await touchPresence(code, body.playerId);
     }
     await hydratePresence(record.state);

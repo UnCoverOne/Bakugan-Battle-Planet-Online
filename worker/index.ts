@@ -5,6 +5,10 @@ import handler from "vinext/server/app-router-entry";
 import { runWithExecutionContext } from "vinext/shims/request-context";
 import { normalizeMatchState, type MatchState } from "../lib/game";
 import { normalizeEngineState, persistTransition, projectMatchForPlayer, reduceMatch, type CommandEnvelope, type EngineBackedMatchState, type GameCommand } from "../lib/engine";
+import { managedSeriesForCode, managedSeatAllowed } from "../lib/lobby-series-access";
+import { finalizeManagedSeries, managedSeriesMaintenanceCodes, reconcileManagedSeries, requestManagedDeparture } from "../lib/lobby-series-bridge";
+import { resolveLobbyIdentities } from "../lib/lobby-identity-server";
+import { createLobbySessionService } from "../lib/lobby-session-server";
 import { nextMatchAlarmAt } from "../lib/deadlines";
 import { markInternalMatchRequest, stripInternalMatchHeaders } from "../lib/internal-request";
 import { isCompletedSeriesResult } from "../lib/match-result-navigation";
@@ -203,9 +207,17 @@ export class MatchRoom {
   private async publish(match: MatchState) {
     await this.state.storage.put("snapshot", match);
     await this.state.storage.setAlarm(nextMatchAlarmAt(match));
+    const managed = await managedSeriesForCode(this.env.DB, match.code);
     for (const socket of this.state.getWebSockets()) {
       try {
-        const attachment = socket.deserializeAttachment?.() as { playerId?: string } | undefined;
+        const attachment = socket.deserializeAttachment?.() as MatchSocketAttachment | undefined;
+        if (managed && attachment?.playerId) {
+          const seat = await loadMatchSeatCredential(this.env.DB, match.code, attachment.playerId);
+          if (!seat || seat.capability_version !== attachment.capabilityVersion || seat.controller_id !== attachment.controllerId) {
+            socket.close(4003, "Series seat ended");
+            continue;
+          }
+        }
         if (attachment?.playerId) {
           socket.send(JSON.stringify({
             type: "state",
@@ -220,6 +232,9 @@ export class MatchRoom {
         }));
         try { socket.close(1011, "Transport failure"); } catch {}
       }
+    }
+    if (managed?.status === "active" && isCompletedSeriesResult(match)) {
+      await finalizeManagedSeries(this.env.DB, match.code);
     }
   }
 
@@ -260,6 +275,34 @@ export class MatchRoom {
       });
     }
 
+    // These private paths are only reachable through the MATCHES binding;
+    // the public Worker never forwards arbitrary paths to this object.
+    if (request.method === "POST" && url.pathname === "/lobby-maintenance") {
+      return this.withSessionMutation(async () => {
+        const code = String(url.searchParams.get("code") ?? "").toUpperCase();
+        if (!/^[A-Z2-9]{6}$/.test(code)) return matchRoomJson({ error: "Invalid series code." }, 400);
+        const result = await reconcileManagedSeries(this.env.DB, code);
+        if (result) await this.publish(result);
+        return matchRoomJson({ accepted: true });
+      });
+    }
+    if (request.method === "POST" && url.pathname === "/lobby-departure") {
+      return this.withSessionMutation(async () => {
+        const code = String(url.searchParams.get("code") ?? "").toUpperCase();
+        const body = await request.json().catch(() => null) as { membershipId?: string; scope?: string } | null;
+        const identities = await resolveLobbyIdentities(this.env.DB, request);
+        const identity = body?.scope === "guest" ? identities.guest : identities.primary;
+        if (!identity || typeof body?.membershipId !== "string" || !/^[A-Z2-9]{6}$/.test(code)) return matchRoomJson({ error: "Verified membership required." }, 403);
+        const membership = await createLobbySessionService(this.env.DB).activeMembership(identity);
+        if (membership?.id !== body.membershipId) return matchRoomJson({ error: "Membership changed." }, 409);
+        const accepted = await requestManagedDeparture(this.env.DB, { code, membershipId: membership.id, reason: "left", identity });
+        if (!accepted) return matchRoomJson({ error: "Departure pending or series changed." }, 409);
+        const result = await reconcileManagedSeries(this.env.DB, code);
+        if (result) await this.publish(result);
+        return matchRoomJson({ accepted: true });
+      });
+    }
+
     if (request.method === "POST" && url.pathname === "/resume") {
       return this.withSessionMutation(async () => {
       const code = String(url.searchParams.get("code") ?? "").toUpperCase();
@@ -290,6 +333,7 @@ export class MatchRoom {
       if (rows.length !== 1) return matchRoomJson({ error: "Your account has an ambiguous seat assignment in this room.", code: "CONFLICT_ERROR" }, 409);
 
       const row = rows[0];
+      if (!await managedSeatAllowed(this.env.DB, code, row.player_id)) return matchRoomJson({ error: "This series seat has ended.", code: "CONFLICT_ERROR" }, 409);
       let snapshot: MatchState;
       try {
         snapshot = normalizeMatchState(JSON.parse(row.state_json) as MatchState);
@@ -406,7 +450,7 @@ export class MatchRoom {
     );
     if (!seat) return new Response("Forbidden", { status: 403 });
     const account = await getSessionUserFromDatabase(request, this.env.DB);
-    await associateMatchSeatAccount(this.env.DB, code, playerId, account?.id, Date.now());
+    if (!await managedSeriesForCode(this.env.DB, code)) await associateMatchSeatAccount(this.env.DB, code, playerId, account?.id, Date.now());
 
     for (const existing of this.state.getWebSockets(playerId)) {
       const attachment = existing.deserializeAttachment?.() as MatchSocketAttachment | undefined;
@@ -482,10 +526,16 @@ export class MatchRoom {
   async webSocketError(socket: WebSocket) { await this.webSocketClose(socket); }
 
   async alarm() {
+    return this.withSessionMutation(async () => {
     const stored = await this.state.storage.get<MatchState>("snapshot");
     if (!stored) return;
     const now = Date.now();
-    const snapshot = normalizeEngineState(normalizeMatchState(stored));
+    const managed = await managedSeriesForCode(this.env.DB, stored.code);
+    if (managed?.status === "completed") return;
+    const managedResult = managed ? await reconcileManagedSeries(this.env.DB, stored.code, now) : null;
+    if (managedResult) { await this.publish(managedResult); return; }
+    const row = managed ? await this.env.DB.prepare("SELECT state_json FROM matches WHERE code = ?").bind(stored.code).first<{ state_json: string }>() : null;
+    const snapshot = normalizeEngineState(normalizeMatchState(row ? JSON.parse(row.state_json) as MatchState : stored));
     if (["lobby", "result"].includes(snapshot.phase)) {
       if (!this.state.getWebSockets().length) await this.state.storage.deleteAll();
       else await this.state.storage.setAlarm(nextMatchAlarmAt(snapshot, now));
@@ -546,6 +596,7 @@ export class MatchRoom {
     }
 
     await this.state.storage.setAlarm(Math.max(now + 30_000, nextMatchAlarmAt(snapshot, now)));
+    });
   }
 }
 
@@ -701,21 +752,35 @@ const worker = {
     return withSecurityHeaders(response);
   },
   async scheduled(controller: ScheduledController, env: Env) {
+    if (controller.cron === "* * * * *") {
+      const schema = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'lobby_series_bindings'").first();
+      if (!schema) return;
+      await createLobbySessionService(env.DB).expire();
+      for (const code of await managedSeriesMaintenanceCodes(env.DB)) {
+        try {
+          const response = await env.MATCHES.getByName(code).fetch(`https://match.internal/lobby-maintenance?code=${code}`, { method: "POST" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        } catch (error) { console.error("Managed series maintenance failed", code, String(error)); }
+      }
+      return;
+    }
     await runScheduled(controller, env);
   },
 };
 
 async function runScheduled(_controller: ScheduledController, env: Env) {
   const cutoff = Date.now();
+  const managedSchema = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'lobby_series_bindings'").first();
+  const preserveManaged = managedSchema ? " AND code NOT IN (SELECT match_code FROM lobby_series_bindings WHERE status = 'active')" : "";
   await ensureSocialSchema(env.DB);
   await env.DB.batch([
     env.DB.prepare("CREATE TABLE IF NOT EXISTS rum_events (id TEXT PRIMARY KEY, route TEXT NOT NULL, metric TEXT NOT NULL, value REAL NOT NULL, device TEXT NOT NULL, created_at INTEGER NOT NULL)"),
     env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(cutoff),
     env.DB.prepare("DELETE FROM rate_limits WHERE window_start < ?").bind(cutoff - 86_400_000),
     env.DB.prepare("DELETE FROM rum_events WHERE created_at < ?").bind(cutoff - 7_776_000_000),
-    env.DB.prepare("DELETE FROM match_snapshots WHERE created_at < ?").bind(cutoff - 2_592_000_000),
-    env.DB.prepare("DELETE FROM match_presence WHERE code IN (SELECT code FROM matches WHERE updated_at < ?)").bind(cutoff - 2_592_000_000),
-    env.DB.prepare("DELETE FROM matches WHERE updated_at < ?").bind(cutoff - 2_592_000_000),
+    env.DB.prepare("DELETE FROM match_snapshots WHERE created_at < ?" + preserveManaged).bind(cutoff - 2_592_000_000),
+    env.DB.prepare("DELETE FROM match_presence WHERE code IN (SELECT code FROM matches WHERE updated_at < ?" + preserveManaged + ")").bind(cutoff - 2_592_000_000),
+    env.DB.prepare("DELETE FROM matches WHERE updated_at < ?" + preserveManaged).bind(cutoff - 2_592_000_000),
     env.DB.prepare("DELETE FROM match_replays WHERE NOT EXISTS (SELECT 1 FROM match_replay_participants WHERE match_replay_participants.replay_id = match_replays.replay_id)"),
     env.DB.prepare("UPDATE lobby_invitations SET status = 'expired', responded_at = ? WHERE status = 'pending' AND expires_at <= ?").bind(cutoff, cutoff),
     env.DB.prepare("DELETE FROM lobby_invitations WHERE status <> 'pending' AND COALESCE(responded_at, expires_at) < ?").bind(cutoff - 2_592_000_000),
