@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { VERSION_MISMATCH_EVENT } from "../AssetFreshness";
 import { SystemState, VersionMismatchScreen } from "./SystemState";
 import { AccountAccessModal, GuestAccountPrompt } from "./AccountAccessModal";
+import { useLobbySession } from "./LobbySessionProvider";
 import { useAppFields } from "./AppProvider";
 import { SocialProvider, SocialDrawer } from "../social/SocialProvider";
 import { SiteNavigation } from "./SiteNavigation";
@@ -12,6 +13,7 @@ import { MusicLayer } from "./MusicLayer";
 
 export function AppShell({ children }) {
   const pathname = usePathname();
+  const lobbySession=useLobbySession();
   const {
     ready, authChecking, authUser, accountDataReady, authError,
     retryCloudLoad, signOutAccount, accountPrompt, dismissAccountPrompt,
@@ -73,12 +75,12 @@ export function AppShell({ children }) {
       <div className={immersiveMatch ? "blank-shell immersive-shell" : "blank-shell"}>
         <a className="skip-link" href="#main-content">Skip to content</a>
         {!immersiveMatch && <SiteNavigation onLogout={logout} />}
-        {!immersiveMatch && !homePage && canResumeLocalMatch && (
+        {!lobbySession.enabled && !immersiveMatch && !homePage && canResumeLocalMatch && (
           <button type="button" disabled={resumingCurrentMatch} onClick={() => void resumeCurrentMatch()}>
             {resumingCurrentMatch ? "Resuming match…" : "Resume current match"}
           </button>
         )}
-        {!immersiveMatch && !homePage && accountMatchSessions?.map((session) => (
+        {!lobbySession.enabled && !immersiveMatch && !homePage && accountMatchSessions?.map((session) => (
           <button key={session.code + ":" + session.playerId} type="button"
             disabled={resumingMatchCode === session.code}
             onClick={() => void resumeAccountMatch(session)}>

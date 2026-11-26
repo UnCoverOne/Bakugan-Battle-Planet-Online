@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useLobbySession } from "./LobbySessionProvider";
 import { useAppFields } from "./AppProvider";
 import { ProfileAvatar } from "../profile/ProfileAvatar";
 import { SocialMenuButton, useSocial } from "../social/SocialProvider";
@@ -32,6 +33,7 @@ function NavIcon({ name }) {
       <rect width="7" height="9" x="14" y="12" rx="1" />
       <rect width="7" height="5" x="3" y="16" rx="1" />
     </>,
+    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></>,
     play: <polygon points="6 3 20 12 6 21 6 3" />,
     layers: <>
       <path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" />
@@ -50,10 +52,12 @@ function NavIcon({ name }) {
 function Destinations({ mobile, onNavigate }) {
   const pathname = usePathname();
   const active = navigationDestination(pathname);
+  const session=useLobbySession();
+  const inLobby=session.enabled&&session.recovery.status==="member";
   return <nav className={mobile ? styles.mobileNav : styles.desktopNav} aria-label="Primary navigation">
     {PRIMARY_DESTINATIONS.map(({ href, label, icon }) =>
-      <Link key={href} href={href} className={styles.navLink} aria-current={active === href ? "page" : undefined} onClick={onNavigate}>
-        {mobile && <NavIcon name={icon}/>}<span>{label}</span>
+      <Link key={href} href={href==="/play"&&inLobby?"/play/lobby":href} className={styles.navLink} data-play={href==="/play"?"true":undefined} data-persistent={session.enabled?"true":undefined} aria-current={active === href ? "page" : undefined} onClick={onNavigate}>
+        {mobile && <NavIcon name={href==="/play"&&inLobby?"users":icon}/>}<span>{href==="/play"&&inLobby?"RETURN TO LOBBY":label}</span>
       </Link>
     )}
   </nav>;

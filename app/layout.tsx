@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./blank-slate.css";
 import "./design-system.css";
 import { AccountHistorySync } from "../components/application/AccountHistorySync";
+import { LobbySessionProvider } from "../components/application/LobbySessionProvider";
 import { AppProvider } from "../components/application/AppProvider";
 import { AppShell } from "../components/application/AppShell";
 import { GuestExperienceController } from "../components/application/GuestExperienceController";
@@ -27,7 +28,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <PublicDeckFallbackSync />
           <AccountHistorySync />
           <GuestExperienceController />
-          <AppShell>{children}</AppShell>
+          <LobbySessionProvider><AppShell>{children}</AppShell></LobbySessionProvider>
         </AppProvider>
       </body>
     </html>

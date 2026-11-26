@@ -9,6 +9,7 @@ import { normalizeRoomCode } from "../../lib/room-code";
 import { initializeLocalReplayJournal } from "../../lib/replay-journal";
 import { createTrainingLobbyState } from "../../lib/training-lobby";
 import { primeMatchStore } from "../game-screen-v2/matchStore";
+import { useLobbySession } from "../application/LobbySessionProvider";
 import { useAppFields } from "../application/AppProvider";
 import { LucideIcon, type LucideIconName } from "../design-system/LucideIcon";
 import styles from "./MatchCreationScreen.module.css";
@@ -22,6 +23,7 @@ const MODES: readonly { id: MatchModeChoice; label: string; icon: LucideIconName
 
 export function MatchCreationScreen() {
   const router = useRouter();
+  const lobbySession=useLobbySession();
   const {
     format,
     setFormat,
@@ -119,6 +121,13 @@ export function MatchCreationScreen() {
       setError("Sign in before creating a Ranked lobby.");
       return;
     }
+    if(lobbySession.enabled){
+      setBusyAction("create");
+      try{await lobbySession.command({action:"create",commandId:crypto.randomUUID(),mode,structure:mode==="ranked"?"bo3":structure});router.push("/play/lobby");}
+      catch(cause){setError(cause instanceof Error?cause.message:"Could not create lobby.");}
+      finally{setBusyAction("");}
+      return;
+    }
     if (mode === "ranked" && !rankedRulesReady) {
       setError(rankedRulesError || "Wait for the published Ranked rules.");
       return;
@@ -169,6 +178,9 @@ export function MatchCreationScreen() {
     if (code.length !== 6) { setJoinError("Enter the complete six-character lobby code."); return; }
     setBusyAction("join");
     try {
+      if(lobbySession.enabled){
+        await lobbySession.command({action:"join",commandId:crypto.randomUUID(),code});router.push("/play/lobby");return;
+      }
       const response = await fetch(`/api/game?code=${encodeURIComponent(code)}`, { cache: "no-store" });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "The lobby could not be found.");
@@ -196,7 +208,7 @@ export function MatchCreationScreen() {
     } finally { setBusyAction(""); }
   };
 
-  const eligibilityMessage = mode === "ranked"
+  const eligibilityMessage = lobbySession.enabled ? (mode==="ranked"&&!authUser?"Sign in to play Ranked.":"") : mode === "ranked"
     ? !authUser ? "Sign in to play Ranked."
       : rankedRulesLoading ? "Loading Competitive rules…"
       : rankedRulesError ? rankedRulesError
@@ -240,7 +252,7 @@ export function MatchCreationScreen() {
               )}
             </div>
             <button type="button" className={`bb-button bb-button--primary ${styles.createButton}`}
-              disabled={busy || (mode === "ranked" && rankedRulesLoading)} onClick={() => void createLobby()}>
+              disabled={busy || (lobbySession.enabled ? lobbySession.unavailable||lobbySession.busy : (mode === "ranked" && rankedRulesLoading))} onClick={() => void createLobby()}>
               <span>{busyAction === "create" ? "Opening Lobby…" : "Create Lobby"}</span><LucideIcon name="chevron-right" size={22} />
             </button>
             {eligibilityMessage && !error ? <p className={styles.hint} role="status">{eligibilityMessage}</p> : null}

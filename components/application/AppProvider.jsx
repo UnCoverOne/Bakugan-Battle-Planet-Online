@@ -1,5 +1,6 @@
 "use client";
 
+import { PERSISTENT_LOBBY_ENABLED } from "../../lib/lobby-cutover";
 import { cachedResponse, invalidateResponse } from "../../lib/response-cache";
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -557,6 +558,10 @@ export function AppProvider({ children }) {
       clearBrowserMatchCredentials();
       setMatchCapability("");
       setMatchControllerId("");
+      if (PERSISTENT_LOBBY_ENABLED) {
+        setMatch(null);setOnline(false);notify("Game controller moved to another device. Lobby membership retained.");
+        router.push("/play/lobby");return;
+      }
       if (authUser) {
         setMatch(null);
         setOnline(false);
@@ -1011,6 +1016,7 @@ export function AppProvider({ children }) {
 
   const [resumingCurrentMatch, setResumingCurrentMatch] = useState(false);
   const resumeCurrentMatch = useCallback(async () => {
+    if(PERSISTENT_LOBBY_ENABLED){router.push("/play");return {ok:true};}
     const current = snapshotRef.current;
     if (!current?.match) return { ok: false };
     const currentMatch = current.match;
@@ -1376,8 +1382,8 @@ export function AppProvider({ children }) {
     return result.state;
   }, [format, match, matchCapability, matchControllerId, playerId, setMatch, setMatchCapability, setMatchControllerId]);
   const selection = useCallback((deck, rulesFormat = "standard") => ({ playerId, name: profile.name, cosmetics: { avatar: profile.avatar }, deck: { id: deck.id, name: deck.name, bakuganIds: [...deck.bakuganIds], coreIds: [...deck.coreIds], cardIds: [...deck.cardIds], format: rulesFormat, factions: [...(deck.factions ?? [])], leadCardId: deck.leadCardId } }), [playerId, profile.avatar, profile.name]);
-  const createOnline = useCallback(async (options = {}) => { const activeDeck = options.bootstrapDeck ?? options.decks?.[0]; if (!activeDeck) { router.push("/decks"); return { ok: false, error: "A compatible deck is required to open a lobby." }; } try { clearBrowserMatchCredentials(); setMatchCapability(""); setMatchControllerId(""); const rankedSelections = options.mode === "ranked" && options.decks?.length === 3 ? options.decks.map((deck) => selection(deck, "competitive")) : undefined; const state = await api("create", options.mode === "ranked" ? { lobbyMode: "ranked" } : undefined, undefined, selection(activeDeck), rankedSelections, options.structure); setOnline(true); setMatch(state); router.push("/play/lobby"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "The private room could not be created."; setMatchError(message); return { ok: false, error: message }; } }, [api, router, selection, setMatch, setMatchCapability, setMatchControllerId, setOnline]);
-  const joinOnline = useCallback(async (options = {}) => { const activeDeck = options.bootstrapDeck ?? options.decks?.[0]; if (!activeDeck) { router.push("/decks"); return { ok: false, error: "A compatible deck is required to open a lobby." }; } try { const rankedSelections = options.mode === "ranked" && options.decks?.length === 3 ? options.decks.map((deck) => selection(deck, "competitive")) : undefined; const state = await api("join", undefined, (options.roomCode ?? joinCode).toUpperCase(), selection(activeDeck), rankedSelections, options.structure); setOnline(true); setMatch(state); router.push("/play/lobby"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "The private room could not be joined."; setMatchError(message); return { ok: false, error: message }; } }, [api, joinCode, router, selection, setMatch, setOnline]);
+  const createOnline = useCallback(async (options = {}) => { if(PERSISTENT_LOBBY_ENABLED)return {ok:false,error:"Use the persistent lobby to create a room."}; const activeDeck = options.bootstrapDeck ?? options.decks?.[0]; if (!activeDeck) { router.push("/decks"); return { ok: false, error: "A compatible deck is required to open a lobby." }; } try { clearBrowserMatchCredentials(); setMatchCapability(""); setMatchControllerId(""); const rankedSelections = options.mode === "ranked" && options.decks?.length === 3 ? options.decks.map((deck) => selection(deck, "competitive")) : undefined; const state = await api("create", options.mode === "ranked" ? { lobbyMode: "ranked" } : undefined, undefined, selection(activeDeck), rankedSelections, options.structure); setOnline(true); setMatch(state); router.push("/play/lobby"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "The private room could not be created."; setMatchError(message); return { ok: false, error: message }; } }, [api, router, selection, setMatch, setMatchCapability, setMatchControllerId, setOnline]);
+  const joinOnline = useCallback(async (options = {}) => { if(PERSISTENT_LOBBY_ENABLED)return {ok:false,error:"Use the persistent lobby to join a room."}; const activeDeck = options.bootstrapDeck ?? options.decks?.[0]; if (!activeDeck) { router.push("/decks"); return { ok: false, error: "A compatible deck is required to open a lobby." }; } try { const rankedSelections = options.mode === "ranked" && options.decks?.length === 3 ? options.decks.map((deck) => selection(deck, "competitive")) : undefined; const state = await api("join", undefined, (options.roomCode ?? joinCode).toUpperCase(), selection(activeDeck), rankedSelections, options.structure); setOnline(true); setMatch(state); router.push("/play/lobby"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "The private room could not be joined."; setMatchError(message); return { ok: false, error: message }; } }, [api, joinCode, router, selection, setMatch, setOnline]);
   const readyMatch = useCallback(async () => { if (!match) return; try { if (online) await api("ready"); else { const { dispatchLocalGameCommand } = await import("../../lib/engine/local-command-dispatcher"); setMatch(dispatchLocalGameCommand(match, playerId, { type: "SET_READY" }, authUser?.id ?? playerId)); } } catch (error) { setMatchError(error.message); } }, [api, authUser?.id, match, online, playerId, setMatch]);
   const nextSeriesGame = useCallback(async () => {
     if (!match) return;
@@ -1400,14 +1406,14 @@ export function AppProvider({ children }) {
       }
       // The first player to acknowledge remains on the result screen; the
       // second acknowledgement moves both players to the new lobby.
-      if (state?.phase === "lobby") router.push("/play/lobby");
+      if (!PERSISTENT_LOBBY_ENABLED && state?.phase === "lobby") router.push("/play/lobby");
     } catch (error) {
       setMatchError(error instanceof Error ? error.message : "Could not return to the series lobby.");
     }
   }, [api, authUser?.id, match, online, playerId, router, setMatch]);
-  const leaveMatch = useCallback(() => { clearBrowserMatchCredentials(); setMatch(null); setOnline(false); setMatchCapability(""); setMatchControllerId(""); router.push("/dashboard"); }, [router, setMatch, setMatchCapability, setMatchControllerId, setOnline]);
+  const leaveMatch = useCallback(() => { if(PERSISTENT_LOBBY_ENABLED){router.push("/play/lobby");return;} clearBrowserMatchCredentials(); setMatch(null); setOnline(false); setMatchCapability(""); setMatchControllerId(""); router.push("/dashboard"); }, [router, setMatch, setMatchCapability, setMatchControllerId, setOnline]);
   const resumeAccountMatch = useCallback(async (session) => {
-    if (!authUser || !session?.code || resumingMatchRef.current) return { ok: false };
+    if (PERSISTENT_LOBBY_ENABLED || !authUser || !session?.code || resumingMatchRef.current) return { ok: false };
     resumingMatchRef.current = session.code;
     setMatchError("");
     setResumingMatchCode(session.code);
@@ -1483,7 +1489,26 @@ export function AppProvider({ children }) {
     }
   }, [authUser, loadCloud]);
 
-  const value = useMemo(() => ({ ready, route, profile, setProfile, decks, setDecks, history, setHistory, lifetimeStats, setLifetimeStats, settings, setSettings, collection, setCollection, builderDeck, setBuilderDeck, deckQuery, setDeckQuery, compendiumQuery, setCompendiumQuery, compendiumTab, setCompendiumTab, format, setFormat, matchMode, setMatchMode, joinCode, setJoinCode, match, setMatch, online, setOnline, replay, setReplay, replayIndex, setReplayIndex, playerId, matchCapability, matchControllerId, matchError, toast, notify, authUser, authChecking, accountDataReady, authBusy, authError, syncStatus, storageHealth, guestData, accountPrompt, promptAccount, dismissAccountPrompt, accountAccessMode, requestAccountAccess, closeAccountAccess, authenticate, continueAsGuest, signOutAccount, saveAccountProfile, changePassword, deleteAccount, syncNow, retryCloudLoad, accountMatchSessions, accountMatchSessionsLoading, accountMatchSessionsError, refreshAccountMatchSessions, resumeAccountMatch, resumingMatchCode, resumeCurrentMatch, resumingCurrentMatch, createOnline, joinOnline, readyMatch, nextSeriesGame, leaveMatch, catalogueRevision }), [accountAccessMode, accountDataReady, accountMatchSessions, accountMatchSessionsError, accountMatchSessionsLoading, accountPrompt, authBusy, authChecking, authError, authUser, authenticate, builderDeck, catalogueRevision, changePassword, collection, compendiumQuery, closeAccountAccess, compendiumTab, continueAsGuest, createOnline, dismissAccountPrompt, deckQuery, decks, deleteAccount, format, history, joinCode, guestData, joinOnline, leaveMatch, lifetimeStats, match, matchControllerId, matchError, matchMode, nextSeriesGame, notify, online, promptAccount, playerId, matchCapability, refreshAccountMatchSessions, requestAccountAccess, profile, ready, readyMatch, replay, replayIndex, resumeAccountMatch, resumeCurrentMatch, resumingCurrentMatch, resumingMatchCode, retryCloudLoad, route, saveAccountProfile, setBuilderDeck, setCollection, setCompendiumQuery, setCompendiumTab, setDeckQuery, setDecks, setFormat, setHistory, setJoinCode, setMatch, setMatchMode, setOnline, setProfile, setReplay, setReplayIndex, setSettings, settings, signOutAccount, storageHealth, syncNow, syncStatus, toast]);
+  const installManagedMatch = useCallback(async (claim) => {
+    const {primeMatchStore}=await import("../game-screen-v2/matchStore");
+    if(!claim.online){
+      const {initializeLocalReplayJournal}=await import("../../lib/replay-journal");
+      // A fresh server genesis can begin a local replay. A recovered later
+      // checkpoint must not replace the earlier local journal.
+      if(claim.state.gameNumber===1&&claim.state.phase==="startingPlayer")initializeLocalReplayJournal(claim.state,authUser?.id??claim.playerId);
+    }
+    setPlayerId(claim.playerId);setMatchCapability(claim.capability||"");setMatchControllerId(claim.controllerId||"");
+    setOnline(claim.online);setMatch(claim.state);setFormat(claim.state.format);setMatchMode(claim.online?"online":"solo");
+    primeMatchStore({route:"match",match:claim.state,online:claim.online,playerId:claim.playerId,capability:claim.capability||"",controllerId:claim.controllerId||"",settings});
+  },[authUser?.id,settings,setPlayerId,setMatchCapability,setMatchControllerId,setOnline,setMatch,setFormat,setMatchMode]);
+  const clearManagedMatch = useCallback((seriesId) => {
+    if(snapshotRef.current?.match?.id!==seriesId)return;
+    clearBrowserMatchCredentials();setMatchCapability("");setMatchControllerId("");setMatch(null);setOnline(false);
+    void import("../game-screen-v2/matchStore").then(({readMatchStore,primeMatchStore})=>{
+      if(readMatchStore().match?.id===seriesId)primeMatchStore({match:null,online:false,capability:"",controllerId:""});
+    });
+  },[setMatch,setOnline,setMatchCapability,setMatchControllerId]);
+  const value = useMemo(() => ({ installManagedMatch, clearManagedMatch, ready, route, profile, setProfile, decks, setDecks, history, setHistory, lifetimeStats, setLifetimeStats, settings, setSettings, collection, setCollection, builderDeck, setBuilderDeck, deckQuery, setDeckQuery, compendiumQuery, setCompendiumQuery, compendiumTab, setCompendiumTab, format, setFormat, matchMode, setMatchMode, joinCode, setJoinCode, match, setMatch, online, setOnline, replay, setReplay, replayIndex, setReplayIndex, playerId, matchCapability, matchControllerId, matchError, toast, notify, authUser, authChecking, accountDataReady, authBusy, authError, syncStatus, storageHealth, guestData, accountPrompt, promptAccount, dismissAccountPrompt, accountAccessMode, requestAccountAccess, closeAccountAccess, authenticate, continueAsGuest, signOutAccount, saveAccountProfile, changePassword, deleteAccount, syncNow, retryCloudLoad, accountMatchSessions, accountMatchSessionsLoading, accountMatchSessionsError, refreshAccountMatchSessions, resumeAccountMatch, resumingMatchCode, resumeCurrentMatch, resumingCurrentMatch, createOnline, joinOnline, readyMatch, nextSeriesGame, leaveMatch, catalogueRevision }), [installManagedMatch, clearManagedMatch, accountAccessMode, accountDataReady, accountMatchSessions, accountMatchSessionsError, accountMatchSessionsLoading, accountPrompt, authBusy, authChecking, authError, authUser, authenticate, builderDeck, catalogueRevision, changePassword, collection, compendiumQuery, closeAccountAccess, compendiumTab, continueAsGuest, createOnline, dismissAccountPrompt, deckQuery, decks, deleteAccount, format, history, joinCode, guestData, joinOnline, leaveMatch, lifetimeStats, match, matchControllerId, matchError, matchMode, nextSeriesGame, notify, online, promptAccount, playerId, matchCapability, refreshAccountMatchSessions, requestAccountAccess, profile, ready, readyMatch, replay, replayIndex, resumeAccountMatch, resumeCurrentMatch, resumingCurrentMatch, resumingMatchCode, retryCloudLoad, route, saveAccountProfile, setBuilderDeck, setCollection, setCompendiumQuery, setCompendiumTab, setDeckQuery, setDecks, setFormat, setHistory, setJoinCode, setMatch, setMatchMode, setOnline, setProfile, setReplay, setReplayIndex, setSettings, settings, signOutAccount, storageHealth, syncNow, syncStatus, toast]);
   const [store] = useState(() => createAppStateStore(value));
   useLayoutEffect(() => { store.publish(value); }, [store, value]);
   return <Context.Provider value={store}>{children}</Context.Provider>;
