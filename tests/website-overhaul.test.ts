@@ -106,7 +106,7 @@ test("raw Training history does not bypass per-achievement Training credit rules
 });
 
 test("Home uses the upgraded Pyrus hero, card fan, and intended desktop proportions", () => {
-  const dashboard = source("components/routes/DashboardScreen.tsx");
+  const dashboard = source("components/routes/BlankDashboardScreen.tsx");
   const layout = source("app/layout.tsx");
   const css = source("app/home-layout.css");
   const fidelity = source("app/home-fidelity.css");
@@ -173,7 +173,7 @@ test("secondary routes use shared primitives and route-owned CSS Modules", () =>
 });
 
 test("large secondary-route card scans use lossless full assets", () => {
-  const play = source("components/routes/StreamlinedLobbyRoomScreen.tsx");
+  const play = source("components/routes/LobbyDeckPicker.jsx");
   const compendium = source("components/routes/CompendiumScreen.tsx");
   const responsiveCardImage = source("components/cards/ResponsiveCardImage.tsx");
   const gameplayCardImage = source("components/game-screen-v2/ResponsiveCardImage.tsx");

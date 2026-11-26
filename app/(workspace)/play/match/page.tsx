@@ -3,4 +3,4 @@ import { PersistentMatchRoute } from "../../../../components/routes/PersistentPl
 import { MatchRuntime } from "../../../../components/routes/MatchRuntime";
 
 export const metadata: Metadata = { title: "Match" };
-export default function MatchPage() { return <PersistentMatchRoute legacy={<MatchRuntime />} />; }
+export default function MatchPage() { return <PersistentMatchRoute><MatchRuntime /></PersistentMatchRoute>; }

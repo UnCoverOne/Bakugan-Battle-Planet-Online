@@ -1,5 +1,4 @@
 import { recoverLobbyResult } from "./lobby-result-server";
-import { assertLobbyAdmissionCutover } from "./lobby-cutover-server";
 import { controllerOffer } from "./lobby-controller-server";
 import { executePreparationCommand, prepareRecovery } from "./lobby-preparation-server";
 import { startPreparedSeries, trainingCheckpoint } from "./lobby-prepared-start";
@@ -107,7 +106,6 @@ export async function executeLobbyCommand(database: D1Database, identities: Iden
     const prior = await service.receipt(identity, { commandId, requestKey });
     if (prior) return { ...await lobbyRecovery(database, identities), admission: prior };
     if (current.status === "member") throw new ConflictError("You already belong to a lobby.");
-    await assertLobbyAdmissionCutover(database);
     const admission = action === "join" ? await service.joinByCode(identity, code, commandId)
       : await (async () => {
         for (let attempt = 0; attempt < 12; attempt++) {

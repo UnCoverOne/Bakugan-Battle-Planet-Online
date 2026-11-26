@@ -16,7 +16,6 @@ import {
 } from "./alternateWinPresentation";
 import styles from "./MatchResultDialog.module.css";
 import { MatchResultSocial } from "../social/MatchResultSocial";
-import { PERSISTENT_LOBBY_ENABLED } from "../../lib/lobby-cutover";
 import { useAppFields } from "../application/AppProvider";
 import {
   MATCH_UPDATE_EVENT,
@@ -264,14 +263,6 @@ export function pathnameForGameRoute(route: string) {
   return GAME_ROUTE_PATHS[route] ?? null;
 }
 
-export function writeGameRoute(route: string) {
-  const pathname = pathnameForGameRoute(route);
-  if (typeof window !== "undefined" && pathname && window.location.pathname !== pathname) {
-    window.history.replaceState(window.history.state, "", pathname);
-  }
-  publishRoute(route);
-}
-
 export function writeGameSettings(settings: Record<string, unknown>) {
   publishSettings(settings as MatchClientSettings);
 }
@@ -294,12 +285,6 @@ export function MatchStateCoordinator() {
   const resultKey = completed && returnState.match
     ? `${returnState.match.id}:${returnState.match.gameNumber}:${returnState.match.winner ?? ""}:${returnState.match.resultReason ?? ""}`
     : null;
-
-  useEffect(() => {
-    if (PERSISTENT_LOBBY_ENABLED || returnState.route !== "match" || returnState.match?.phase !== "lobby") return;
-    writeGameRoute("lobby");
-    router.replace("/play/lobby");
-  }, [returnState.match?.phase, returnState.route, router]);
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -364,7 +349,7 @@ export function MatchStateCoordinator() {
           }}
           onContinue={() => {
             if (isCompletedSeriesResult(returnState.match)) {
-              if (finalizeCompletedMatchExit()) router.replace(PERSISTENT_LOBBY_ENABLED?"/play/lobby":"/play/result");
+              if (finalizeCompletedMatchExit()) router.replace("/play/lobby");
               return;
             }
             void nextSeriesGame();

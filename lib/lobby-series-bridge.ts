@@ -81,8 +81,8 @@ export async function finalizeManagedSeries(database: D1Database, code: string, 
   if (await settleCompletedRankedState(database, state)) await persistRankedSettlementSnapshot(database, state);
   if (!await archiveCompletedMatch(database, state)) throw new ConflictError("Series archive is not complete.");
   const result = await database.prepare(`UPDATE lobby_series_bindings SET status = 'completed', completed_at = ?, final_version = ?
-    WHERE id = ? AND status = 'active'`).bind(now, state.version, binding.id).run();
-  return Number(result.meta?.changes ?? 0) === 1;
+    WHERE id = ? AND status = 'active' RETURNING id`).bind(now, state.version, binding.id).first<{ id: string }>();
+  return Boolean(result);
 }
 
 /** Authenticated explicit departure or trusted server expiry. Record intent

@@ -120,8 +120,8 @@ export async function trainingCheckpoint(database:D1Database,identity:LobbyIdent
   const result=await database.prepare(`UPDATE lobby_training_series SET state_json=?,revision=revision+1,status=?,ended_at=?
     WHERE id=? AND revision=? AND identity_key=? AND status='active' AND EXISTS(
       SELECT 1 FROM lobby_memberships m JOIN lobby_sessions l ON l.id=m.lobby_id WHERE m.id=lobby_training_series.membership_id
-      AND m.identity_key=? AND m.left_at IS NULL AND m.expires_at>? AND l.current_series_id=lobby_training_series.id)`)
-    .bind(JSON.stringify(state),completed?"completed":"active",completed?now:null,room.currentSeriesId,row.revision,identityKey(identity),identityKey(identity),now).run();
-  if(Number(result.meta?.changes??0)!==1)throw new ConflictError("Training checkpoint changed.");
-  return {seriesId:room.currentSeriesId,revision:row.revision+1,status:completed?"completed":"active"};
+      AND m.identity_key=? AND m.left_at IS NULL AND m.expires_at>? AND l.current_series_id=lobby_training_series.id) RETURNING revision`)
+    .bind(JSON.stringify(state),completed?"completed":"active",completed?now:null,room.currentSeriesId,row.revision,identityKey(identity),identityKey(identity),now).first<{ revision: number }>();
+  if(!result)throw new ConflictError("Training checkpoint changed.");
+  return {seriesId:room.currentSeriesId,revision:result.revision,status:completed?"completed":"active"};
 }

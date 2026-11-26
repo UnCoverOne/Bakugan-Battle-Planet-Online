@@ -242,24 +242,10 @@
     drop-shadow(0 24px 22px rgba(0, 0, 0, .68));
 }
 
-.bakugan-home .active-match-card,
 .home-feature-grid,
 .home-profile-strip {
   width: min(var(--home-max), calc(100% - 2.5rem));
 }
-.bakugan-home .active-match-card {
-  min-height: 52px;
-  margin: 0 auto;
-  padding: .58rem 1rem;
-  border-radius: 0;
-  clip-path: polygon(var(--home-cut-sm) 0, 100% 0, 100% calc(100% - var(--home-cut-sm)), calc(100% - var(--home-cut-sm)) 100%, 0 100%, 0 var(--home-cut-sm));
-}
-.bakugan-home .active-match-card > div { min-width: 0; }
-.bakugan-home .active-match-card .eyebrow { display: inline; font-size: .58rem; }
-.bakugan-home .active-match-card h2 { display: inline; margin: 0 0 0 .65rem; font-size: 1rem; }
-.bakugan-home .active-match-card p { margin: .2rem 0 0; overflow: hidden; font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
-.bakugan-home .active-match-card .hex-button { min-height: 38px; padding: .45rem 1rem; font-size: .67rem; }
-
 .home-feature-grid {
   min-height: 330px;
   margin: 0 auto;
@@ -570,19 +556,7 @@
     align-content: stretch;
     overflow: visible;
   }
-  .bakugan-home.has-active-match {
-    grid-template-rows:
-      minmax(max-content, .96fr)
-      minmax(52px, max-content)
-      minmax(max-content, .9fr)
-      minmax(78px, max-content);
-  }
   .home-feature-grid > .panel { height: auto; }
-  .bakugan-home.has-active-match .bakugan-home-hero-copy h1 { font-size: clamp(3.75rem, 5vw, 5.6rem); }
-  .bakugan-home.has-active-match .bakugan-home-hero-art img { height: 164%; }
-  .bakugan-home.has-active-match .bakugan-home-hero-copy > p:last-of-type { margin-top: .65rem; font-size: .9rem; }
-  .bakugan-home.has-active-match .bakugan-home-hero-copy .hero-actions { margin-top: .85rem; }
-  .bakugan-home.has-active-match .bakugan-home-hero-copy .hex-button.red { min-height: 46px; }
 }
 
 @media (max-width: 1320px) {
@@ -631,7 +605,6 @@
     clip-path: polygon(0 14px, 14px 0, 100% 0, 100% 100%, 0 100%);
   }
   .bakugan-home-hero-art img { top: -3%; right: -6%; height: 150%; }
-  .bakugan-home .active-match-card,
   .home-feature-grid,
   .home-profile-strip { width: calc(100% - 2rem); }
   .home-feature-grid > .panel { min-height: 300px; }

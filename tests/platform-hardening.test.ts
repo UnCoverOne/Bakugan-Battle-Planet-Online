@@ -194,7 +194,7 @@ test("platform routes use shared and authenticated infrastructure", () => {
   assert.match(game, /isInternalMatchRequest\(request\)/);
   assert.doesNotMatch(game, /x-match-coordinator/);
   assert.match(game, /commandResultVersion: receipt\.resultVersion/);
-  assert.match(game, /seat: \{ playerId: player\.id/);
+  assert.match(source("lib/lobby-prepared-start.ts"), /membershipId:m.id,playerId:m.id,capabilityHash:/);
   assert.match(worker, /socket\.send/);
   assert.match(worker, /match_socket_publish_failed/);
   assert.doesNotMatch(worker, /x-match-coordinator/);

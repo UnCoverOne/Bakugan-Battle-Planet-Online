@@ -28,9 +28,9 @@ export function createLobbySessionService(database: D1Database, clock = Date.now
   const heartbeat = async (identity: LobbyIdentity, membershipId: string) => {
     const at = now();
     const result = await database.prepare(`UPDATE lobby_memberships SET last_seen_at = ?, expires_at = ?
-      WHERE id = ? AND identity_key = ? AND left_at IS NULL AND expires_at > ? AND last_seen_at <= ?`)
-      .bind(at, at + LOBBY_MEMBERSHIP_TTL_MS, membershipId, identityKey(identity), at, at).run();
-    return Number(result.meta?.changes ?? 0) === 1;
+      WHERE id = ? AND identity_key = ? AND left_at IS NULL AND expires_at > ? AND last_seen_at <= ? RETURNING id`)
+      .bind(at, at + LOBBY_MEMBERSHIP_TTL_MS, membershipId, identityKey(identity), at, at).first<{ id: string }>();
+    return Boolean(result);
   };
   const activeMembership = async (identity: LobbyIdentity) => {
     await expire();
@@ -111,8 +111,8 @@ export function createLobbySessionService(database: D1Database, clock = Date.now
     const result = await database.prepare(`UPDATE lobby_memberships SET left_at = ?, departure_reason = 'left'
       WHERE id = ? AND identity_key = ? AND left_at IS NULL AND expires_at > ? AND EXISTS (
         SELECT 1 FROM lobby_sessions WHERE id = lobby_memberships.lobby_id AND (current_series_id IS NULL OR mode = 'training')
-      )`).bind(at, membershipId, identityKey(identity), at).run();
-    return Number(result.meta?.changes ?? 0) === 1;
+       ) RETURNING id`).bind(at, membershipId, identityKey(identity), at).first<{ id: string }>();
+    return Boolean(result);
   };
   const joinByCode = async (identity: LobbyIdentity, code: string, commandId: string) => {
     const admission = { commandId, requestKey: `join:${code}` };
@@ -131,9 +131,9 @@ export function createLobbySessionService(database: D1Database, clock = Date.now
     const result = await database.prepare(`UPDATE lobby_memberships SET identity_key = ?
       WHERE id = ? AND identity_key = ? AND left_at IS NULL AND expires_at > ?
       AND NOT EXISTS (SELECT 1 FROM lobby_memberships WHERE identity_key = ? AND left_at IS NULL)
-      AND EXISTS (SELECT 1 FROM lobby_sessions WHERE id = lobby_memberships.lobby_id AND current_series_id IS NULL)`)
-      .bind(identityKey(account), membershipId, identityKey(guest), at, identityKey(account)).run();
-    return Number(result.meta?.changes ?? 0) === 1;
+      AND EXISTS (SELECT 1 FROM lobby_sessions WHERE id = lobby_memberships.lobby_id AND current_series_id IS NULL) RETURNING id`)
+      .bind(identityKey(account), membershipId, identityKey(guest), at, identityKey(account)).first<{ id: string }>();
+    return Boolean(result);
   };
   return { create, join, joinByCode, read, activeMembership, heartbeat, leave, expire, adoptGuest, receipt };
 }

@@ -33,21 +33,10 @@ test("match result round count ignores unrelated log entries", () => {
   }), 0);
 });
 
-test("Match Complete opens the exact record after clearing the active match", () => {
-  const source = readFileSync("components/routes/ResultScreen.tsx", "utf8");
-  const route = readFileSync("app/(workspace)/play/result/page.tsx", "utf8");
-
-  assert.match(route, /components\/routes\/ResultScreen/);
-  assert.match(source, /completedMatchKey\(match\)/);
-  assert.match(source, /history\.find\(\(record: any\) => record\.id === recordId\)/);
-  assert.match(source, /clearCompletedMatchSession\(setMatch, setOnline\)/);
-  assert.match(source, /router\.replace\(`\/profile\/records\/\$\{encodeURIComponent\(exactRecord\.id\)\}`\)/);
-});
-
-test("Match Complete shows rounds instead of internal event statistics", () => {
-  const source = readFileSync("components/routes/ResultScreen.tsx", "utf8");
-
-  assert.match(source, /<Metric label="Rounds" value=\{rounds\} \/>/);
-  assert.doesNotMatch(source, /<Metric label="Events"/);
-  assert.doesNotMatch(source, /<Metric label="Random results"/);
+test("recovering a completed result uses the active lobby membership", () => {
+  const page = readFileSync("app/(workspace)/play/result/page.tsx", "utf8");
+  const result = readFileSync("components/routes/ManagedSeriesResult.jsx", "utf8");
+  assert.match(page, /<ManagedSeriesResult \/>/);
+  assert.match(result, /recoverResult\(\)/);
+  assert.match(result, /result\?\.seriesId === seriesId/);
 });

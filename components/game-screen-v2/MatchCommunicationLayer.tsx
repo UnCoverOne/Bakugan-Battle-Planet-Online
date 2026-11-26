@@ -3,13 +3,11 @@
 import { useLobbySession } from "../application/LobbySessionProvider";
 import { useLobbyChat } from "../application/LobbyChatProvider";
 import { LobbyChatPanel } from "../application/LobbyChatPanel";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { cardEventLogEntries, chatEntries, eventLogEntries, matchTimeLabel, normalizeChatMessage } from "../../lib/chat";
-import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { cardEventLogEntries, eventLogEntries, matchTimeLabel } from "../../lib/chat";
 import type { MatchState } from "../../lib/game";
 import { CardArt } from "../cards/CardArt";
-import { writeCoordinatedMatch } from "./MatchStateCoordinator";
-import { matchCommandHeaders, readMatchStore, useMatchSelector } from "./matchStore";
+import { useMatchSelector } from "./matchStore";
 import batchStyles from "./BrawlExperienceLayer.module.css";
 import styles from "./MatchCommunicationLayer.module.css";
 
@@ -18,18 +16,9 @@ type EventFilter = typeof EVENT_FILTERS[number];
 
 type CommunicationState = {
   active: boolean;
-  online: boolean;
   match: MatchState | null;
   playerId?: string;
 };
-
-function wallTimeLabel(at: number) {
-  return new Date(at).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
 
 function eventKindLabel(kind: string) {
   if (kind === "connection") return "CONNECTION";
@@ -44,23 +33,16 @@ function cardEventActor(match: MatchState | null, playerId: string | undefined) 
 
 export function MatchCommunicationLayer() {
   const lobby=useLobbySession(),lobbyChat=useLobbyChat();
-  const managed=lobby.enabled;
   const systemOnly=lobby.recovery?.lobby?.mode==="training";
   const communication = useMatchSelector((state): CommunicationState => ({
     active: state.route === "match",
-    online: state.online,
     match: state.match,
     playerId: state.playerId,
   }));
   const [eventLogOpen, setEventLogOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [eventFilter, setEventFilter] = useState<EventFilter>("cards");
-  const [chatFocused, setChatFocused] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState("");
   const eventScroll = useRef<HTMLDivElement | null>(null);
-  const chatScroll = useRef<HTMLDivElement | null>(null);
   const eventDock = useRef<HTMLDivElement | null>(null);
   const chatDock = useRef<HTMLDivElement | null>(null);
   const communicationButtons = useRef<HTMLDivElement | null>(null);
@@ -79,10 +61,6 @@ export function MatchCommunicationLayer() {
     () => cardEventLogEntries(communication.match),
     [communication.match],
   );
-  const messages = useMemo(
-    () => chatEntries(communication.match),
-    [communication.match],
-  );
   const actorId = communication.playerId ?? communication.match?.players[0]?.id;
 
   useEffect(() => {
@@ -90,11 +68,6 @@ export function MatchCommunicationLayer() {
     const element = eventScroll.current;
     if (element) element.scrollTop = element.scrollHeight;
   }, [eventLogOpen, eventFilter, filteredEvents.length, cardEvents.length]);
-
-  useEffect(() => {
-    const element = chatScroll.current;
-    if (element) element.scrollTop = element.scrollHeight;
-  }, [messages.length]);
 
   useEffect(() => {
     if (!eventLogOpen && !chatOpen) return;
@@ -125,59 +98,6 @@ export function MatchCommunicationLayer() {
     const next = !chatOpen;
     setChatOpen(next);
     if (next) setEventLogOpen(false);
-  };
-
-  const sendChat = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (managed || sending) return;
-    const message = normalizeChatMessage(draft);
-    const stored = readMatchStore();
-    const current: CommunicationState = { active: stored.route === "match", online: stored.online, match: stored.match, playerId: stored.playerId };
-    const currentMatch = current.match;
-    const currentActorId = current.playerId ?? currentMatch?.players[0]?.id;
-    if (!message || !currentMatch || !currentActorId) return;
-
-    setSending(true);
-    setError("");
-    try {
-      if (!current.online) {
-        writeCoordinatedMatch(dispatchLocalGameAction(currentMatch, currentActorId, "chat", { message }));
-      } else {
-        let expectedState = currentMatch;
-        let delivered = false;
-        for (let attempt = 0; attempt < 2 && !delivered; attempt += 1) {
-          const response = await fetch("/api/game", {
-            method: "POST",
-            cache: "no-store",
-            headers: matchCommandHeaders(stored),
-            body: JSON.stringify({
-              action: "chat",
-              code: expectedState.code,
-              playerId: currentActorId,
-              expectedVersion: expectedState.version,
-              payload: { message },
-            }),
-          });
-          const data = await response.json() as { state?: MatchState; error?: string };
-          if (data.state) {
-            writeCoordinatedMatch(data.state);
-            expectedState = data.state;
-          }
-          if (response.ok) {
-            delivered = true;
-            break;
-          }
-          if (response.status !== 409 || !data.state || attempt === 1) {
-            throw new Error(data.error ?? "The chat message could not be sent.");
-          }
-        }
-      }
-      setDraft("");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The chat message could not be sent.");
-    } finally {
-      setSending(false);
-    }
   };
 
   if (!communication.active || !communication.match || !actorId) return null;
@@ -211,14 +131,14 @@ export function MatchCommunicationLayer() {
           data-active={chatOpen ? "true" : "false"}
           aria-controls="match-chat-panel"
           aria-expanded={chatOpen}
-          aria-label={chatOpen ? "Close chat" : managed&&lobbyChat.unread ? `Open lobby chat, ${lobbyChat.unread} unread messages` : "Open match chat"}
+          aria-label={chatOpen ? "Close chat" : lobbyChat.unread ? `Open lobby chat, ${lobbyChat.unread} unread messages` : "Open match chat"}
           onClick={toggleChat}
         >
           <svg className={styles.buttonIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path d="M4 5h16v11H9l-5 4V5Z" />
             <path d="M8 9h8M8 12h5" />
           </svg>
-          {managed&&lobbyChat.unread>0&&<span className={styles.chatUnread} aria-hidden="true"/>}
+          {lobbyChat.unread>0&&<span className={styles.chatUnread} aria-hidden="true"/>}
         </button>
       </div>
 
@@ -342,50 +262,9 @@ export function MatchCommunicationLayer() {
           className={styles.chatBox}
           aria-label="Match chat"
           data-chat-box="true"
-          data-managed={managed?"true":undefined}
-          aria-hidden={managed&&!chatOpen?true:undefined}
-          data-focused={chatFocused ? "true" : "false"}
-          onFocusCapture={() => setChatFocused(true)}
-          onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setChatFocused(false); }}
+          aria-hidden={!chatOpen?true:undefined}
         >
-          {managed ? (chatOpen ? <LobbyChatPanel systemOnly={systemOnly}/> : null) : <>
-          <header>
-            <div>
-              <span>PLAYER COMMS</span>
-              <strong>CHAT</strong>
-            </div>
-            <small>{communication.online ? "ONLINE" : "LOCAL"}</small>
-          </header>
-          <div className={styles.chatMessages} ref={chatScroll} aria-live="polite">
-            {messages.length ? messages.map((message) => {
-              const local = message.playerId === actorId;
-              return (
-                <article className={styles.chatMessage} data-local={local ? "true" : "false"} key={message.id}>
-                  <div>
-                    <strong>{message.author}</strong>
-                    <time dateTime={new Date(message.at).toISOString()}>{wallTimeLabel(message.at)}</time>
-                  </div>
-                  <p>{message.message}</p>
-                </article>
-              );
-            }) : <p className={styles.emptyState}>No messages yet.</p>}
-          </div>
-          <form className={styles.chatForm} onSubmit={sendChat}>
-            <input
-              type="text"
-              value={draft}
-              maxLength={240}
-              aria-label="Chat message"
-              placeholder="Type a message…"
-              autoComplete="off"
-              onChange={(event) => setDraft(event.target.value)}
-            />
-            <button type="submit" disabled={sending || !normalizeChatMessage(draft)}>
-              {sending ? "…" : "SEND"}
-            </button>
-          </form>
-          {error ? <p className={styles.chatError} role="alert">{error}</p> : null}
-          </>}
+          {chatOpen && <LobbyChatPanel systemOnly={systemOnly} />}
         </section>
       </div>
     </>

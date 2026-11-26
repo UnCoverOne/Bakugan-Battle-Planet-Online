@@ -1,5 +1,4 @@
 import { getDatabase } from "../../../../lib/account-server";
-import { PERSISTENT_LOBBY_ENABLED } from "../../../../lib/lobby-cutover";
 import { resolveLobbyIdentities } from "../../../../lib/lobby-identity-server";
 import { createLobbySessionService } from "../../../../lib/lobby-session-server";
 import { readLobbyChat,sendLobbyChat,markLobbyChatRead } from "../../../../lib/lobby-chat-server";
@@ -9,7 +8,6 @@ import { AuthenticationError,AuthorizationError,ConflictError,ServiceUnavailable
 export const dynamic="force-dynamic";
 export async function POST(request:Request){
   try{
-    if(!PERSISTENT_LOBBY_ENABLED)throw new ServiceUnavailableError("Persistent lobby integration is not yet enabled.");
     assertSameOrigin(request);
     const database=await getDatabase(),identities=await resolveLobbyIdentities(database,request);
     if(!identities.primary)throw new AuthenticationError("Verified lobby identity required.");

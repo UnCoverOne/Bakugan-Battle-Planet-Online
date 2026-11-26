@@ -21,7 +21,7 @@
 @media(prefers-reduced-motion:reduce){.profileMenu{transition:none}.navLink::before,.navLink::after{transition:none}}
 
 /* Reserve the Play slot in managed mode so the navigation never shifts. */
-.desktopNav .navLink[data-play="true"][data-persistent="true"]{width:clamp(128px,16vw,174px);padding-inline:8px}
-@media(max-width:850px){.mobileNav .navLink[data-play="true"][data-persistent="true"]>span{white-space:normal;text-align:center;line-height:1.05;max-width:100%;font-size:clamp(9px,2.4vw,12px)}}
+.desktopNav .navLink[data-play="true"]{width:clamp(128px,16vw,174px);padding-inline:8px}
+@media(max-width:850px){.mobileNav .navLink[data-play="true"]>span{white-space:normal;text-align:center;line-height:1.05;max-width:100%;font-size:clamp(9px,2.4vw,12px)}}
 
 .navLink .chatUnread{position:absolute;top:10px;right:9px;width:7px;height:7px;border-radius:50%;background:var(--bb-link);pointer-events:none}

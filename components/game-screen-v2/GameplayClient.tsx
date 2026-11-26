@@ -1,5 +1,4 @@
 "use client";
-import { PERSISTENT_LOBBY_ENABLED } from "../../lib/lobby-cutover";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -50,7 +49,6 @@ import { MatchHudLayer } from "./MatchHudLayer";
 import { PhaseTransitionLayer } from "./PhaseTransitionLayer";
 import {
   writeCoordinatedMatch,
-  writeGameRoute,
   writeGameSettings,
 } from "./MatchStateCoordinator";
 import { finalizeCompletedMatchExit, matchCommandHeaders, readMatchStore, useMatchSelector } from "./matchStore";
@@ -1186,11 +1184,7 @@ export function GameplayClient() {
     setSelectedHandCardId("");
   }, []);
 
-  const exit = () => {
-    if(PERSISTENT_LOBBY_ENABLED){router.push("/play/lobby");return;}
-    writeGameRoute("play");
-    window.location.reload();
-  };
+  const exit = () => router.push("/play/lobby");
 
   const exitCompletedMatch = () => {
     const match = readMatchStore().match;
@@ -1200,7 +1194,7 @@ export function GameplayClient() {
       return;
     }
     if (!finalizeCompletedMatchExit()) return;
-    router.replace(PERSISTENT_LOBBY_ENABLED?"/play/lobby":"/play/result");
+    router.replace("/play/lobby");
   };
 
   if (storedState.route === "match") {

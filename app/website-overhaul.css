@@ -48,9 +48,6 @@
 .compact-page-heading>.hex-button{flex:0 0 auto}
 
 /* Home */
-.active-match-card{max-width:1370px;margin:1.1rem auto 0;padding:1.1rem 1.3rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;border:1px solid rgba(83,218,119,.42);border-radius:8px;background:linear-gradient(90deg,rgba(29,101,54,.34),rgba(4,24,31,.97));box-shadow:0 15px 44px rgba(0,0,0,.24)}
-.active-match-card h2{margin:.25rem 0;font-size:1.45rem}
-.active-match-card p{margin:0;color:#bdd1d8}
 .home-engagement-grid{max-width:1370px;margin:1.25rem auto 4rem;padding:0 1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem}
 .home-engagement-grid>.panel{padding:1.35rem;clip-path:none;border-radius:8px}
 .newest-public-deck{grid-column:1/-1}
@@ -348,7 +345,6 @@
   .page-hero h1{font-size:2.8rem}
   .page-hero-copy{max-width:72%}
   .page-hero-art{right:-22%;width:75vw;opacity:.7}
-  .active-match-card{margin:1rem;align-items:flex-start;flex-direction:column}
   .home-engagement-grid{padding:0 1rem}
   .achievement-preview{grid-template-columns:100px 1fr}
   .achievement-progress-ring{width:90px;height:90px}

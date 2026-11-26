@@ -111,8 +111,7 @@
   gap: 0.12rem;
 }
 
-.eventPanel > header span,
-.chatBox > header span {
+.eventPanel > header span {
 
 
 
@@ -281,8 +280,7 @@
 .eventEntry[data-kind="random"] {
 }
 
-.eventEntry > div,
-.chatMessage > div {
+.eventEntry > div {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -295,15 +293,13 @@
 
 }
 
-.eventEntry time,
-.chatMessage time {
+.eventEntry time {
 
 
 
 }
 
-.eventEntry p,
-.chatMessage p {
+.eventEntry p {
   margin: 0;
   overflow-wrap: anywhere;
 
@@ -385,171 +381,6 @@
 
 }
 
-.chatBox[data-focused="false"] {
-
-
-  pointer-events: none;
-}
-
-.chatBox[data-focused="false"] > header {
-}
-
-.chatBox[data-focused="false"] .chatForm {
-
-
-  pointer-events: none;
-}
-
-.chatBox[data-focused="false"] .chatForm input {
-
-
-  pointer-events: auto;
-}
-
-.chatBox[data-focused="false"] .chatForm button {
-  pointer-events: none;
-}
-
-.chatBox[data-focused="false"] .chatMessages {
-}
-
-.chatBox[data-focused="false"] .chatMessage,
-.chatBox[data-focused="false"] .chatMessage p,
-.chatBox[data-focused="false"] .chatMessage strong {
-
-
-
-}
-
-.chatBox > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.45rem 0.55rem 0.38rem;
-
-
-}
-
-.chatBox > header > div {
-  display: grid;
-  gap: 0.08rem;
-}
-
-.chatBox > header strong {
-
-
-  line-height: 1;
-}
-
-.chatBox > header small {
-
-
-
-}
-
-.chatMessages {
-  display: grid;
-  align-content: start;
-  gap: 0.34rem;
-  min-height: 0;
-  overflow: auto;
-  padding: 0.42rem 0.48rem;
-
-
-}
-
-.chatMessage {
-  display: grid;
-  gap: 0.18rem;
-  padding: 0.32rem 0.38rem;
-
-
-}
-
-.chatMessage[data-local="true"] {
-
-}
-
-.chatMessage strong {
-  overflow: hidden;
-
-
-
-
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chatMessage p {
-}
-
-.chatForm {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.3rem;
-  padding: 0.38rem 0.42rem 0.42rem;
-
-
-}
-
-.chatForm input {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  height: 1.72rem;
-  padding: 0.28rem 0.42rem;
-
-
-
-
-
-
-}
-
-.chatForm input:focus {
-
-}
-
-.chatForm button {
-  min-width: 2.8rem;
-  height: 1.72rem;
-  padding: 0 0.42rem;
-
-
-
-
-
-
-  cursor: pointer;
-}
-
-.chatForm button:hover:not(:disabled),
-.chatForm button:focus-visible {
-
-
-}
-
-.chatForm button:disabled {
-  cursor: default;
-}
-
-.chatError {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 0.35rem);
-  width: min(18rem, 90vw);
-  margin: 0;
-  padding: 0.42rem 0.52rem;
-
-
-
-
-
-
-  line-height: 1.3;
-}
-
 .emptyState {
   margin: auto;
   padding: 0.65rem;
@@ -574,52 +405,6 @@
     --chat-gap: 0.35rem;
     width: 7.5rem;
     height: 7rem;
-  }
-
-  .chatBox > header {
-    padding: 0.3rem 0.34rem 0.26rem;
-  }
-
-  .chatBox > header span,
-  .chatBox > header small {
-    display: none;
-  }
-
-  .chatMessages {
-    padding: 0.28rem;
-  }
-
-  .chatMessage {
-    padding: 0.24rem 0.28rem;
-  }
-
-  .chatMessage time {
-    display: none;
-  }
-
-  .chatMessage p {
-  }
-
-  .chatForm {
-    grid-template-columns: minmax(0, 1fr) 1.8rem;
-    gap: 0.2rem;
-    padding: 0.26rem;
-  }
-
-  .chatForm input,
-  .chatForm button {
-    height: 1.45rem;
-  }
-
-  .chatForm input {
-    padding: 0.2rem 0.26rem;
-
-  }
-
-  .chatForm button {
-    min-width: 0;
-    padding: 0;
-
   }
 }
 
@@ -726,18 +511,6 @@
     height: 100%;
 
   }
-
-  .chatDock[data-open="true"] .chatBox[data-focused="false"] {
-
-
-  }
-
-  .chatDock[data-open="true"] .chatBox[data-focused="false"] > header,
-  .chatDock[data-open="true"] .chatBox[data-focused="false"] .chatForm {
-  }
-
-  .chatDock[data-open="true"] .chatBox[data-focused="false"] .chatMessages {
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -747,5 +520,5 @@
 
 .communicationButton{position:relative}.chatUnread{position:absolute;top:5px;right:5px;width:7px;height:7px;background:var(--bb-link);border-radius:50%;pointer-events:none}
 
-.chatBox[data-managed="true"]{display:none}
-.chatDock[data-open="true"] .chatBox[data-managed="true"]{display:flex;flex-direction:column;pointer-events:auto;background:var(--bb-nav);padding:10px;width:min(320px,calc(100vw - 24px));height:min(380px,55dvh);min-height:180px}
+.chatBox{display:none}
+.chatDock[data-open="true"] .chatBox{display:flex;flex-direction:column;pointer-events:auto;background:var(--bb-nav);padding:10px;width:min(320px,calc(100vw - 24px));height:min(380px,55dvh);min-height:180px}

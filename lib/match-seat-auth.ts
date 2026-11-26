@@ -66,11 +66,6 @@ export async function loadMatchSeatCredential(database: D1Database, code: string
     .bind(code, playerId).first<MatchSeatCredential>();
 }
 
-/**
- * Authorize one browser session for a match seat. Seats created before the
- * controller migration are claimed once by the first updated client that can
- * still prove the original capability.
- */
 export async function authenticateMatchSeat(
   database: D1Database,
   request: Request,
@@ -82,18 +77,7 @@ export async function authenticateMatchSeat(
   if (!capability || !validMatchControllerId(controllerId)) return null;
 
   const suppliedHash = await digestMatchCapability(capability);
-  let seat = await loadMatchSeatCredential(database, code, playerId);
-  if (!seat || !capabilityHashesMatch(seat.capability_hash, suppliedHash)) return null;
-
-  if (!seat.controller_id) {
-    await database.prepare(`UPDATE match_seats SET controller_id = ?, claimed_at = ?
-      WHERE code = ? AND player_id = ? AND controller_id IS NULL AND capability_hash = ?`)
-      .bind(controllerId, Date.now(), code, playerId, seat.capability_hash).run();
-    seat = await loadMatchSeatCredential(database, code, playerId);
-  }
-
-  if (!seat || seat.controller_id !== controllerId || !capabilityHashesMatch(seat.capability_hash, suppliedHash)) {
-    return null;
-  }
+  const seat = await loadMatchSeatCredential(database, code, playerId);
+  if (!seat || seat.controller_id !== controllerId || !capabilityHashesMatch(seat.capability_hash, suppliedHash)) return null;
   return seat;
 }

@@ -23,16 +23,14 @@ test("current Play route opens match creation without a deck-selection step", as
   assert.doesNotMatch(creation, /setSelectedDeckId|rankedDeckIds|SELECT_DECK|LoadoutStep/);
 });
 
-test("lobby owns the actual deck and Ranked roster selection", async () => {
-  const [lobby, config] = await Promise.all([
-    read("components/routes/StreamlinedLobbyRoomScreen.tsx"),
-    read("lib/lobby-config.ts"),
+test("lobby owns deck and Ranked roster selection", async () => {
+  const [lobby, preparation] = await Promise.all([
+    read("components/routes/ManagedLobby.jsx"),
+    read("lib/lobby-preparation-server.ts"),
   ]);
-  assert.match(lobby, /Select your deck/);
-  assert.match(lobby, /ranked-roster/);
-  assert.match(lobby, /rankedRosterIds/);
-  assert.match(lobby, /playerHasChosenLobbyDeck/);
-  assert.match(config, /export function playerHasChosenLobbyDeck/);
+  assert.match(lobby, /<LobbyDeckPicker/);
+  assert.match(lobby, /send\("select-decks",\{decks:selected\}\)/);
+  assert.match(preparation, /body.action\s*===\s*"select-decks"/);
 });
 
 test("Play uses exactly two artwork layers and the shared design palette", async () => {
@@ -52,15 +50,8 @@ test("Play uses exactly two artwork layers and the shared design palette", async
   assert.doesNotMatch(page, /creationScope/);
 });
 
-test("joining is independent of the selected creation mode and structure", async () => {
-  const [creation, provider, api] = await Promise.all([
-    read("components/routes/MatchCreationScreen.tsx"),
-    read("components/application/AppProvider.jsx"),
-    read("app/api/game/route.ts"),
-  ]);
+test("joining sends only the room code and admission command ID", async () => {
+  const creation = await read("components/routes/MatchCreationScreen.tsx");
   assert.match(creation, /onSubmit=\{joinLobby\}/);
-  assert.match(creation, /joinOnline\(\{ bootstrapDeck, roomCode: code, structure: result.structure/);
-  assert.match(provider, /format: structureOverride \?\? format/);
-  assert.match(api, /export async function GET/);
-  assert.match(api, /structure: state.format/);
+  assert.match(creation, /command\(\{ action: "join", commandId: crypto.randomUUID\(\), code \}\)/);
 });

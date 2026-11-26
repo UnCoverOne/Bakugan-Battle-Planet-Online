@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { VERSION_MISMATCH_EVENT } from "../AssetFreshness";
 import { SystemState, VersionMismatchScreen } from "./SystemState";
 import { AccountAccessModal, GuestAccountPrompt } from "./AccountAccessModal";
-import { useLobbySession } from "./LobbySessionProvider";
 import { useAppFields } from "./AppProvider";
 import { SocialProvider, SocialDrawer } from "../social/SocialProvider";
 import { SiteNavigation } from "./SiteNavigation";
@@ -13,21 +12,14 @@ import { MusicLayer } from "./MusicLayer";
 
 export function AppShell({ children }) {
   const pathname = usePathname();
-  const lobbySession=useLobbySession();
   const {
     ready, authChecking, authUser, accountDataReady, authError,
     retryCloudLoad, signOutAccount, accountPrompt, dismissAccountPrompt,
-    accountAccessMode, requestAccountAccess, closeAccountAccess,
-    toast, match, online, matchCapability, matchControllerId,
-    resumeCurrentMatch, resumingCurrentMatch, accountMatchSessions,
-    resumeAccountMatch, resumingMatchCode,
+    accountAccessMode, requestAccountAccess, closeAccountAccess, toast,
   } = useAppFields([
     "ready", "authChecking", "authUser", "accountDataReady", "authError",
     "retryCloudLoad", "signOutAccount", "accountPrompt", "dismissAccountPrompt",
-    "accountAccessMode", "requestAccountAccess", "closeAccountAccess",
-    "toast", "match", "online", "matchCapability", "matchControllerId",
-    "resumeCurrentMatch", "resumingCurrentMatch", "accountMatchSessions",
-    "resumeAccountMatch", "resumingMatchCode",
+    "accountAccessMode", "requestAccountAccess", "closeAccountAccess", "toast",
   ]);
   const [versionMismatch, setVersionMismatch] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
@@ -67,26 +59,12 @@ export function AppShell({ children }) {
     </main>
   );
   const immersiveMatch = pathname === "/play/match";
-  const homePage = pathname === "/";
-  const canResumeLocalMatch = Boolean(match && (!online || (matchCapability && matchControllerId)));
   return (
     <SocialProvider>
       <MusicLayer />
       <div className={immersiveMatch ? "blank-shell immersive-shell" : "blank-shell"}>
         <a className="skip-link" href="#main-content">Skip to content</a>
         {!immersiveMatch && <SiteNavigation onLogout={logout} />}
-        {!lobbySession.enabled && !immersiveMatch && !homePage && canResumeLocalMatch && (
-          <button type="button" disabled={resumingCurrentMatch} onClick={() => void resumeCurrentMatch()}>
-            {resumingCurrentMatch ? "Resuming match…" : "Resume current match"}
-          </button>
-        )}
-        {!lobbySession.enabled && !immersiveMatch && !homePage && accountMatchSessions?.map((session) => (
-          <button key={session.code + ":" + session.playerId} type="button"
-            disabled={resumingMatchCode === session.code}
-            onClick={() => void resumeAccountMatch(session)}>
-            {resumingMatchCode === session.code ? "Resuming…" : "Resume match " + session.code}
-          </button>
-        ))}
         {!isOnline && <p role="status">Offline: network features are unavailable.</p>}
         <main id="main-content">{children}</main>
         {accountPrompt && !authUser && <GuestAccountPrompt reason={accountPrompt}

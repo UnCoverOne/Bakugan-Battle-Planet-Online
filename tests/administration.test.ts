@@ -70,33 +70,12 @@ test("administrator menu includes AI, Card, and User Management", async () => {
   assert.match(css, /@media\(max-width:700px\)/);
 });
 
-test("AI deck registry controls Training AI selection", async () => {
-  const [server, endpoint, provider, screen] = await Promise.all([
-    read("lib/administration-server.ts"),
-    read("app/api/ai-decks/route.ts"),
-    read("components/application/AppProvider.jsx"),
-    read("components/routes/AdminScreen.tsx"),
-  ]);
-  assert.match(server, /listAiDecks/);
-  assert.match(server, /setAiDeckEnabled/);
-  assert.match(server, /randomAiDeck/);
-  assert.match(endpoint, /const enabledLegal = \(await listAiDecks\(database\)\)\.filter/);
-  assert.match(endpoint, /item\.enabled/);
-  assert.match(endpoint, /validateDeck\(item\.deck\)\.isLegal/);
-  assert.match(endpoint, /selectAiDeckForMeta\(enabledLegal\.map\(\(item\) => item\.deck\), meta\)/);
-  assert.match(endpoint, /availableDecks: enabledLegal\.map/);
-  assert.match(endpoint, /isLobbyMeta\(requestedMeta\)/);
-  assert.match(provider, /fetch\("\/api\/ai-decks"/);
-  assert.match(provider, /requireTrainingAiDeckSelection/);
-  assert.doesNotMatch(provider, /let aiDeck = data\.STARTER_DECKS/);
-  assert.match(screen, /action: "ai-toggle"/);
-  assert.match(screen, /action: "ai-delete"/);
-  assert.match(screen, /admin-ai:/);
-  assert.match(server, /At least one enabled legal AI deck must remain available/);
-  assert.match(server, /return \(await selectEnabledLegalAiDeck\(db\)\)\?\.deck \?\? null/);
-  assert.doesNotMatch(server, /if \(!candidates\.length\) return cloneDeck\(STARTER_DECKS\[1\]\)/);
-  assert.match(endpoint, /resourceId/);
-  assert.match(endpoint, /configurationRevision/);
+test("managed Training draws from enabled legal administrator decks", async () => {
+  const preparation = await read("lib/lobby-preparation-server.ts");
+  assert.match(preparation, /listAiDecks\(database\)/);
+  assert.match(preparation, /item.enabled/);
+  assert.match(preparation, /validateDeck\(item.deck\).isLegal/);
+  assert.match(preparation, /preferredAiDeckCandidates\(remaining,configuration.meta\)/);
 });
 
 test("Training AI selection rejects empty, malformed, and illegal responses", () => {
@@ -126,7 +105,7 @@ test("card edits are persisted as overrides and applied to client and authoritat
     read("lib/data.ts"),
     read("app/api/card-overrides/route.ts"),
     read("components/application/AppProvider.jsx"),
-    read("app/api/game/route.ts"),
+    read("lib/lobby-prepared-start.ts"),
   ]);
   assert.match(server, /normalizeCardEdit/);
   assert.match(server, /upsertResource\(db, "card"/);
@@ -327,7 +306,7 @@ test("Administrator rolling editor, APIs, and Training AI share the persisted co
     read("app/api/admin/route.ts"),
     read("app/api/card-overrides/route.ts"),
     read("components/application/AppProvider.jsx"),
-    read("app/api/game/route.ts"),
+    read("lib/lobby-prepared-start.ts"),
   ]);
   assert.match(editor, /card\.type === "Character" && rolling/);
   assert.match(editor, /Rolling Properties/);

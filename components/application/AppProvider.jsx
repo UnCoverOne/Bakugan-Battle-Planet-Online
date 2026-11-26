@@ -1,6 +1,5 @@
 "use client";
 
-import { PERSISTENT_LOBBY_ENABLED } from "../../lib/lobby-cutover";
 import { cachedResponse, invalidateResponse } from "../../lib/response-cache";
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -15,7 +14,6 @@ import {
   mergeSnapshots,
   normalizeLifetimeMatchStats,
   normalizeSnapshot,
-  recoverableTrainingMatch,
   selectSnapshot,
   toCloudSnapshot,
 } from "../../lib/persistence";
@@ -37,9 +35,8 @@ import {
   writeAccountCache,
 } from "../../lib/account-sync";
 import { summarizeGuestData } from "../../lib/guest-data";
-import { accountMatchSessionHref } from "../../lib/account-match-session";
 import { readJsonResponse } from "../../lib/json-response";
-import { completedMatchKey, hasRecordableMatchDetails, isCompletedSeriesResult, isFreshCompletedMatchResult } from "../../lib/match-result-navigation";
+import { completedMatchKey, hasRecordableMatchDetails, isFreshCompletedMatchResult } from "../../lib/match-result-navigation";
 import { MATCH_SESSION_REPLACED_EVENT, MATCH_UPDATE_EVENT } from "../../lib/match-state-events";
 import {
   identityStoredValue,
@@ -50,7 +47,6 @@ import {
   normalizeStoredDeletedDecks,
   normalizeStoredFormat,
   normalizeStoredHistory,
-  normalizeStoredJoinCode,
   normalizeStoredMatch,
   normalizeStoredMatchMode,
   normalizeStoredNumber,
@@ -64,8 +60,6 @@ import {
 const STORAGE_EVENT = "bbp-storage-status";
 const AUTO_SYNC_DELAY_MS = 500;
 const DURABLE_DIRTY_DELAY_MS = 100;
-const TRAINING_CHECKPOINT_INTERVAL_MS = 15_000;
-const ACCOUNT_MATCH_REFRESH_INTERVAL_MS = 15_000;
 const MATCH_CAPABILITY_STORAGE_KEY = "bbp-match-capability-v2";
 const MATCH_CONTROLLER_STORAGE_KEY = "bbp-match-controller-v1";
 const defaults = {
@@ -279,7 +273,6 @@ export function AppProvider({ children }) {
   const [compendiumTab, setCompendiumTab, compendiumTabReady] = useStoredState("bbp-compendium-tab-v1", "cards", { storage: "session", debounceMs: 300, normalize: normalizeStoredCompendiumTab, report: false, migrateFromLocal: true, writeEnabled: writeLocal });
   const [format, setFormat, formatReady] = useStoredState("bbp-match-format-v1", "bo1", { debounceMs: 300, normalize: normalizeStoredFormat, writeEnabled: writeLocal });
   const [matchMode, setMatchMode, matchModeReady] = useStoredState("bbp-match-mode-v1", "solo", { debounceMs: 300, normalize: normalizeStoredMatchMode, writeEnabled: writeLocal });
-  const [joinCode, setJoinCode, joinCodeReady] = useStoredState("bbp-join-code-v1", "", { storage: "session", debounceMs: 300, normalize: normalizeStoredJoinCode, report: false, migrateFromLocal: true, writeEnabled: writeLocal });
   const [match, setMatch, matchReady] = useStoredState("bbp-active-match-v1", null, { debounceMs: 300, normalize: normalizeStoredMatch, report: false, writeEnabled: writeLocal });
   const restoreHistory = historyRequested || Boolean(initialAuth?.result?.user) || Boolean(match) || ["dashboard", "history", "profile", "play", "lobby", "match", "result"].includes(route);
   const [history, setHistory, historyReady] = useStoredState("bbp-history", [], { debounceMs: 750, normalize: normalizeStoredHistory, restoreEnabled: restoreHistory, writeEnabled: writeLocal });
@@ -321,11 +314,6 @@ export function AppProvider({ children }) {
   const [authError, setAuthError] = useState("");
   const [syncStatus, setSyncStatus] = useState("checking");
   const [storageHealth, setStorageHealth] = useState({ status: "checking", message: "Checking whether this browser can save data…", savedAt: null });
-  const [matchError, setMatchError] = useState("");
-  const [accountMatchSessions, setAccountMatchSessions] = useState([]);
-  const [accountMatchSessionsLoading, setAccountMatchSessionsLoading] = useState(false);
-  const [accountMatchSessionsError, setAccountMatchSessionsError] = useState("");
-  const [resumingMatchCode, setResumingMatchCode] = useState("");
   const [toast, setToast] = useState("");
   const [accountPrompt, setAccountPrompt] = useState(null);
   const [accountAccessMode, setAccountAccessMode] = useState(null);
@@ -350,17 +338,13 @@ export function AppProvider({ children }) {
   const pendingEntityKeys = useRef(null);
   const acknowledgedHistoryIds = useRef(null);
   const activeAccountId = useRef("");
-  const accountMatchRefreshRequest = useRef(0);
-  const resumingMatchRef = useRef("");
   const accountRefreshInFlight = useRef(null);
   const durableFingerprint = useRef(null);
-  const trainingCheckpointFingerprint = useRef(null);
-  const trainingCheckpointTimer = useRef(null);
   const promptedAccountMoments = useRef(new Set());
   const lastObservedResultMatch = useRef(null);
   // Decks are chosen in lobbies; stale global preferences are no longer used.
   useEffect(() => { try { localStorage.removeItem("bbp-selected-deck-v1"); } catch {} }, []);
-  const ready = [profileReady, decksReady, deletedDecksReady, (!restoreHistory || historyReady), lifetimeStatsReady, settingsReady, builderReady, deckQueryReady, compendiumQueryReady, compendiumTabReady, formatReady, matchModeReady, joinCodeReady, matchReady, onlineReady, (!restoreReplay || replayReady), replayIndexReady, playerReady, capabilityReady, controllerReady, modifiedReady].every(Boolean);
+  const ready = [profileReady, decksReady, deletedDecksReady, (!restoreHistory || historyReady), lifetimeStatsReady, settingsReady, builderReady, deckQueryReady, compendiumQueryReady, compendiumTabReady, formatReady, matchModeReady, matchReady, onlineReady, (!restoreReplay || replayReady), replayIndexReady, playerReady, capabilityReady, controllerReady, modifiedReady].every(Boolean);
   const notify = useCallback((message) => setToast(message), []);
   const promptAccount = useCallback((reason) => {
     if (!authUser) setAccountPrompt(reason);
@@ -373,59 +357,13 @@ export function AppProvider({ children }) {
   }, []);
   const closeAccountAccess = useCallback(() => setAccountAccessMode(null), []);
 
-  const refreshAccountMatchSessions = useCallback(async () => {
-    if (!authUser) {
-      accountMatchRefreshRequest.current += 1;
-      setAccountMatchSessions([]);
-      setAccountMatchSessionsError("");
-      setAccountMatchSessionsLoading(false);
-      return [];
-    }
-    const requestId = ++accountMatchRefreshRequest.current;
-    setAccountMatchSessionsLoading(true);
-    try {
-      const presentedSeatHeaders = online && match?.code && playerId && matchCapability && matchControllerId
-        ? {
-            "x-match-code": match.code,
-            "x-match-player": playerId,
-            "x-match-capability": matchCapability,
-            "x-match-controller": matchControllerId,
-          }
-        : undefined;
-      const response = await fetch("/api/game/active", {
-        cache: "no-store",
-        credentials: "same-origin",
-        headers: presentedSeatHeaders,
-        signal: AbortSignal.timeout(12_000),
-      });
-      const result = await readJsonResponse(response, "Active matches returned an invalid response.");
-      if (!response.ok || !Array.isArray(result.sessions)) {
-        throw new Error(result.error ?? "Active matches could not be loaded.");
-      }
-      if (requestId === accountMatchRefreshRequest.current) {
-        setAccountMatchSessions(result.sessions);
-        setAccountMatchSessionsError("");
-      }
-      return result.sessions;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Active matches could not be loaded.";
-      if (requestId === accountMatchRefreshRequest.current) setAccountMatchSessionsError(message);
-      return [];
-    } finally {
-      if (requestId === accountMatchRefreshRequest.current) setAccountMatchSessionsLoading(false);
-    }
-  }, [authUser, match?.code, matchCapability, matchControllerId, online, playerId]);
-
-  const snapshot = useMemo(() => ({ schemaVersion: 1, updatedAt: modifiedAt, profile, decks, deletedDecks, history: history.slice(0, MAX_MATCH_RECORDS), lifetimeStats, settings, route, selectedDeckId: "", builderDeck, deckQuery, compendiumQuery, compendiumTab, format, matchMode, joinCode, match, online, selectedCore: "", logFilter: "all", replay, replayIndex, playerId, completedTrainingMatchIds, collection }), [builderDeck, collection, completedTrainingMatchIds, compendiumQuery, compendiumTab, deckQuery, decks, deletedDecks, format, history, joinCode, lifetimeStats, match, matchMode, modifiedAt, online, playerId, profile, replay, replayIndex, route, settings]);
+  const snapshot = useMemo(() => ({ schemaVersion: 1, updatedAt: modifiedAt, profile, decks, deletedDecks, history: history.slice(0, MAX_MATCH_RECORDS), lifetimeStats, settings, route, selectedDeckId: "", builderDeck, deckQuery, compendiumQuery, compendiumTab, format, matchMode, joinCode: "", match, online, selectedCore: "", logFilter: "all", replay, replayIndex, playerId, completedTrainingMatchIds, collection }), [builderDeck, collection, completedTrainingMatchIds, compendiumQuery, compendiumTab, deckQuery, decks, deletedDecks, format, history, lifetimeStats, match, matchMode, modifiedAt, online, playerId, profile, replay, replayIndex, route, settings]);
   useEffect(() => { snapshotRef.current = snapshot; }, [snapshot]);
   const guestData = useMemo(
     () => summarizeGuestData({ profile, decks, history, settings, builderDeck, match }),
     [builderDeck, decks, history, match, profile, settings],
   );
 
-  const activeTrainingMatch = recoverableTrainingMatch(match, online);
-  const activeTrainingMatchId = activeTrainingMatch?.id ?? "";
-  const activeTrainingPlayerId = activeTrainingMatch ? playerId : "";
   const durableStateFingerprint = useMemo(() => ({
     profile,
     decks,
@@ -434,22 +372,9 @@ export function AppProvider({ children }) {
     builderDeck,
     format,
     matchMode,
-    activeTrainingMatchId,
-    activeTrainingPlayerId,
     completedTrainingMatchIds,
     collection,
-  }), [activeTrainingMatchId, builderDeck, collection, completedTrainingMatchIds, decks, deletedDecks, format, matchMode, activeTrainingPlayerId, profile, settings]);
-  const trainingStateFingerprint = useMemo(
-    () => activeTrainingMatch ? JSON.stringify({
-      id: activeTrainingMatch.id,
-      version: activeTrainingMatch.version,
-      phase: activeTrainingMatch.phase,
-      turn: activeTrainingMatch.turn,
-      round: activeTrainingMatch.round,
-    }) : "",
-    [activeTrainingMatch],
-  );
-
+  }), [builderDeck, collection, completedTrainingMatchIds, decks, deletedDecks, format, matchMode, profile, settings]);
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; };
@@ -525,56 +450,18 @@ export function AppProvider({ children }) {
     return () => removeEventListener(MATCH_UPDATE_EVENT, listener);
   }, [setMatch]);
   useEffect(() => {
-    if (!ready || !accountDataReady || !authUser) {
-      if (!authUser) {
-        accountMatchRefreshRequest.current += 1;
-        setAccountMatchSessions([]);
-        setAccountMatchSessionsError("");
-        setAccountMatchSessionsLoading(false);
-      }
-      return;
-    }
-    let lastRefreshAt = 0;
-    const refresh = () => {
-      if (document.visibilityState === "visible" && navigator.onLine && Date.now() - lastRefreshAt >= ACCOUNT_MATCH_REFRESH_INTERVAL_MS) {
-        lastRefreshAt = Date.now();
-        void refreshAccountMatchSessions();
-      }
-    };
-    refresh();
-    const interval = window.setInterval(refresh, ACCOUNT_MATCH_REFRESH_INTERVAL_MS);
-    addEventListener("focus", refresh);
-    addEventListener("online", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      window.clearInterval(interval);
-      removeEventListener("focus", refresh);
-      removeEventListener("online", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [accountDataReady, authUser, ready, refreshAccountMatchSessions]);
-  useEffect(() => {
     const listener = () => {
       clearBrowserMatchCredentials();
       setMatchCapability("");
       setMatchControllerId("");
-      if (PERSISTENT_LOBBY_ENABLED) {
-        setMatch(null);setOnline(false);notify("Game controller moved to another device. Lobby membership retained.");
-        router.push("/play/lobby");return;
-      }
-      if (authUser) {
-        setMatch(null);
-        setOnline(false);
-        notify("This match was resumed in another session.");
-        void refreshAccountMatchSessions();
-        router.push("/dashboard");
-      } else {
-        notify("This match is active in another browser tab.");
-      }
+      setMatch(null);
+      setOnline(false);
+      notify("Game controller moved to another device. Lobby membership retained.");
+      router.push("/play/lobby");
     };
     addEventListener(MATCH_SESSION_REPLACED_EVENT, listener);
     return () => removeEventListener(MATCH_SESSION_REPLACED_EVENT, listener);
-  }, [authUser, notify, refreshAccountMatchSessions, router, setMatch, setMatchCapability, setMatchControllerId, setOnline]);
+  }, [notify, router, setMatch, setMatchCapability, setMatchControllerId, setOnline]);
   useEffect(() => {
     document.documentElement.dataset.contrast = settings.highContrast ? "high" : "normal";
     document.documentElement.dataset.motion = settings.reducedMotion ? "reduced" : "full";
@@ -623,20 +510,25 @@ export function AppProvider({ children }) {
   const applySnapshot = useCallback((incoming, signedIn = false) => {
     const fallback = snapshotRef.current;
     if (!fallback) return;
-    const next = normalizeSnapshot(incoming, fallback);
+    const next = {
+      ...normalizeSnapshot(incoming, fallback),
+      match: fallback.match,
+      online: fallback.online,
+      playerId: fallback.match ? fallback.playerId : normalizeStoredPlayerId(incoming?.playerId ?? fallback.playerId),
+    };
     snapshotRef.current = next;
     applying.current = true;
     setProfile({ ...next.profile, signedIn: signedIn || next.profile.signedIn });
     decksRef.current = next.decks;
     setStoredDecks(next.decks); setDeletedDecks(next.deletedDecks ?? []); setHistory(next.history); setLifetimeStats(normalizeLifetimeMatchStats(next.lifetimeStats)); setSettings(next.settings);
     setBuilderDeck(next.builderDeck); setDeckQuery(next.deckQuery); setCompendiumQuery(next.compendiumQuery); setCompendiumTab(next.compendiumTab);
-    setFormat(next.format); setMatchMode(next.matchMode); setJoinCode(next.joinCode); setMatch(next.match); setOnline(next.online);
+    setFormat(next.format); setMatchMode(next.matchMode);
     if (restoreReplay || replayReady || next.replay) setReplay(next.replay);
     setReplayIndex(next.replayIndex); setPlayerId(next.playerId); setModifiedAt(next.updatedAt);
     setCompletedTrainingMatchIds(next.completedTrainingMatchIds ?? []);
     setCollection(next.collection);
     setTimeout(() => { applying.current = false; }, 120);
-  }, [replayReady, restoreReplay, setBuilderDeck, setCollection, setCompendiumQuery, setCompendiumTab, setCompletedTrainingMatchIds, setDeckQuery, setDeletedDecks, setStoredDecks, setFormat, setHistory, setJoinCode, setLifetimeStats, setMatch, setMatchMode, setModifiedAt, setOnline, setPlayerId, setProfile, setReplay, setReplayIndex, setSettings]);
+  }, [replayReady, restoreReplay, setBuilderDeck, setCollection, setCompendiumQuery, setCompendiumTab, setCompletedTrainingMatchIds, setDeckQuery, setDeletedDecks, setStoredDecks, setFormat, setHistory, setLifetimeStats, setMatchMode, setModifiedAt, setPlayerId, setProfile, setReplay, setReplayIndex, setSettings]);
 
   const persistAccountRecovery = useCallback((userId, data = snapshotRef.current) => {
     if (!userId || !data) return false;
@@ -675,7 +567,7 @@ export function AppProvider({ children }) {
     if (retainSession && userId) {
       try { localStorage.setItem("bbp-skipped-account-session-v1", userId); } catch {}
     }
-    if(PERSISTENT_LOBBY_ENABLED){
+    {
       const endedSeries=snapshotRef.current?.match?.id;
       clearBrowserMatchCredentials();setMatchCapability("");setMatchControllerId("");setMatch(null);setOnline(false);
       void import("../game-screen-v2/matchStore").then(({readMatchStore,primeMatchStore})=>{
@@ -1021,35 +913,6 @@ export function AppProvider({ children }) {
     return refresh;
   }, [authUser, loadCloud]);
 
-  const [resumingCurrentMatch, setResumingCurrentMatch] = useState(false);
-  const resumeCurrentMatch = useCallback(async () => {
-    if(PERSISTENT_LOBBY_ENABLED){router.push("/play");return {ok:true};}
-    const current = snapshotRef.current;
-    if (!current?.match) return { ok: false };
-    const currentMatch = current.match;
-    const currentTrainingMatch = recoverableTrainingMatch(currentMatch, current.online);
-    setResumingCurrentMatch(true);
-    try {
-      if (authUser && currentTrainingMatch && navigator.onLine) {
-        await refreshAccountState();
-        const latest = snapshotRef.current;
-        const latestTrainingMatch = latest
-          ? recoverableTrainingMatch(latest.match, latest.online)
-          : null;
-        if (!latestTrainingMatch || latestTrainingMatch.id !== currentTrainingMatch.id) {
-          notify("This Training match was completed on another device.");
-          router.push("/");
-          return { ok: false, completedElsewhere: true };
-        }
-      }
-      const latestMatch = snapshotRef.current?.match ?? currentMatch;
-      router.push(latestMatch.phase === "lobby" ? "/play/lobby" : "/play/match");
-      return { ok: true };
-    } finally {
-      setResumingCurrentMatch(false);
-    }
-  }, [authUser, notify, refreshAccountState, router]);
-
   useEffect(() => {
     if (!initialAuthRequest.current) {
       initialAuthRequest.current = fetch("/api/auth", { cache: "no-store", signal: AbortSignal.timeout(12_000) })
@@ -1129,41 +992,6 @@ export function AppProvider({ children }) {
     const id = setTimeout(() => { void syncToCloud(false); }, AUTO_SYNC_DELAY_MS);
     return () => clearTimeout(id);
   }, [accountDataReady, authUser, durableStateFingerprint, persistAccountRecovery, ready, setModifiedAt, syncToCloud]);
-
-  useEffect(() => {
-    if (!authUser || !accountDataReady || !ready || !cloudLoaded.current || applying.current) return;
-    if (!trainingStateFingerprint) {
-      trainingCheckpointFingerprint.current = null;
-      if (trainingCheckpointTimer.current) {
-        clearTimeout(trainingCheckpointTimer.current);
-        trainingCheckpointTimer.current = null;
-      }
-      return;
-    }
-    if (trainingCheckpointFingerprint.current === null) {
-      trainingCheckpointFingerprint.current = trainingStateFingerprint;
-      return;
-    }
-    if (trainingCheckpointFingerprint.current === trainingStateFingerprint) return;
-    trainingCheckpointFingerprint.current = trainingStateFingerprint;
-    if (trainingCheckpointTimer.current) return;
-    trainingCheckpointTimer.current = setTimeout(() => {
-      trainingCheckpointTimer.current = null;
-      const current = snapshotRef.current;
-      if (!current || !activeAccountId.current) return;
-      const dirtySnapshot = { ...current, updatedAt: Date.now() };
-      snapshotRef.current = dirtySnapshot;
-      setModifiedAt(dirtySnapshot.updatedAt);
-      localVersion.current += 1;
-      syncRequested.current = true;
-      persistAccountRecovery(activeAccountId.current, dirtySnapshot);
-      void syncRunner.current?.();
-    }, TRAINING_CHECKPOINT_INTERVAL_MS);
-  }, [accountDataReady, authUser, persistAccountRecovery, ready, setModifiedAt, trainingStateFingerprint]);
-
-  useEffect(() => () => {
-    if (trainingCheckpointTimer.current) clearTimeout(trainingCheckpointTimer.current);
-  }, []);
 
   useEffect(() => {
     if (!authUser) return;
@@ -1375,9 +1203,8 @@ export function AppProvider({ children }) {
     }
   }, [accountDataReady, authChecking, authUser, history, match, online, playerId, ready, setHistory, setLifetimeStats, setReplay, setReplayIndex]);
 
-  const api = useCallback(async (action, payload, code, selection, rankedDecks, structureOverride) => {
-    setMatchError("");
-    const response = await fetch("/api/game", { method: "POST", headers: { "content-type": "application/json", ...(matchCapability ? { "x-match-capability": matchCapability } : {}), ...(matchControllerId ? { "x-match-controller": matchControllerId } : {}) }, body: JSON.stringify({ action, code: action === "create" ? undefined : code ?? match?.code, playerId, expectedVersion: action === "create" || action === "join" ? undefined : match?.version, format: structureOverride ?? format, selection, rankedDecks, payload }) });
+  const api = useCallback(async (action) => {
+    const response = await fetch("/api/game", { method: "POST", headers: { "content-type": "application/json", ...(matchCapability ? { "x-match-capability": matchCapability } : {}), ...(matchControllerId ? { "x-match-controller": matchControllerId } : {}) }, body: JSON.stringify({ action, code: match?.code, playerId, expectedVersion: match?.version }) });
     const result = await response.json();
     if (response.status === 403 && /match seat capability/i.test(result.error ?? "")) {
       window.dispatchEvent(new CustomEvent(MATCH_SESSION_REPLACED_EVENT, { detail: { reason: result.error } }));
@@ -1387,11 +1214,7 @@ export function AppProvider({ children }) {
     if (result.controllerId) setMatchControllerId(result.controllerId);
     if (result.state) setMatch(result.state);
     return result.state;
-  }, [format, match, matchCapability, matchControllerId, playerId, setMatch, setMatchCapability, setMatchControllerId]);
-  const selection = useCallback((deck, rulesFormat = "standard") => ({ playerId, name: profile.name, cosmetics: { avatar: profile.avatar }, deck: { id: deck.id, name: deck.name, bakuganIds: [...deck.bakuganIds], coreIds: [...deck.coreIds], cardIds: [...deck.cardIds], format: rulesFormat, factions: [...(deck.factions ?? [])], leadCardId: deck.leadCardId } }), [playerId, profile.avatar, profile.name]);
-  const createOnline = useCallback(async (options = {}) => { if(PERSISTENT_LOBBY_ENABLED)return {ok:false,error:"Use the persistent lobby to create a room."}; const activeDeck = options.bootstrapDeck ?? options.decks?.[0]; if (!activeDeck) { router.push("/decks"); return { ok: false, error: "A compatible deck is required to open a lobby." }; } try { clearBrowserMatchCredentials(); setMatchCapability(""); setMatchControllerId(""); const rankedSelections = options.mode === "ranked" && options.decks?.length === 3 ? options.decks.map((deck) => selection(deck, "competitive")) : undefined; const state = await api("create", options.mode === "ranked" ? { lobbyMode: "ranked" } : undefined, undefined, selection(activeDeck), rankedSelections, options.structure); setOnline(true); setMatch(state); router.push("/play/lobby"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "The private room could not be created."; setMatchError(message); return { ok: false, error: message }; } }, [api, router, selection, setMatch, setMatchCapability, setMatchControllerId, setOnline]);
-  const joinOnline = useCallback(async (options = {}) => { if(PERSISTENT_LOBBY_ENABLED)return {ok:false,error:"Use the persistent lobby to join a room."}; const activeDeck = options.bootstrapDeck ?? options.decks?.[0]; if (!activeDeck) { router.push("/decks"); return { ok: false, error: "A compatible deck is required to open a lobby." }; } try { const rankedSelections = options.mode === "ranked" && options.decks?.length === 3 ? options.decks.map((deck) => selection(deck, "competitive")) : undefined; const state = await api("join", undefined, (options.roomCode ?? joinCode).toUpperCase(), selection(activeDeck), rankedSelections, options.structure); setOnline(true); setMatch(state); router.push("/play/lobby"); return { ok: true }; } catch (error) { const message = error instanceof Error ? error.message : "The private room could not be joined."; setMatchError(message); return { ok: false, error: message }; } }, [api, joinCode, router, selection, setMatch, setOnline]);
-  const readyMatch = useCallback(async () => { if (!match) return; try { if (online) await api("ready"); else { const { dispatchLocalGameCommand } = await import("../../lib/engine/local-command-dispatcher"); setMatch(dispatchLocalGameCommand(match, playerId, { type: "SET_READY" }, authUser?.id ?? playerId)); } } catch (error) { setMatchError(error.message); } }, [api, authUser?.id, match, online, playerId, setMatch]);
+  }, [match, matchCapability, matchControllerId, playerId, setMatch, setMatchCapability, setMatchControllerId]);
   const nextSeriesGame = useCallback(async () => {
     if (!match) return;
     try {
@@ -1411,77 +1234,10 @@ export function AppProvider({ children }) {
         }
         setMatch(state);
       }
-      // The first player to acknowledge remains on the result screen; the
-      // second acknowledgement moves both players to the new lobby.
-      if (!PERSISTENT_LOBBY_ENABLED && state?.phase === "lobby") router.push("/play/lobby");
     } catch (error) {
-      setMatchError(error instanceof Error ? error.message : "Could not return to the series lobby.");
+      notify(error instanceof Error ? error.message : "Could not return to the series lobby.");
     }
-  }, [api, authUser?.id, match, online, playerId, router, setMatch]);
-  const leaveMatch = useCallback(() => { if(PERSISTENT_LOBBY_ENABLED){router.push("/play/lobby");return;} clearBrowserMatchCredentials(); setMatch(null); setOnline(false); setMatchCapability(""); setMatchControllerId(""); router.push("/dashboard"); }, [router, setMatch, setMatchCapability, setMatchControllerId, setOnline]);
-  const resumeAccountMatch = useCallback(async (session) => {
-    if (PERSISTENT_LOBBY_ENABLED || !authUser || !session?.code || resumingMatchRef.current) return { ok: false };
-    resumingMatchRef.current = session.code;
-    setMatchError("");
-    setResumingMatchCode(session.code);
-    try {
-      const claim = async (takeover) => {
-        const response = await fetch("/api/game/resume", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          signal: AbortSignal.timeout(15_000),
-          body: JSON.stringify({
-            code: session.code,
-            expectedCapabilityVersion: session.capabilityVersion,
-            takeover,
-          }),
-        });
-        const result = await readJsonResponse(response, "Match recovery returned an invalid response.");
-        return { response, result };
-      };
-
-      let attempt = await claim(false);
-      if (attempt.response.status === 409 && attempt.result.code === "SESSION_ACTIVE") {
-        const confirmed = window.confirm(
-          "This match is active in another browser or device. Resume it here and disconnect the other session?",
-        );
-        if (!confirmed) return { ok: false, cancelled: true };
-        attempt = await claim(true);
-      }
-      if (!attempt.response.ok) {
-        if (attempt.response.status === 409) void refreshAccountMatchSessions();
-        throw new Error(attempt.result.error ?? "The match could not be resumed.");
-      }
-
-      const { state, capability, controllerId, playerId } = attempt.result;
-      if (!state || typeof capability !== "string" || typeof controllerId !== "string" || typeof playerId !== "string") {
-        throw new Error("Match recovery returned incomplete controller credentials.");
-      }
-      const route = state.phase === "lobby" ? "lobby" : state.phase === "result" ? (isCompletedSeriesResult(state) ? "result" : "match") : "match";
-      const href = accountMatchSessionHref({ ...session, phase: route === "result" ? "intermission" : route });
-      setPlayerId(playerId);
-      setMatchCapability(capability);
-      setMatchControllerId(controllerId);
-      setMatch(state);
-      setOnline(true);
-      const { primeMatchStore } = await import("../game-screen-v2/matchStore");
-      primeMatchStore({ route, online: true, playerId, capability, controllerId, settings, match: state });
-      accountMatchRefreshRequest.current += 1;
-      setAccountMatchSessionsLoading(false);
-      setAccountMatchSessions((sessions) => sessions.filter((candidate) => candidate.code !== session.code));
-      router.push(href);
-      notify(route === "lobby" ? "Lobby resumed on this device." : "Match resumed on this device.");
-      return { ok: true };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "The match could not be resumed.";
-      setMatchError(message);
-      notify(message);
-      return { ok: false, error: message };
-    } finally {
-      if (resumingMatchRef.current === session.code) resumingMatchRef.current = "";
-      setResumingMatchCode("");
-    }
-  }, [authUser, notify, refreshAccountMatchSessions, router, setMatch, setMatchCapability, setMatchControllerId, setOnline, setPlayerId, settings]);
+  }, [api, authUser?.id, match, notify, online, playerId, setMatch]);
   const syncNow = useCallback(() => syncToCloud(true), [syncToCloud]);
   const retryCloudLoad = useCallback(async () => {
     if (!authUser) return false;
@@ -1521,7 +1277,7 @@ export function AppProvider({ children }) {
       if(readMatchStore().match?.id===seriesId)primeMatchStore({match:null,online:false,capability:"",controllerId:""});
     });
   },[setMatch,setOnline,setMatchCapability,setMatchControllerId]);
-  const value = useMemo(() => ({ installManagedMatch, clearManagedMatch, ready, route, profile, setProfile, decks, setDecks, history, setHistory, lifetimeStats, setLifetimeStats, settings, setSettings, collection, setCollection, builderDeck, setBuilderDeck, deckQuery, setDeckQuery, compendiumQuery, setCompendiumQuery, compendiumTab, setCompendiumTab, format, setFormat, matchMode, setMatchMode, joinCode, setJoinCode, match, setMatch, online, setOnline, replay, setReplay, replayIndex, setReplayIndex, playerId, matchCapability, matchControllerId, matchError, toast, notify, authUser, authChecking, accountDataReady, authBusy, authError, syncStatus, storageHealth, guestData, accountPrompt, promptAccount, dismissAccountPrompt, accountAccessMode, requestAccountAccess, closeAccountAccess, authenticate, continueAsGuest, signOutAccount, saveAccountProfile, changePassword, deleteAccount, syncNow, retryCloudLoad, accountMatchSessions, accountMatchSessionsLoading, accountMatchSessionsError, refreshAccountMatchSessions, resumeAccountMatch, resumingMatchCode, resumeCurrentMatch, resumingCurrentMatch, createOnline, joinOnline, readyMatch, nextSeriesGame, leaveMatch, catalogueRevision }), [installManagedMatch, clearManagedMatch, accountAccessMode, accountDataReady, accountMatchSessions, accountMatchSessionsError, accountMatchSessionsLoading, accountPrompt, authBusy, authChecking, authError, authUser, authenticate, builderDeck, catalogueRevision, changePassword, collection, compendiumQuery, closeAccountAccess, compendiumTab, continueAsGuest, createOnline, dismissAccountPrompt, deckQuery, decks, deleteAccount, format, history, joinCode, guestData, joinOnline, leaveMatch, lifetimeStats, match, matchControllerId, matchError, matchMode, nextSeriesGame, notify, online, promptAccount, playerId, matchCapability, refreshAccountMatchSessions, requestAccountAccess, profile, ready, readyMatch, replay, replayIndex, resumeAccountMatch, resumeCurrentMatch, resumingCurrentMatch, resumingMatchCode, retryCloudLoad, route, saveAccountProfile, setBuilderDeck, setCollection, setCompendiumQuery, setCompendiumTab, setDeckQuery, setDecks, setFormat, setHistory, setJoinCode, setMatch, setMatchMode, setOnline, setProfile, setReplay, setReplayIndex, setSettings, settings, signOutAccount, storageHealth, syncNow, syncStatus, toast]);
+  const value = useMemo(() => ({ installManagedMatch, clearManagedMatch, ready, route, profile, setProfile, decks, setDecks, history, setHistory, lifetimeStats, setLifetimeStats, settings, setSettings, collection, setCollection, builderDeck, setBuilderDeck, deckQuery, setDeckQuery, compendiumQuery, setCompendiumQuery, compendiumTab, setCompendiumTab, format, setFormat, matchMode, setMatchMode, match, setMatch, online, setOnline, replay, setReplay, replayIndex, setReplayIndex, playerId, matchCapability, matchControllerId, toast, notify, authUser, authChecking, accountDataReady, authBusy, authError, syncStatus, storageHealth, guestData, accountPrompt, promptAccount, dismissAccountPrompt, accountAccessMode, requestAccountAccess, closeAccountAccess, authenticate, continueAsGuest, signOutAccount, saveAccountProfile, changePassword, deleteAccount, syncNow, retryCloudLoad, nextSeriesGame, catalogueRevision }), [installManagedMatch, clearManagedMatch, accountAccessMode, accountDataReady, accountPrompt, authBusy, authChecking, authError, authUser, authenticate, builderDeck, catalogueRevision, changePassword, collection, compendiumQuery, closeAccountAccess, compendiumTab, continueAsGuest, dismissAccountPrompt, deckQuery, decks, deleteAccount, format, history, guestData, lifetimeStats, match, matchControllerId, matchMode, nextSeriesGame, notify, online, promptAccount, playerId, matchCapability, requestAccountAccess, profile, ready, replay, replayIndex, retryCloudLoad, route, saveAccountProfile, setBuilderDeck, setCollection, setCompendiumQuery, setCompendiumTab, setDeckQuery, setDecks, setFormat, setHistory, setMatch, setMatchMode, setOnline, setProfile, setReplay, setReplayIndex, setSettings, settings, signOutAccount, storageHealth, syncNow, syncStatus, toast]);
   const [store] = useState(() => createAppStateStore(value));
   useLayoutEffect(() => { store.publish(value); }, [store, value]);
   return <Context.Provider value={store}>{children}</Context.Provider>;

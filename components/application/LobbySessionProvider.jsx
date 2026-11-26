@@ -1,7 +1,6 @@
 "use client";
 import {createContext,useCallback,useContext,useEffect,useLayoutEffect,useMemo,useRef,useState} from "react";
 import {usePathname,useRouter} from "next/navigation";
-import {PERSISTENT_LOBBY_ENABLED} from "../../lib/lobby-cutover";
 import {shouldEnterStartedSeries} from "../../lib/lobby-client-routing";
 import {isCompletedSeriesResult} from "../../lib/match-result-navigation";
 import {useAppFields} from "./AppProvider";
@@ -9,7 +8,6 @@ import {useAppFields} from "./AppProvider";
 /** @type {import("react").Context<any>} */
 const Context=createContext(null);
 const initial={status:"checking"};
-const disabled={enabled:false,recovery:initial,unavailable:false,error:"",busy:false,refresh:async()=>null,command:async()=>{throw new Error("Persistent lobby is disabled.");}};
 const memberOf=value=>value?.status==="member"?value:null;
 const seriesOf=value=>value?.status==="member"?{lobbyId:value.lobby.id,seriesId:value.lobby.currentSeriesId}:null;
 const HEARTBEAT_MS=12000;
@@ -30,12 +28,8 @@ async function requestSession(body,headers={},signal){
   return result;
 }
 /** @returns {any} Session contract is supplied by the enabled provider. */
-export function useLobbySession(){return useContext(Context)??disabled;}
+export function useLobbySession(){return useContext(Context);}
 export function LobbySessionProvider({children}){
-  if(!PERSISTENT_LOBBY_ENABLED)return <Context.Provider value={disabled}>{children}</Context.Provider>;
-  return <EnabledLobbySessionProvider>{children}</EnabledLobbySessionProvider>;
-}
-function EnabledLobbySessionProvider({children}){
   const app=useAppFields(["ready","authChecking","authUser","accountDataReady","match","matchCapability","matchControllerId","playerId","installManagedMatch","clearManagedMatch","notify"]);
   const router=useRouter(),pathname=usePathname();
   const appRef=useRef(app),pathRef=useRef(pathname);
@@ -206,7 +200,7 @@ function EnabledLobbySessionProvider({children}){
     const response=await command({action:"recover-result",membershipId:current.membership.id,seriesId});
     return response.result;
   },[command]);
-  const value=useMemo(()=>({enabled:true,recovery,error,unavailable,busy,refresh,command,claimGame,claimedSeries,checkpointError,flushTraining,returnToLobby,returnToGame,recoverResult}),
+  const value=useMemo(()=>({recovery,error,unavailable,busy,refresh,command,claimGame,claimedSeries,checkpointError,flushTraining,returnToLobby,returnToGame,recoverResult}),
     [recovery,error,unavailable,busy,refresh,command,claimGame,claimedSeries,checkpointError,flushTraining,returnToLobby,returnToGame,recoverResult]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

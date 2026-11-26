@@ -201,18 +201,11 @@ test("a cloud snapshot with no Training tombstone does not erase legitimate offl
   assert.equal(restored.playerId, "device-player");
 });
 
-test("signed-in local Training resumes revalidate account state before navigation", () => {
-  const provider = source("components/application/AppProvider.jsx");
-  const dashboard = source("components/routes/DashboardScreen.tsx");
-  const shell = source("components/application/AppShell.jsx");
-  assert.match(provider, /const resumeCurrentMatch = useCallback/);
-  assert.match(provider, /await refreshAccountState\(\)/);
-  assert.match(provider, /loadCloud\("cloud", authUser\)/);
-  assert.match(provider, /addEventListener\("focus", resume\)/);
-  assert.match(dashboard, /onClick=\{\(\) => void resumeCurrentMatch\(\)\}/);
-  assert.match(shell, /onClick=\{\(\) => void resumeCurrentMatch\(\)\}/);
+test("Training recovery claims the active server checkpoint", () => {
+  const provider = source("components/application/LobbySessionProvider.jsx");
+  assert.match(provider, /action:"recover-training",membershipId:current.membership.id,seriesId/);
+  assert.match(provider, /installManagedMatch\(\{\.\.\.result,online:!isTraining,isCurrent\}\)/);
 });
-
 
 test("cloud Training recovery replaces a completed stale match on another device", () => {
   const trainingMatch = {

@@ -38,7 +38,6 @@
 .joinForm .joinButton{min-height:44px;border-color:var(--bb-border-hover);font:700 14px/1.2 var(--bb-font-interface);text-transform:uppercase}
 .error{margin:0;max-width:520px;color:var(--bb-deck-warning-text);font:400 14px/1.5 var(--bb-font-content)}
 .joinInner>.error{flex-basis:100%}
-.retry{min-height:44px;padding:0;border:0;background:transparent;color:var(--bb-link);font:600 14px/1.2 var(--bb-font-interface);text-decoration:underline;cursor:pointer}
 @media(max-width:720px){
   .heroInner{min-height:0;grid-template-columns:minmax(0,1fr);grid-template-areas:"artwork" "controls";gap:0;width:calc(100% - 32px)}
   .artwork{height:clamp(160px,48vw,250px);place-items:center}

@@ -1,10 +1,6 @@
-import { PERSISTENT_LOBBY_ENABLED } from "./lobby-cutover";
 import { managedInvitableLobby, managedInvitationLobby, acceptManagedInvitation } from "./lobby-social-server";
 import { ensureAdministrationSchema, type AccountDatabase } from "./account-server";
 import { ensureAccountDataSchema } from "./account-data-server";
-import type { MatchState } from "./game";
-import { lobbyConfig } from "./lobby-config";
-import { roomOwnerId } from "./lobby";
 import { rankForBp } from "./ranked";
 import { ensureReplayArchiveSchema } from "./replay-archive-server";
 import { AuthorizationError, ConflictError, ValidationError } from "./server-errors";
@@ -222,42 +218,7 @@ export async function removeFriend(db: AccountDatabase, actorId: string, targetI
   return "none" as const;
 }
 
-function parseMatchState(value: string) {
-  try {
-    return JSON.parse(value) as MatchState;
-  } catch {
-    return null;
-  }
-}
-
-function lobbySummary(state: MatchState): ActiveSocialLobby | null {
-  if (state.phase !== "lobby" || state.players.length >= 2) return null;
-  const config = lobbyConfig(state);
-  if (config.mode === "training") return null;
-  return {
-    code: state.code,
-    format: state.format,
-    rulesFormat: config.rulesFormat,
-    openSlots: 2 - state.players.length,
-  };
-}
-
-export async function activeSocialLobby(db: AccountDatabase, userId: string) {
-  if(PERSISTENT_LOBBY_ENABLED)return managedInvitableLobby(db,userId);
-  await ensureReplayArchiveSchema(db);
-  const result = await db.prepare(`SELECT matches.state_json, match_seat_accounts.player_id
-      FROM match_seat_accounts JOIN matches ON matches.code = match_seat_accounts.code
-      WHERE match_seat_accounts.user_id = ? ORDER BY matches.updated_at DESC LIMIT 12`)
-    .bind(userId).all<{ state_json: string; player_id: string }>();
-  for (const row of result.results ?? []) {
-    const state = parseMatchState(row.state_json);
-    if (state && roomOwnerId(state) === row.player_id) {
-      const summary = lobbySummary(state);
-      if (summary) return summary;
-    }
-  }
-  return null;
-}
+export const activeSocialLobby = managedInvitableLobby;
 
 async function requireInvitableLobby(db: AccountDatabase, userId: string, code: string) {
   const lobby = await activeSocialLobby(db, userId);
@@ -281,9 +242,6 @@ export async function createLobbyInvitation(db: AccountDatabase, inviterId: stri
   if (preferences && !preferences.allow_lobby_invites) throw new AuthorizationError("That Brawler is not accepting lobby invitations.");
   const now = Date.now();
   await expireInvitations(db, now);
-  const existing = await db.prepare("SELECT id, lobby_code, inviter_user_id, recipient_user_id, status, created_at, expires_at FROM lobby_invitations WHERE lobby_code = ? AND inviter_user_id = ? AND recipient_user_id = ? AND status = 'pending'")
-    .bind(lobby.code, inviterId, recipientId).first<InviteRow>();
-  if (existing && !PERSISTENT_LOBBY_ENABLED) return existing;
   const invite: InviteRow = {
     id: crypto.randomUUID(),
     lobby_code: lobby.code,
@@ -293,23 +251,16 @@ export async function createLobbyInvitation(db: AccountDatabase, inviterId: stri
     created_at: now,
     expires_at: now + SOCIAL_INVITE_TTL_MS,
   };
-  if(PERSISTENT_LOBBY_ENABLED){
-    const managed=await managedInvitableLobby(db,inviterId);
-    if(!managed||managed.code!==lobby.code)throw new ConflictError("Your lobby no longer has an open slot.");
-    await db.prepare("UPDATE lobby_invitations SET status='cancelled',responded_at=? WHERE lobby_code=? AND inviter_user_id=? AND recipient_user_id=? AND managed_lobby_id IS NULL AND status='pending'").bind(now,lobby.code,inviterId,recipientId).run();
-    try{
-      await db.prepare("INSERT OR IGNORE INTO lobby_invitations (id,lobby_code,inviter_user_id,recipient_user_id,status,created_at,expires_at,managed_lobby_id,inviter_membership_id) VALUES (?,?,?,?,'pending',?,?,?,?)")
-        .bind(invite.id,lobby.code,inviterId,recipientId,now,invite.expires_at,managed.id,managed.hostMemberId).run();
-    }catch(error){if(error instanceof Error&&error.message.includes("LOBBY_INVITE_UNAVAILABLE"))throw new ConflictError("Your lobby no longer has an open slot.");throw error;}
-    const saved=await db.prepare("SELECT id,lobby_code,inviter_user_id,recipient_user_id,status,created_at,expires_at FROM lobby_invitations WHERE managed_lobby_id=? AND inviter_membership_id=? AND recipient_user_id=? AND status='pending'")
-      .bind(managed.id,managed.hostMemberId,recipientId).first<InviteRow>();
-    if(!saved)throw new ConflictError("Lobby invitation was not created. Refresh and retry.");
-    return saved;
-  }
-  await db.prepare("INSERT OR IGNORE INTO lobby_invitations (id, lobby_code, inviter_user_id, recipient_user_id, status, created_at, expires_at) VALUES (?, ?, ?, ?, 'pending', ?, ?)")
-    .bind(invite.id, invite.lobby_code, inviterId, recipientId, now, invite.expires_at).run();
-  return await db.prepare("SELECT id, lobby_code, inviter_user_id, recipient_user_id, status, created_at, expires_at FROM lobby_invitations WHERE lobby_code = ? AND inviter_user_id = ? AND recipient_user_id = ? AND status = 'pending'")
-    .bind(lobby.code, inviterId, recipientId).first<InviteRow>() ?? invite;
+  await db.prepare("UPDATE lobby_invitations SET status='cancelled',responded_at=? WHERE lobby_code=? AND inviter_user_id=? AND recipient_user_id=? AND managed_lobby_id IS NULL AND status='pending'").bind(now,lobby.code,inviterId,recipientId).run();
+  try{
+    await db.prepare("INSERT OR IGNORE INTO lobby_invitations (id,lobby_code,inviter_user_id,recipient_user_id,status,created_at,expires_at,managed_lobby_id,inviter_membership_id) VALUES (?,?,?,?,'pending',?,?,?,?)")
+      .bind(invite.id,lobby.code,inviterId,recipientId,now,invite.expires_at,lobby.id,lobby.hostMemberId).run();
+  }catch(error){if(error instanceof Error&&error.message.includes("LOBBY_INVITE_UNAVAILABLE"))throw new ConflictError("Your lobby no longer has an open slot.");throw error;}
+  const saved=await db.prepare("SELECT id,lobby_code,inviter_user_id,recipient_user_id,status,created_at,expires_at FROM lobby_invitations WHERE managed_lobby_id=? AND inviter_membership_id=? AND recipient_user_id=? AND status='pending'")
+    .bind(lobby.id,lobby.hostMemberId,recipientId).first<InviteRow>();
+  if(!saved)throw new ConflictError("Lobby invitation was not created. Refresh and retry.");
+  return saved;
+
 }
 
 async function requirePendingInvite(db: AccountDatabase, inviteId: string, recipientId: string) {
@@ -322,13 +273,7 @@ async function requirePendingInvite(db: AccountDatabase, inviteId: string, recip
 }
 
 export async function acceptLobbyInvitation(db: AccountDatabase, recipientId: string, inviteId: string, guestId?:string) {
-  if(PERSISTENT_LOBBY_ENABLED)return acceptManagedInvitation(db,recipientId,inviteId,guestId);
-  const invite = await requirePendingInvite(db, inviteId, recipientId);
-  const lobby = await requireInvitableLobby(db, invite.inviter_user_id, invite.lobby_code);
-  const result = await db.prepare("UPDATE lobby_invitations SET status = 'accepted', responded_at = ? WHERE id = ? AND recipient_user_id = ? AND status = 'pending'")
-    .bind(Date.now(), inviteId, recipientId).run();
-  if (!result.meta.changes) throw new ConflictError("That lobby invitation is no longer available.");
-  return lobby;
+  return acceptManagedInvitation(db, recipientId, inviteId, guestId);
 }
 
 export async function declineLobbyInvitation(db: AccountDatabase, recipientId: string, inviteId: string) {
@@ -352,9 +297,7 @@ export async function buildSocialSnapshot(
   const [relationships, inviteRows, lobby] = await Promise.all([
     db.prepare("SELECT user_low, user_high, requested_by, status FROM social_relationships WHERE user_low = ? OR user_high = ? ORDER BY updated_at DESC")
       .bind(viewerId, viewerId).all<RelationshipRow>(),
-    db.prepare(PERSISTENT_LOBBY_ENABLED
-      ? "SELECT id,lobby_code,inviter_user_id,recipient_user_id,status,created_at,expires_at,managed_lobby_id,inviter_membership_id FROM lobby_invitations WHERE recipient_user_id=? AND status='pending' AND expires_at>? AND managed_lobby_id IS NOT NULL ORDER BY created_at DESC"
-      : "SELECT id, lobby_code, inviter_user_id, recipient_user_id, status, created_at, expires_at FROM lobby_invitations WHERE recipient_user_id = ? AND status = 'pending' AND expires_at > ? ORDER BY created_at DESC")
+    db.prepare("SELECT id,lobby_code,inviter_user_id,recipient_user_id,status,created_at,expires_at,managed_lobby_id,inviter_membership_id FROM lobby_invitations WHERE recipient_user_id=? AND status='pending' AND expires_at>? AND managed_lobby_id IS NOT NULL ORDER BY created_at DESC")
       .bind(viewerId, Date.now()).all<InviteRow>(),
     activeSocialLobby(db, viewerId),
   ]);
@@ -365,22 +308,11 @@ export async function buildSocialSnapshot(
   const targetIds = relationshipRows.map((row) => relationshipTarget(row, viewerId));
   const inviterIds = visibleInvites.map((row) => row.inviter_user_id);
   const storedAccounts = await loadSocialAccounts(db, [...targetIds, ...inviterIds]);
-  const inviteCodes = [...new Set(visibleInvites.map((row) => row.lobby_code))];
   const inviteLobbies = new Map<string, ActiveSocialLobby>();
-  if(PERSISTENT_LOBBY_ENABLED){
-    for(const row of visibleInvites){if(!row.managed_lobby_id||!row.inviter_membership_id)continue;
-      const summary=await managedInvitationLobby(db,row.inviter_user_id,row.managed_lobby_id,row.inviter_membership_id);
-      if(summary)inviteLobbies.set(row.id,summary);
-    }
-  }else if (inviteCodes.length) {
-    const placeholders = inviteCodes.map(() => "?").join(", ");
-    const states = await db.prepare(`SELECT code, state_json FROM matches WHERE code IN (${placeholders})`)
-      .bind(...inviteCodes).all<{ code: string; state_json: string }>();
-    for (const row of states.results ?? []) {
-      const state = parseMatchState(row.state_json);
-      const summary = state ? lobbySummary(state) : null;
-      if (summary) inviteLobbies.set(row.code, summary);
-    }
+  for (const row of visibleInvites) {
+    if (!row.managed_lobby_id || !row.inviter_membership_id) continue;
+    const summary = await managedInvitationLobby(db, row.inviter_user_id, row.managed_lobby_id, row.inviter_membership_id);
+    if (summary) inviteLobbies.set(row.id, summary);
   }
   const byId = new Map<string, SocialAccountSummary>();
   for (const account of [...storedAccounts, ...onlineAccounts].filter((account) => !hiddenIds.has(account.userId))) {
@@ -419,7 +351,7 @@ export async function buildSocialSnapshot(
     });
   const invitations: LobbyInviteSummary[] = visibleInvites.flatMap((row) => {
     const inviter = byId.get(row.inviter_user_id);
-    const invitedLobby = inviteLobbies.get(PERSISTENT_LOBBY_ENABLED?row.id:row.lobby_code);
+    const invitedLobby = inviteLobbies.get(row.id);
     if (!inviter || !invitedLobby) return [];
     return [{
       id: row.id,

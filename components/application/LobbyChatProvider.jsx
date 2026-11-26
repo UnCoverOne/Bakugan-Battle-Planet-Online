@@ -3,13 +3,13 @@ import {createContext,useCallback,useContext,useLayoutEffect,useMemo,useRef,useS
 import {mergeLobbyChatPage} from "../../lib/lobby-chat-client";
 import {useLobbySession} from "./LobbySessionProvider";
 
-const empty={enabled:false,page:null,unread:0,draft:"",error:"",sending:false,loadingOlder:false,openView:()=>()=>{},refresh:async()=>{},loadOlder:async()=>{},send:async()=>{},markRead:async()=>{},setDraft:()=>{}};
+const empty={page:null,unread:0,draft:"",error:"",sending:false,loadingOlder:false,openView:()=>()=>{},refresh:async()=>{},loadOlder:async()=>{},send:async()=>{},markRead:async()=>{},setDraft:()=>{}};
 /** @type {import("react").Context<any>} */
 const Context=createContext(empty);
 /** @returns {any} */
 export function useLobbyChat(){return useContext(Context);}
 export function LobbyChatProvider({children}){
-  const session=useLobbySession(),member=session.enabled&&session.recovery.status==="member"?session.recovery.membership:null;
+  const session=useLobbySession(),member=session.recovery.status==="member"?session.recovery.membership:null;
   return <ActiveLobbyChat member={member}>{children}</ActiveLobbyChat>;
 }
 function ActiveLobbyChat({member,children}){
@@ -99,7 +99,7 @@ function ActiveLobbyChat({member,children}){
     readPending.current=through;
     try{await execute({action:"read",through});}catch{}finally{if(lifecycle.current===controller&&readPending.current===through)readPending.current=0;}
   },[execute]);
-  const value=useMemo(()=>({enabled:true,page,unread:page?.unread??0,draft,error,sending,loadingOlder,openView,refresh,loadOlder,send,markRead,setDraft}),
+  const value=useMemo(()=>({page,unread:page?.unread??0,draft,error,sending,loadingOlder,openView,refresh,loadOlder,send,markRead,setDraft}),
     [page,draft,error,sending,loadingOlder,openView,refresh,loadOlder,send,markRead,setDraft]);
   return <Context.Provider value={member&&(!page||page.membershipId===member.id)?value:empty}>{children}</Context.Provider>;
 }

@@ -239,13 +239,12 @@ test("history-derived lifetime stats are idempotent and ignore abandoned results
 test("signed-in history refresh repairs lifetime counters instead of incrementing them in the client", () => {
   const sync = source("components/application/AccountHistorySync.tsx");
   const provider = source("components/application/AppProvider.jsx");
-  const dashboard = source("components/routes/DashboardScreen.tsx");
+  const dashboard = source("components/routes/BlankDashboardScreen.tsx");
   const publicProfile = source("lib/public-profile-server.ts");
 
   assert.match(sync, /const repairedStats = lifetimeMatchStatsFromHistory\(merged\);[\s\S]*setLifetimeStats\(\(current\)/);
   assert.match(provider, /if \(!authUser\) \{[\s\S]*setLifetimeStats\(\(current\) => \(\{/);
-  assert.match(dashboard, /playerMatchSummary\(history, lifetimeStats, Boolean\(authUser\)\)/);
-  assert.match(dashboard, /achievementsForProfile\(decks, history, effectiveLifetimeStats, profile\)/);
+  assert.match(dashboard, /achievementsForProfile\(decks, history, lifetimeStats, profile\)/);
   assert.match(publicProfile, /loadAccountMatchHistory\(db, userId\)/);
   assert.match(publicProfile, /playerMatchSummary\(history, lifetimeStats, true\)/);
 });
@@ -271,12 +270,12 @@ test("all player surfaces use the same all-mode statistics and distinguish compe
 
 test("all statistics surfaces share the same selector and homepage uses profile achievement persistence", () => {
   const menu = source("components/application/AppShell.jsx");
-  const dashboard = source("components/routes/DashboardScreen.tsx");
+  const dashboard = source("components/routes/BlankDashboardScreen.tsx");
   const ownProfile = source("components/routes/ProfileScreen.tsx");
   const publicProfile = source("lib/public-profile-server.ts");
   for (const code of [menu, dashboard, ownProfile]) {
     assert.match(code, /playerMatchSummary\(history, lifetimeStats, Boolean\(authUser\)\)/);
   }
   assert.match(publicProfile, /playerMatchSummary\(history, lifetimeStats, true\)/);
-  assert.match(dashboard, /achievementsForProfile\(decks, history, effectiveLifetimeStats, profile\)/);
+  assert.match(dashboard, /achievementsForProfile\(decks, history, lifetimeStats, profile\)/);
 });

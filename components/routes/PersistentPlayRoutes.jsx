@@ -35,9 +35,8 @@ export function PersistentPlayGuard({children}){
   const {match}=useAppFields(["match"]);
   const r=session.recovery;
   const completedHere=r.status==="member"&&pathname==="/play/match"&&match?.id===r.lobby.previousSeriesId&&isCompletedSeriesResult(match);
-  const decision=session.enabled?lobbyRouteDecision(pathname,session.unavailable?"unavailable":r.status,r.status==="member",r.status==="member"&&Boolean(r.lobby.currentSeriesId||completedHere)):"allow";
+  const decision=lobbyRouteDecision(pathname,session.unavailable?"unavailable":r.status,r.status==="member",r.status==="member"&&Boolean(r.lobby.currentSeriesId||completedHere));
   useEffect(()=>{if(decision.startsWith("/"))router.replace(decision);},[decision,router]);
-  if(!session.enabled)return children;
   if(r.status==="identity-conflict")return <IdentityConflict/>;
   if(decision==="block"){
     // An already authenticated active runtime may survive a temporary poll
@@ -48,15 +47,10 @@ export function PersistentPlayGuard({children}){
   if(decision!=="allow")return <Status title="Opening your lobby"/>;
   return children;
 }
-export function PersistentLobbyRoute({legacy}){
-  const session=useLobbySession();
-  return <PersistentPlayGuard>{session.enabled?<ManagedLobby/>:legacy}</PersistentPlayGuard>;
+export function PersistentMatchRoute({children}){
+  return <PersistentPlayGuard><ManagedGame>{children}</ManagedGame></PersistentPlayGuard>;
 }
-export function PersistentMatchRoute({legacy}){
-  const session=useLobbySession();
-  return <PersistentPlayGuard>{session.enabled?<ManagedGame legacy={legacy}/>:legacy}</PersistentPlayGuard>;
-}
-function ManagedGame({legacy}){
+function ManagedGame({children}){
   const session=useLobbySession(),{match}=useAppFields(["match"]);
   const r=session.recovery;
   const seriesId=r.status==="member"?r.lobby.currentSeriesId:null;
@@ -78,7 +72,7 @@ function ManagedGame({legacy}){
   if(!claimed)return <Status title="Recovering gameplay"><p>{claimError||"Connecting your game controller."}</p><Button disabled={claiming} onClick={async()=>{await session.refresh();void claim();}}>Retry</Button>{claimError&&r.lobby?.mode!=="training"&&<Button disabled={claiming} onClick={()=>{if(window.confirm("Take over this game from the other device?"))void claim(true);}}>Take over controller</Button>}<Button onClick={()=>void session.returnToLobby()}>Return to Lobby</Button></Status>;
   if(session.checkpointError?.startsWith("Training checkpoint changed"))return <Status title="Training recovery required"><p role="alert">{session.checkpointError}</p><Button disabled={claiming} onClick={()=>void claim()}>Recover checkpoint</Button><Button onClick={()=>void session.returnToLobby()}>Return to Lobby</Button></Status>;
   return <>
-    {match.phase==="lobby"?<ManagedGamePreparation/>:legacy}
+    {match.phase==="lobby"?<ManagedGamePreparation/>:children}
     <div className={styles.gameReturn}><Button onClick={()=>void session.returnToLobby()}>Return to Lobby</Button>
       {session.checkpointError&&<><span role="alert">{session.checkpointError}</span><Button disabled={claiming} onClick={()=>void claim()}>Recover checkpoint</Button></>}</div>
   </>;

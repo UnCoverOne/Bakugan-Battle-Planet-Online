@@ -71,8 +71,9 @@ test("the communication layer provides docked Event Log and responsive chat draw
   assert.match(layer, /className=\{styles\.chatHandle\}/);
   assert.match(layer, /aria-expanded=\{chatOpen\}/);
   assert.match(layer, /className=\{styles\.chatBox\}/);
-  assert.match(layer, /aria-label="Chat message"/);
-  assert.match(layer, /maxLength=\{240\}/);
+  const panel = readFileSync("components/application/LobbyChatPanel.jsx", "utf8");
+  assert.match(panel, /aria-label="Chat message"/);
+  assert.match(panel, /maxLength=\{240\}/);
   assert.match(layer, /useState<EventFilter>\("cards"\)/);
   assert.match(layer, /EVENT_FILTERS\s*=\s*\["cards",\s*"all",\s*"game",\s*"random",\s*"system",\s*"connection"\]/);
   assert.match(layer, /className=\{styles\.eventFilters\}\s+aria-label="Event filters"/);
@@ -162,24 +163,13 @@ test("paid, free, revealed, and Flip plays record structured card identities", (
   assert.match(game, /request\.origin === "damage"/);
 });
 
-test("online chat uses the authoritative match endpoint without replacing gameplay undo history", () => {
-  assert.match(route, /command:\s*apiActionToCommand\(body\.action as ApiAction,\s*payload\)/);
-  assert.doesNotMatch(route, /preparePendingDraw|reconcile|rewind/i);
-  assert.match(route, /const previous = body\.action === "chat" \? record\.previous : before/);
+test("match chat uses lobby history outside the game command stream", () => {
+  const communication = readFileSync("components/game-screen-v2/MatchCommunicationLayer.tsx", "utf8");
+  assert.match(communication, /<LobbyChatPanel systemOnly=\{systemOnly\}/);
+  assert.doesNotMatch(communication, /"\/api\/game"/);
 });
 
-
-test("inactive desktop chat is click-through except for its more-visible input", () => {
-  assert.match(
-    css,
-    /\.chatBox\[data-focused="false"\]\s*\{[\s\S]*?pointer-events:\s*none;/,
-  );
-  assert.match(
-    css,
-    /\.chatBox\[data-focused="false"\]\s+\.chatForm input\s*\{[\s\S]*?opacity:\s*\.78;[\s\S]*?pointer-events:\s*auto;/,
-  );
-  assert.match(
-    css,
-    /\.chatBox\[data-focused="false"\]\s+\.chatForm button\s*\{[\s\S]*?pointer-events:\s*none;/,
-  );
+test("closed gameplay chat stays hidden until its drawer opens", () => {
+  assert.match(css, /\.chatBox\{display:none\}/);
+  assert.match(css, /\.chatDock\[data-open="true"\] \.chatBox\{display:flex/);
 });

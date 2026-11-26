@@ -1,4 +1,3 @@
-import { PERSISTENT_LOBBY_ENABLED } from "../../../../lib/lobby-cutover";
 import { activeManagedSeat } from "../../../../lib/lobby-controller-server";
 import { createLobbySessionService } from "../../../../lib/lobby-session-server";
 import { getDatabase } from "../../../../lib/account-server";
@@ -8,18 +7,12 @@ import { assertSameOrigin, enforceD1RateLimit, requestClientKey } from "../../..
 import { serverErrorResponse, ServiceUnavailableError, ValidationError, ConflictError, AuthorizationError } from "../../../../lib/server-errors";
 
 export const dynamic = "force-dynamic";
-// A single intentional cutover gate, not a per-mode flag. Do not remove until
-// legacy entry points, game authorization, migration and settlement are bridged.
-function assertSessionCutover(): void {
-  if (!PERSISTENT_LOBBY_ENABLED) throw new ServiceUnavailableError("Persistent lobby integration is not yet enabled.");
-}
 const json = (body: unknown, cookie?: string) => Response.json(body, { headers: {
   "cache-control": "no-store, max-age=0", ...(cookie ? { "set-cookie": cookie } : {}),
 } });
 async function handle(request: Request) {
   const correlationId = crypto.randomUUID();
   try {
-    assertSessionCutover();
     assertSameOrigin(request);
     const database = await getDatabase();
     const identities = await resolveLobbyIdentities(database, request);

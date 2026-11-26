@@ -30,9 +30,9 @@ export async function writePreparation(database:D1Database,identity:LobbyIdentit
   const result=await database.prepare(`UPDATE lobby_sessions SET preparation_json=?,configuration_json=?,version=version+1
     WHERE id=? AND version=? AND closed_at IS NULL AND current_series_id IS NULL
       AND EXISTS(SELECT 1 FROM lobby_memberships m WHERE m.lobby_id=lobby_sessions.id AND m.id=? AND m.identity_key=? AND m.left_at IS NULL AND m.expires_at>?
-        AND (?=0 OR m.sequence=(SELECT MIN(sequence) FROM lobby_memberships WHERE lobby_id=lobby_sessions.id AND left_at IS NULL)))`)
-    .bind(JSON.stringify(preparation),JSON.stringify(configuration),room.id,room.version,room.ownId,identityKey(identity),now,hostOnly?1:0).run();
-  if(Number(result.meta?.changes??0)!==1)throw new ConflictError("Lobby changed. Refresh and retry.");
+        AND (?=0 OR m.sequence=(SELECT MIN(sequence) FROM lobby_memberships WHERE lobby_id=lobby_sessions.id AND left_at IS NULL))) RETURNING id`)
+    .bind(JSON.stringify(preparation),JSON.stringify(configuration),room.id,room.version,room.ownId,identityKey(identity),now,hostOnly?1:0).first<{ id: string }>();
+  if(!result)throw new ConflictError("Lobby changed. Refresh and retry.");
 }
 async function automaticTrainingDeck(database:D1Database,configuration:LobbyConfiguration):Promise<DeckRecord|null> {
   const pool=(await listAiDecks(database)).filter(item=>item.enabled && (item.deck.format??"standard")==="standard" && validateDeck(item.deck).isLegal).map(item=>item.deck);

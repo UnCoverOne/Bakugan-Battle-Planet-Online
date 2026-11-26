@@ -5,9 +5,8 @@ import handler from "vinext/server/app-router-entry";
 import { runWithExecutionContext } from "vinext/shims/request-context";
 import { normalizeMatchState, type MatchState } from "../lib/game";
 import { normalizeEngineState, persistTransition, projectMatchForPlayer, reduceMatch, type CommandEnvelope, type EngineBackedMatchState, type GameCommand } from "../lib/engine";
-import { LEGACY_LOBBY_CREATION_CLOSED, PERSISTENT_LOBBY_ENABLED } from "../lib/lobby-cutover";
 import { claimManagedController, publicControllerClaim } from "../lib/lobby-controller-server";
-import { managedSeriesForCode, managedSeatAllowed, hydrateManagedPresence, managedIdentityOwnsSeat } from "../lib/lobby-series-access";
+import { managedSeriesForCode, hydrateManagedPresence, managedIdentityOwnsSeat } from "../lib/lobby-series-access";
 import { finalizeManagedSeries, managedSeriesMaintenanceCodes, reconcileManagedSeries, requestManagedDeparture } from "../lib/lobby-series-bridge";
 import { resolveLobbyIdentities } from "../lib/lobby-identity-server";
 import { createLobbySessionService } from "../lib/lobby-session-server";
@@ -20,14 +19,11 @@ import {
   SESSION_REPLACED_CLOSE_CODE,
   SESSION_REPLACED_REASON,
   authenticateMatchSeat,
-  digestMatchCapability,
   loadMatchSeatCredential,
-  newMatchControllerId,
-  secureMatchCapability,
   validMatchControllerId,
 } from "../lib/match-seat-auth";
 import { MATCH_RECONNECT_GRACE_MS } from "../lib/match-constants";
-import { archiveCompletedMatch, associateMatchSeatAccount } from "../lib/replay-archive-server";
+import { archiveCompletedMatch } from "../lib/replay-archive-server";
 import { getSessionUserFromDatabase } from "../lib/account-server";
 import { MAX_MUSIC_TRACK_BYTES, storeMusicUploadObject } from "../lib/music-server";
 import { assertSameOrigin } from "../lib/request-security";
@@ -176,11 +172,7 @@ type MatchSocketAttachment = {
   connectionId: string;
 };
 
-type ResumeSeatRequest = {
-  userId?: unknown;
-  expectedCapabilityVersion?: unknown;
-  takeover?: unknown;
-};
+
 
 function matchRoomJson(payload: unknown, status = 200) {
   return Response.json(payload, {
@@ -339,135 +331,6 @@ export class MatchRoom {
       });
     }
 
-    if (request.method === "POST" && url.pathname === "/resume") {
-      return this.withSessionMutation(async () => {
-      const code = String(url.searchParams.get("code") ?? "").toUpperCase();
-      if (!/^[A-Z2-9]{6}$/.test(code)) return matchRoomJson({ error: "Room code is invalid.", code: "VALIDATION_ERROR" }, 400);
-      if(await managedSeriesForCode(this.env.DB,code))return matchRoomJson({error:"Recover this series through its lobby.",code:"CONFLICT_ERROR"},409);
-      const body = await request.json().catch(() => null) as ResumeSeatRequest | null;
-      const userId = typeof body?.userId === "string" ? body.userId : "";
-      const expectedCapabilityVersion = Number(body?.expectedCapabilityVersion);
-      const takeover = body?.takeover === true;
-      if (!userId || !Number.isSafeInteger(expectedCapabilityVersion) || expectedCapabilityVersion < 1) {
-        return matchRoomJson({ error: "Resume request is invalid.", code: "VALIDATION_ERROR" }, 400);
-      }
-
-      const seats = await this.env.DB.prepare(`SELECT
-          match_seat_accounts.player_id,
-          match_seats.capability_version,
-          matches.state_json
-        FROM match_seat_accounts
-        JOIN match_seats
-          ON match_seats.code = match_seat_accounts.code
-          AND match_seats.player_id = match_seat_accounts.player_id
-        JOIN matches ON matches.code = match_seat_accounts.code
-        WHERE match_seat_accounts.code = ? AND match_seat_accounts.user_id = ?
-        LIMIT 2`)
-        .bind(code, userId)
-        .all<{ player_id: string; capability_version: number; state_json: string }>();
-      const rows = seats.results ?? [];
-      if (!rows.length) return matchRoomJson({ error: "That match seat is not associated with your account.", code: "AUTHORIZATION_ERROR" }, 403);
-      if (rows.length !== 1) return matchRoomJson({ error: "Your account has an ambiguous seat assignment in this room.", code: "CONFLICT_ERROR" }, 409);
-
-      const row = rows[0];
-      if (!await managedSeatAllowed(this.env.DB, code, row.player_id)) return matchRoomJson({ error: "This series seat has ended.", code: "CONFLICT_ERROR" }, 409);
-      let snapshot: MatchState;
-      try {
-        snapshot = normalizeMatchState(JSON.parse(row.state_json) as MatchState);
-      } catch {
-        return matchRoomJson({ error: "The saved match could not be restored.", code: "SERVICE_UNAVAILABLE" }, 503);
-      }
-      if (!snapshot.players.some((player) => player.id === row.player_id)) {
-        return matchRoomJson({ error: "That account seat no longer exists in the match.", code: "AUTHORIZATION_ERROR" }, 403);
-      }
-      if (isCompletedSeriesResult(snapshot)) {
-        return matchRoomJson({ error: "This match series is already complete.", code: "CONFLICT_ERROR" }, 409);
-      }
-      if (Number(row.capability_version) !== expectedCapabilityVersion) {
-        return matchRoomJson({
-          error: "The match controller changed. Refresh the active-match list and try again.",
-          code: "LEASE_CONFLICT",
-          capabilityVersion: Number(row.capability_version),
-        }, 409);
-      }
-
-      const activeSockets = this.state.getWebSockets(row.player_id).filter((socket) => {
-        const attachment = socket.deserializeAttachment?.() as MatchSocketAttachment | undefined;
-        return !attachment || attachment.capabilityVersion == null
-          || attachment.capabilityVersion === Number(row.capability_version);
-      });
-      if (activeSockets.length && !takeover) {
-        return matchRoomJson({
-          error: "This match seat is active in another session.",
-          code: "SESSION_ACTIVE",
-          capabilityVersion: Number(row.capability_version),
-        }, 409);
-      }
-
-      const capability = secureMatchCapability();
-      const controllerId = newMatchControllerId();
-      const claimedAt = Date.now();
-      const nextCapabilityVersion = expectedCapabilityVersion + 1;
-      const updated = await this.env.DB.prepare(`UPDATE match_seats
-        SET capability_hash = ?, capability_version = ?, controller_id = ?, claimed_at = ?
-        WHERE code = ? AND player_id = ? AND capability_version = ?`)
-        .bind(
-          await digestMatchCapability(capability),
-          nextCapabilityVersion,
-          controllerId,
-          claimedAt,
-          code,
-          row.player_id,
-          expectedCapabilityVersion,
-        ).run();
-      if (Number(updated.meta?.changes ?? 0) !== 1) {
-        const latest = await loadMatchSeatCredential(this.env.DB, code, row.player_id);
-        return matchRoomJson({
-          error: "Another session claimed this match first. Refresh and try again.",
-          code: "LEASE_CONFLICT",
-          capabilityVersion: Number(latest?.capability_version ?? expectedCapabilityVersion),
-        }, 409);
-      }
-
-      const latest = await loadMatchSeatCredential(this.env.DB, code, row.player_id);
-      if (!latest || latest.capability_version !== nextCapabilityVersion || latest.controller_id !== controllerId) {
-        return matchRoomJson({
-          error: "Another session claimed this match first. Refresh and try again.",
-          code: "LEASE_CONFLICT",
-          capabilityVersion: Number(latest?.capability_version ?? nextCapabilityVersion),
-        }, 409);
-      }
-
-      await this.env.DB.prepare(`INSERT INTO match_presence (code, player_id, last_seen, connected)
-        VALUES (?, ?, ?, 0)
-        ON CONFLICT(code, player_id) DO UPDATE SET last_seen = excluded.last_seen, connected = 0`)
-        .bind(code, row.player_id, claimedAt).run();
-      for (const socket of this.state.getWebSockets(row.player_id)) {
-        const attachment = socket.deserializeAttachment?.() as MatchSocketAttachment | undefined;
-        if (attachment && attachment.capabilityVersion >= nextCapabilityVersion) continue;
-        try { socket.close(SESSION_REPLACED_CLOSE_CODE, SESSION_REPLACED_REASON); } catch {}
-      }
-      await this.state.storage.put("snapshot", snapshot);
-      await this.state.storage.setAlarm(Math.min(nextMatchAlarmAt(snapshot), claimedAt + MATCH_RECONNECT_GRACE_MS));
-      console.info(JSON.stringify({
-        event: "match_session_claimed",
-        code,
-        playerId: row.player_id,
-        capabilityVersion: nextCapabilityVersion,
-        takeover: activeSockets.length > 0,
-      }));
-      return matchRoomJson({
-        accepted: true,
-        code,
-        playerId: row.player_id,
-        capability,
-        capabilityVersion: nextCapabilityVersion,
-        controllerId,
-        state: projectMatchForPlayer(snapshot, row.player_id),
-      });
-      });
-    }
-
     if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") return new Response("WebSocket required", { status: 426 });
     return this.withSessionMutation(async () => {
     const code = String(url.searchParams.get("code") ?? "").toUpperCase();
@@ -486,14 +349,9 @@ export class MatchRoom {
       playerId,
     );
     if (!seat) return new Response("Forbidden", { status: 403 });
-    const binding=await managedSeriesForCode(this.env.DB,code);
-    if(binding){
-      const identity=(await resolveLobbyIdentities(this.env.DB,request)).primary;
-      if(!identity||!await managedIdentityOwnsSeat(this.env.DB,code,playerId,identity))return new Response("Forbidden",{status:403});
-    }else{
-      if(PERSISTENT_LOBBY_ENABLED)return new Response("Legacy room ended",{status:409});
-      const account=await getSessionUserFromDatabase(request,this.env.DB);
-      await associateMatchSeatAccount(this.env.DB,code,playerId,account?.id,Date.now());
+    const identity = (await resolveLobbyIdentities(this.env.DB, request)).primary;
+    if (!identity || !await managedIdentityOwnsSeat(this.env.DB,code,playerId,identity)) {
+      return new Response("Forbidden", { status: 403 });
     }
 
     for (const existing of this.state.getWebSockets(playerId)) {
@@ -575,12 +433,12 @@ export class MatchRoom {
     if (!stored) return;
     const now = Date.now();
     const managed = await managedSeriesForCode(this.env.DB, stored.code);
-    if (managed?.status === "completed" || (PERSISTENT_LOBBY_ENABLED&&!managed)) return;
-    const managedResult = managed ? await reconcileManagedSeries(this.env.DB, stored.code, now) : null;
+    if (!managed || managed.status === "completed") return;
+    const managedResult = await reconcileManagedSeries(this.env.DB, stored.code, now);
     if (managedResult) { await this.publish(managedResult); return; }
-    const row = managed ? await this.env.DB.prepare("SELECT state_json FROM matches WHERE code = ?").bind(stored.code).first<{ state_json: string }>() : null;
+    const row = await this.env.DB.prepare("SELECT state_json FROM matches WHERE code = ?").bind(stored.code).first<{ state_json: string }>();
     const snapshot = normalizeEngineState(normalizeMatchState(row ? JSON.parse(row.state_json) as MatchState : stored));
-    if (managed) await hydrateManagedPresence(this.env.DB, snapshot, now);
+    await hydrateManagedPresence(this.env.DB, snapshot, now);
     if (["lobby", "result"].includes(snapshot.phase)) {
       if (!this.state.getWebSockets().length) await this.state.storage.deleteAll();
       else await this.state.storage.setAlarm(nextMatchAlarmAt(snapshot, now));
@@ -819,16 +677,17 @@ async function runScheduled(_controller: ScheduledController, env: Env) {
   const cutoff = Date.now();
   const managedSchema = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'lobby_series_bindings'").first();
   const preserveManaged = managedSchema ? " AND code NOT IN (SELECT match_code FROM lobby_series_bindings WHERE status = 'active')" : "";
-  const preserveDrain = LEGACY_LOBBY_CREATION_CLOSED ? " AND code NOT IN (SELECT code FROM lobby_legacy_room_inventory WHERE status<>'completed')" : "";
+  const preserveReplay = " AND code NOT IN (SELECT match_code FROM match_replays WHERE json_extract(archive_json, '$.kind') = 'pending-engine-history')";
+  const preserveUnfinished = " AND code NOT IN (SELECT code FROM lobby_legacy_room_inventory WHERE status<>'completed')";
   await ensureSocialSchema(env.DB);
   await env.DB.batch([
     env.DB.prepare("CREATE TABLE IF NOT EXISTS rum_events (id TEXT PRIMARY KEY, route TEXT NOT NULL, metric TEXT NOT NULL, value REAL NOT NULL, device TEXT NOT NULL, created_at INTEGER NOT NULL)"),
     env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(cutoff),
     env.DB.prepare("DELETE FROM rate_limits WHERE window_start < ?").bind(cutoff - 86_400_000),
     env.DB.prepare("DELETE FROM rum_events WHERE created_at < ?").bind(cutoff - 7_776_000_000),
-    env.DB.prepare("DELETE FROM match_snapshots WHERE created_at < ?" + preserveManaged + (LEGACY_LOBBY_CREATION_CLOSED ? " AND code IN (SELECT code FROM matches WHERE 1=1" + preserveDrain + ")" : "")).bind(cutoff - 2_592_000_000),
-    env.DB.prepare("DELETE FROM match_presence WHERE code IN (SELECT code FROM matches WHERE updated_at < ?" + preserveManaged + preserveDrain + ")").bind(cutoff - 2_592_000_000),
-    env.DB.prepare("DELETE FROM matches WHERE updated_at < ?" + preserveManaged + preserveDrain).bind(cutoff - 2_592_000_000),
+    env.DB.prepare("DELETE FROM match_snapshots WHERE created_at < ?" + preserveManaged + preserveUnfinished + preserveReplay).bind(cutoff - 2_592_000_000),
+    env.DB.prepare("DELETE FROM match_presence WHERE code IN (SELECT code FROM matches WHERE updated_at < ?" + preserveManaged + preserveUnfinished + preserveReplay + ")").bind(cutoff - 2_592_000_000),
+    env.DB.prepare("DELETE FROM matches WHERE updated_at < ?" + preserveManaged + preserveUnfinished + preserveReplay).bind(cutoff - 2_592_000_000),
     env.DB.prepare("DELETE FROM match_replays WHERE NOT EXISTS (SELECT 1 FROM match_replay_participants WHERE match_replay_participants.replay_id = match_replays.replay_id)"),
     env.DB.prepare("UPDATE lobby_invitations SET status = 'expired', responded_at = ? WHERE status = 'pending' AND expires_at <= ?").bind(cutoff, cutoff),
     env.DB.prepare("DELETE FROM lobby_invitations WHERE status <> 'pending' AND COALESCE(responded_at, expires_at) < ?").bind(cutoff - 2_592_000_000),

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { PersistentLobbyRoute } from "../../../../components/routes/PersistentPlayRoutes";
-import { LobbyRoomScreen } from "../../../../components/routes/StreamlinedLobbyRoomScreen";
-import styles from "../presentation-fix.module.css";
+import { PersistentPlayGuard } from "../../../../components/routes/PersistentPlayRoutes";
+
+import { ManagedLobby } from "../../../../components/routes/ManagedLobby";
 
 export const metadata: Metadata = { title: "Match Lobby" };
-export default function LobbyPage() { return <PersistentLobbyRoute legacy={<div className={styles.lobbyScope}><LobbyRoomScreen /></div>} />; }
+export default function LobbyPage() { return <PersistentPlayGuard><ManagedLobby /></PersistentPlayGuard>; }

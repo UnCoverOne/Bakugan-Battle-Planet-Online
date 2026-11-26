@@ -137,19 +137,10 @@ test("registration uses one streamlined form with local import selected by defau
 });
 
 test("Home keeps guest navigation consistent and avoids duplicate account actions", () => {
-  const dashboard = source("components/routes/DashboardScreen.tsx");
-  const css = source("app/guest-experience.css");
-  assert.match(dashboard, /<h1><span>Battle<\/span><strong>Planet<\/strong><\/h1>/);
-  assert.match(dashboard, /<span>PLAY<\/span>/);
-  assert.match(dashboard, /<span>DECKS<\/span>/);
-  assert.doesNotMatch(dashboard, /START TRAINING/);
-  assert.doesNotMatch(dashboard, /BUILD A DECK/);
-  assert.match(dashboard, /achievement.*ready to unlock/is);
-  assert.match(dashboard, /Playing as Guest Brawler/);
-  assert.match(dashboard, /Protect My Progress/);
-  assert.match(css, /\.home-account-gate \.home-account-gate-actions\s*\{\s*display: none;/);
-  assert.match(css, /\.home-guest-progress\s*\{[\s\S]*display: flex;[\s\S]*align-items: center;/);
-  assert.match(css, /\.home-guest-progress \.guest-progress-actions\s*\{[\s\S]*flex-wrap: nowrap;/);
+  const home = source("components/routes/BlankDashboardScreen.tsx");
+  assert.match(home, /href="\/decks"/);
+  assert.match(home, /RETURN TO LOBBY/);
+  assert.doesNotMatch(home, /START TRAINING|BUILD A DECK/);
 });
 
 test("guest Profile and Achievements routes redirect to an account benefits page", () => {

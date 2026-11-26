@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {readFileSync} from "node:fs";
 const source=(p:string)=>readFileSync(p,"utf8");
-test("shared gate prevents partial live cutover",()=>{
-  assert.match(source("lib/lobby-cutover.ts"),/PERSISTENT_LOBBY_ENABLED = false/);
-  assert.match(source("app/api/lobby/session/route.ts"),/if \(!PERSISTENT_LOBBY_ENABLED\) throw/);
-  assert.match(source("components/application/LobbySessionProvider.jsx"),/if\(!PERSISTENT_LOBBY_ENABLED\)return/);
-  assert.match(source("app/api/game/route.ts"),/PERSISTENT_LOBBY_ENABLED&&\(body.action==="create"\|\|body.action==="join"\)/);
+test("Play admits players through the lobby session API", () => {
+  const play = source("components/routes/MatchCreationScreen.tsx");
+  const provider = source("components/application/LobbySessionProvider.jsx");
+  assert.match(play, /lobbySession\.command\(/);
+  assert.match(provider, /fetch\("\/api\/lobby\/session"/);
+  assert.doesNotMatch(play, /\/api\/game/);
 });
+
 test("controller claims are membership-scoped and serialized",()=>{
   const controller=source("lib/lobby-controller-server.ts");
   assert.match(controller,/m.id=\? AND m.identity_key=\? AND m.left_at IS NULL AND m.expires_at>\?/);

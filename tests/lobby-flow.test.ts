@@ -7,7 +7,6 @@ import { createMatch, prepareNextSeriesGameLobby } from "../lib/game";
 import { reduceMatch } from "../lib/engine/reducer";
 import type { CommandEnvelope, GameCommand } from "../lib/engine/types";
 import { isCompletedSeriesResult, isSeriesIntermissionResult } from "../lib/match-result-navigation";
-import { LOBBY_METAS } from "../lib/meta-formats";
 import {
   lobbyConfig,
   playerLobbyDeckFormat,
@@ -299,68 +298,6 @@ test("Training creates a lobby first and keeps the AI ready", () => {
   assert.equal(lobbyConfig(state).mode, "training");
 });
 
-test("streamlined Match Creation and Lobby source contracts stay in place", async () => {
-  const [creation, room, playPage, lobbyPage, provider, runtime] = await Promise.all([
-    readFile(new URL("../components/routes/MatchCreationScreen.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../components/routes/StreamlinedLobbyRoomScreen.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/(workspace)/play/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/(workspace)/play/lobby/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../components/application/AppProvider.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../components/game-screen-v2/GameplayClient.tsx", import.meta.url), "utf8"),
-  ]);
-  const coordinator = await readFile(new URL("../components/game-screen-v2/MatchStateCoordinator.tsx", import.meta.url), "utf8");
-
-  for (const contract of [
-    "Training",
-    "Casual",
-    "Ranked",
-    "Best of One",
-    "Best of Three",
-    "Create Lobby",
-    "Join Lobby",
-  ]) assert.match(creation, new RegExp(contract));
-  assert.doesNotMatch(creation, /DECK SELECTION MOVED TO LOBBY/);
-
-  for (const contract of [
-    "Configure the match",
-    "Standard",
-    "Singleton",
-    "Competitive",
-    "Unlimited",
-    "YOUR DECK",
-    "SELECT YOUR DECK",
-    "LOBBY CHAT",
-    "START GAME",
-    "ProfileAvatar",
-    "deckChoiceDescription",
-    "deck.description",
-    "cardArtSource",
-    "deckLeadCard",
-    "deckPickerGrid",
-    "featuredDeckStack",
-    "deck.tags",
-  ]) assert.match(room, new RegExp(contract));
-  assert.match(room, /LOBBY_METAS\.map\(\(meta\) => <option value=\{meta\.id\} key=\{meta\.id\}>\{meta\.name\}<\/option>\)/);
-  assert.match(room, /metaName\(config\.meta\)/);
-  assert.deepEqual(LOBBY_METAS.map((meta) => meta.name), ["Battle Brawlers", "Armored Alliance", "Geogan Rising", "Unlimited"]);
-  assert.doesNotMatch(room, /<select[\s\S]*?Select a deck/);
-  assert.match(room, /deckPickerOpen/);
-  assert.match(room, /compatibleDeckIds/);
-  assert.match(room, /setDeckPickerOpen\(false\)/);
-  assert.match(provider, /cosmetics:\s*\{\s*avatar:\s*profile\.avatar\s*\}/);
-  assert.match(playPage, /MatchCreationScreen/);
-  assert.match(lobbyPage, /LobbyRoomScreen/);
-  assert.doesNotMatch(playPage, /OnlinePlayScreen/);
-  assert.doesNotMatch(lobbyPage, /OnlinePlayScreen/);
-  assert.match(provider, /router\.push\("\/play\/lobby"\)/);
-  assert.match(provider, /router\.push\("\/play\/match"\)/);
-  assert.match(runtime, /router\.replace\("\/play\/result"\)/);
-  assert.doesNotMatch(coordinator, /intermissionAdvanceKey/);
-  assert.match(coordinator, /completed && resultReady/);
-  assert.match(coordinator, /WAITING FOR OPPONENT/);
-  assert.match(provider, /api\("ack-game-result"\)/);
-});
-
 test("Training accepts a 40-card Standard-legal deck saved with Competitive format", () => {
   const deck = { ...STARTER_DECKS[0], format: "competitive" as const };
   const state = createTrainingLobbyState("TRAIN4", "bo3", "player-1", "Player 1", deck);
@@ -369,28 +306,19 @@ test("Training accepts a 40-card Standard-legal deck saved with Competitive form
   assert.equal(state.players[0].ready, false);
 });
 
-test("Online lobby selection serializes Standard versus Competitive formats by mode", async () => {
-  const provider = await readFile(new URL("../components/application/AppProvider.jsx", import.meta.url), "utf8");
-  assert.match(provider, /const selection = useCallback\(\(deck, rulesFormat = "standard"\)/);
-  assert.match(provider, /format: rulesFormat/);
-  assert.equal((provider.match(/options\.decks\.map\(\(deck\) => selection\(deck, "competitive"\)\)/g) ?? []).length, 2);
-  const route = await readFile(new URL("../app/api/game/route.ts", import.meta.url), "utf8");
-  assert.match(route, /canonicalSelectionForFormat\(submittedSelection, requestedRanked \? "competitive" : "standard"\)/);
+test("series initialization uses the lobby-selected decks and published Ranked restrictions", async () => {
+  const preparation = await readFile("lib/lobby-prepared-start.ts", "utf8");
+  assert.match(preparation, /room.preparation.members\[member.id\]\?\.decks/);
+  assert.match(preparation, /ruleset.version,\s*ruleset.restrictions,\s*ruleset.deckSize/);
 });
 
-test("Competitive deck screens never validate against an unpublished fallback size", async () => {
-  const [rules, creation, builder] = await Promise.all([
-    readFile(new URL("../components/routes/DeckRouteShared.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../components/routes/MatchCreationScreen.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../components/routes/DeckBuilderScreen.tsx", import.meta.url), "utf8"),
+test("Competitive deck editing waits for the published rules", async () => {
+  const [rules, builder] = await Promise.all([
+    readFile("components/routes/DeckRouteShared.tsx", "utf8"),
+    readFile("components/routes/DeckBuilderScreen.tsx", "utf8"),
   ]);
-  assert.match(rules, /fetch\("\/api\/ranked\?action=rules", \{ cache: "no-store" \}\)/);
   assert.match(rules, /deckSize: 0/);
   assert.doesNotMatch(rules, /deckSize: 50/);
-  assert.match(creation, /setRankedDeckSize\] = useState<number \| null>\(null\)/);
-  assert.match(creation, /rankedRulesReady && competitiveDecks.length < 3/);
-  assert.match(creation, /if \(!rankedRulesReady\)/);
-  assert.match(creation, /competitiveDecks.length < 3/);
   assert.match(builder, /deck.format === "competitive" && !competitiveRulesReady/);
   assert.match(builder, /onClick=\{competitiveRules.retry\}/);
 });

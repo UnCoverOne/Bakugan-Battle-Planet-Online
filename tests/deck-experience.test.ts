@@ -74,27 +74,16 @@ test("public deck details expose creator identity through the established Brawle
 test("all legality boundaries delegate to the centralized engine", async () => {
   const [data, play, server, decks] = await Promise.all([
     read("lib/data.ts"),
-    read("components/routes/MatchCreationScreen.tsx"),
+    read("lib/lobby-preparation.ts"),
     read("lib/user-data-server.ts"),
     deckRouteSource(),
   ]);
   assert.match(data, /validateDeckConstruction/);
-  assert.match(play, /deckIsLegalForFormat\(deck, "standard"\)/);
-  assert.match(play, /deckIsLegalForFormat\(deck, "competitive"/);
+  assert.match(play, /validateDeck\(/);
   assert.match(server, /validateDeck\(deck as unknown as DeckRecord\)/);
   assert.match(server, /firstIssue\.code/);
   assert.match(decks, /const report = useMemo\(\(\) => validateDeck\(\{ \.\.\.deck, name: saveName \}/);
 });
-
-test("Select Your Deck keeps tags, title, and description in separate styled rows", async () => {
-  const css = await read("app/(workspace)/play/presentation-fix.module.css");
-  assert.match(css, /grid-template-rows:\s*auto auto minmax\(0, 1fr\)/);
-  assert.match(css, /span:nth-child\(2\)[\s\S]*?grid-row:\s*1/);
-  assert.match(css, /> strong\)[\s\S]*?grid-row:\s*2/);
-  assert.match(css, /span:last-child:not\(:first-child\)[\s\S]*?grid-row:\s*3/);
-  assert.match(css, /span:nth-child\(2\) > span\)[\s\S]*?text-transform:\s*uppercase[\s\S]*?clip-path:/);
-});
-
 
 test("Builder is a single compact workspace with shared Compendium galleries", async () => {
   const [builder, css, cards, cores] = await Promise.all([

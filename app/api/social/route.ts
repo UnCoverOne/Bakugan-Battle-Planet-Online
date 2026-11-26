@@ -1,4 +1,3 @@
-import { PERSISTENT_LOBBY_ENABLED } from "../../../lib/lobby-cutover";
 import { resolveGuestIdentity } from "../../../lib/lobby-identity-server";
 import { getDatabase, getSessionUser } from "../../../lib/account-server";
 import { assertSameOrigin, enforceD1RateLimit, requestClientKey } from "../../../lib/request-security";
@@ -147,7 +146,7 @@ export async function POST(request: Request) {
     }
     if (action === "accept-invite") {
       const inviteId = text(body.inviteId, "Invitation", 100);
-      const guest=PERSISTENT_LOBBY_ENABLED?await resolveGuestIdentity(db,request):null;
+      const guest=await resolveGuestIdentity(db,request);
       const lobby = await acceptLobbyInvitation(db, user.id, inviteId,guest?.id);
       await notifySafely([user.id], { type: "lobby.invite-responded", actorId: user.id, inviteId }, correlationId);
       return json({ lobby, correlationId });

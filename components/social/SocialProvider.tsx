@@ -54,10 +54,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     authUser,
     notify,
     requestAccountAccess,
-    setFormat,
-    setJoinCode,
-    setMatchMode,
-  } = useAppFields(["authUser", "notify", "requestAccountAccess", "setFormat", "setJoinCode", "setMatchMode"]);
+  } = useAppFields(["authUser", "notify", "requestAccountAccess"]);
   const router = useRouter();
   const [snapshot, setSnapshot] = useState<SocialSnapshot>(EMPTY_SNAPSHOT);
   const lobbySession=useLobbySession();
@@ -172,15 +169,10 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     };
     if (!response.ok) throw new Error(result.error ?? "Social action failed.");
     if (action === "accept-invite" && result.lobby) {
-      if(lobbySession.enabled){
-        setOpen(false);await lobbySession.refresh();router.push("/play");notify("Lobby invitation accepted.");return;
-      }
-      setMatchMode("join");
-      setJoinCode(result.lobby.code);
-      setFormat(result.lobby.format);
       setOpen(false);
-      router.push("/play");
-      notify(`Lobby ${result.lobby.code} is ready. Choose a deck to join.`);
+      await lobbySession.refresh();
+      router.push("/play/lobby");
+      notify("Lobby invitation accepted.");
       return;
     }
     const success: Record<string, string> = {
@@ -194,7 +186,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     };
     if (success[action]) notify(success[action]);
     await refresh();
-  }, [authUser, notify, refresh, requestAccountAccess, router, setFormat, setJoinCode, setMatchMode, snapshot.activeLobby?.code, lobbySession]);
+  }, [authUser, notify, refresh, requestAccountAccess, router, snapshot.activeLobby?.code, lobbySession]);
 
   const value = useMemo(() => ({ snapshot, open, setOpen, loading, refresh, perform }), [snapshot, open, loading, refresh, perform]);
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;

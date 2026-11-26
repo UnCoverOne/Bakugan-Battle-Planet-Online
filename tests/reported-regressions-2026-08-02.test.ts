@@ -22,7 +22,7 @@ test("the result route does not remount the gameplay runtime", () => {
   );
 
   assert.doesNotMatch(source, /MatchRuntime/);
-  assert.match(source, /<ResultScreen\s*\/>/);
+  assert.match(source, /<ManagedSeriesResult\s*\/>/);
 });
 
 test("Haos Gorthion Ultra has 600 B and 2 base Damage", () => {

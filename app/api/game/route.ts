@@ -1,12 +1,7 @@
 import { normalizeMatchState, type MatchState } from "../../../lib/game";
 import { getRequestExecutionContext } from "vinext/shims/request-context";
-import { canonicalSelectionForFormat, makeCanonicalPlayer, makeCanonicalPlayerWithRestrictions, type CanonicalPlayerSelection } from "../../../lib/data";
-import { lobbyConfig, requiredDeckFormat, tagLobbyPlayerDeck } from "../../../lib/lobby-config";
-import { getSessionUser } from "../../../lib/account-server";
-import { initializeRankedLobby, joinRankedLobby, rankedSeries } from "../../../lib/ranked-lobby";
-import { getActiveRankedRuleset } from "../../../lib/ranked-server";
+import { rankedSeries } from "../../../lib/ranked-lobby";
 import { settleCompletedRankedState, persistRankedSettlementSnapshot } from "../../../lib/ranked-match-settlement";
-import { applyDatabaseCardOverrides } from "../../../lib/administration-server";
 import {
   apiActionToCommand,
   canonicalJson,
@@ -14,10 +9,8 @@ import {
   engineDiagnosticContext,
   ensureEngineEventStore,
   findCommandReceipt,
-  initializeMatch,
   loadPersistedCommand,
   normalizeEngineState,
-  persistInitialMatch,
   persistTransition,
   projectEventStreamsForPlayer,
   projectEventsForPlayer,
@@ -32,17 +25,13 @@ import {
 } from "../../../lib/engine";
 import { resolveLobbyIdentities } from "../../../lib/lobby-identity-server";
 import { managedIdentityOwnsSeat } from "../../../lib/lobby-series-access";
-import { PERSISTENT_LOBBY_ENABLED, LEGACY_LOBBY_CREATION_CLOSED } from "../../../lib/lobby-cutover";
 import { managedSeriesForCode, hydrateManagedPresence } from "../../../lib/lobby-series-access";
 import { isInternalMatchRequest } from "../../../lib/internal-request";
 import { ensureMatchSessionSchema } from "../../../lib/match-session-schema";
 import {
   authenticateMatchSeat,
-  digestMatchCapability,
-  newMatchControllerId,
-  secureMatchCapability,
 } from "../../../lib/match-seat-auth";
-import { archiveCompletedMatch, associateMatchSeatAccount } from "../../../lib/replay-archive-server";
+import { archiveCompletedMatch } from "../../../lib/replay-archive-server";
 import { assertSameOrigin, enforceD1RateLimit, requestClientKey } from "../../../lib/request-security";
 import {
   AuthorizationError,
@@ -61,9 +50,6 @@ type Body = {
   code?: string;
   playerId?: string;
   expectedVersion?: number;
-  format?: "bo1" | "bo3";
-  selection?: CanonicalPlayerSelection;
-  rankedDecks?: CanonicalPlayerSelection[];
   payload?: Record<string, unknown>;
 };
 
@@ -178,18 +164,18 @@ async function publishMatchState(state: MatchState) {
 const encoder = new TextEncoder();
 const COMMAND_ID_HEADER = "x-command-id";
 const ACTIONS = new Set([
-  "create", "join", "get", "ready", "lobby-ready", "start-match", "lobby-settings", "lobby-deck",
-  "ranked-roster", "ranked-ban", "ranked-select",
+  "get", "ready", "lobby-ready", "start-match",
+  "ranked-ban", "ranked-select",
   "begin-placement", "place", "draw", "energize", "tap-energy", "select", "target", "roll", "reroll",
   "prepare-play", "play", "choice", "cancel-choice", "order-triggers", "pass", "complete-coin-flip", "flip-damage", "damage",
-  "hand-limit", "chat", "concede", "next-turn", "ack-game-result", "undo",
+  "hand-limit", "concede", "next-turn", "ack-game-result", "undo",
 ]);
 
 function parseBody(value: unknown): Body {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new ValidationError("A JSON object is required.");
   const body = value as Record<string, unknown>;
   if (typeof body.action !== "string" || !ACTIONS.has(body.action)) throw new ValidationError("A valid action is required.");
-  if (body.action !== "create" && body.code != null && (typeof body.code !== "string" || !/^[A-Z2-9]{6}$/i.test(body.code))) {
+  if (body.code != null && (typeof body.code !== "string" || !/^[A-Z2-9]{6}$/i.test(body.code))) {
     throw new ValidationError("Room code is invalid.");
   }
   if (body.playerId != null && typeof body.playerId !== "string") throw new ValidationError("Player ID is invalid.");
@@ -201,9 +187,6 @@ function parseBody(value: unknown): Body {
   }
   if (body.payload != null && (typeof body.payload !== "object" || Array.isArray(body.payload))) {
     throw new ValidationError("Action payload is invalid.");
-  }
-  if (body.rankedDecks != null && (!Array.isArray(body.rankedDecks) || body.rankedDecks.length !== 3)) {
-    throw new ValidationError("Ranked requires exactly three deck submissions.");
   }
   return body as Body;
 }
@@ -220,22 +203,12 @@ async function digest(value: string) {
   return Array.from(new Uint8Array(bytes), (item) => item.toString(16).padStart(2, "0")).join("");
 }
 
-function roomCode() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = new Uint8Array(6);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (value) => alphabet[value % alphabet.length]).join("");
-}
-
 async function commandIdentity(request: Request, body: Body, code: string, playerId: string, expectedVersion: number) {
   const requestHash = await digest(canonicalJson({
     code,
     playerId,
     expectedVersion,
     action: body.action,
-    format: body.format,
-    selection: body.selection,
-    rankedDecks: body.rankedDecks,
     payload: body.payload ?? {},
   }));
   const supplied = body.commandId ?? request.headers.get(COMMAND_ID_HEADER);
@@ -247,12 +220,10 @@ async function commandIdentity(request: Request, body: Body, code: string, playe
 async function authenticateSeat(request: Request, code: string, playerId: string) {
   const database = await getDatabase();
   const seat=await authenticateMatchSeat(database,request,code,playerId);
-  if(!seat)return false;
-  if(await managedSeriesForCode(database,code)){
-    const identities=await resolveLobbyIdentities(database,request);
-    return Boolean(identities.primary&&await managedIdentityOwnsSeat(database,code,playerId,identities.primary));
-  }
-  return !PERSISTENT_LOBBY_ENABLED;
+  if (!seat) return false;
+  const identities = await resolveLobbyIdentities(database, request);
+  return Boolean(identities.primary && await managedIdentityOwnsSeat(database,code,playerId,identities.primary));
+
 }
 
 async function load(code: string): Promise<MatchRecord | null> {
@@ -383,35 +354,6 @@ function classifyMatchError(error: unknown) {
   return error;
 }
 
-/** Code-only lobby discovery. Return only configuration, never seat or deck data. */
-export async function GET(request: Request) {
-  const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
-  try {
-    const code = (new URL(request.url).searchParams.get("code") ?? "").toUpperCase();
-    if (!/^[A-HJ-NP-Z2-9]{6}$/.test(code)) throw new ValidationError("Enter a valid six-character lobby code.");
-    const database = await getDatabase();
-    await enforceD1RateLimit(database, `${requestClientKey(request)}:lobby-lookup`, 30, 60_000);
-    if (await managedSeriesForCode(database, code)) throw new ConflictError("Use the lobby invitation code instead.");
-    const record = await load(code);
-    if (!record) return json({ error: "Match room not found.", code: "VALIDATION_ERROR", correlationId }, 404);
-    const state = record.state;
-    if (state.phase !== "lobby") throw new ConflictError("This lobby is no longer accepting players.");
-    const config = lobbyConfig(state);
-    const ranked = rankedSeries(state);
-    if (ranked && !await getSessionUser(request)) throw new AuthorizationError("Sign in to join a Ranked lobby.");
-    return json({
-      mode: ranked ? "ranked" : config.mode,
-      structure: state.format,
-      meta: config.meta,
-      ...(ranked ? { ruleset: { deckSize: ranked.deckSize ?? 50, restrictions: ranked.restrictions } } : {}),
-    });
-  } catch (error) {
-    return serverErrorResponse(classifyMatchError(error), correlationId, "Lobby lookup failed.", {
-      route: "/api/game", method: "GET", action: "lobby-lookup",
-    });
-  }
-}
-
 export async function POST(request: Request) {
   const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
   const coordinated = isInternalMatchRequest(request);
@@ -428,116 +370,19 @@ export async function POST(request: Request) {
     }
     const body = parseBody(parsed);
     action = body.action;
-    if(PERSISTENT_LOBBY_ENABLED&&(body.action==="create"||body.action==="join"))throw new ConflictError("Create or join through the persistent lobby.");
-    if(LEGACY_LOBBY_CREATION_CLOSED&&body.action==="create")throw new ConflictError("New legacy rooms are temporarily closed for lobby migration.");
-    const clientKey = requestClientKey(request);
-    await enforceD1RateLimit(await getDatabase(), `${clientKey}:${body.action === "chat" ? "chat" : "game"}`, body.action === "chat" ? 30 : 180, 60_000);
-    if (body.action === "create" || body.action === "join" || body.action === "lobby-deck") await applyDatabaseCardOverrides(await getDatabase());
-
-    if (body.action === "create") {
-      if (!body.selection || !body.format) throw new ValidationError("Missing canonical match setup.");
-      const database = await getDatabase();
-      const requestedRanked = body.payload?.lobbyMode === "ranked";
-      const account = await getSessionUser(request);
-      if (requestedRanked && !account) throw new AuthorizationError("Sign in to create a Ranked lobby.");
-      if (requestedRanked && body.format !== "bo3") throw new ValidationError("Ranked is locked to Best of Three.");
-      const ruleset = requestedRanked ? await getActiveRankedRuleset(database) : null;
-      const submittedSelection = requestedRanked ? { ...body.selection, name: account!.displayName } : body.selection;
-      const effectiveSelection = canonicalSelectionForFormat(submittedSelection, requestedRanked ? "competitive" : "standard");
-      const player = tagLobbyPlayerDeck(
-        requestedRanked
-          ? makeCanonicalPlayerWithRestrictions(effectiveSelection, ruleset!.restrictions, ruleset!.deckSize)
-          : makeCanonicalPlayer(effectiveSelection),
-        effectiveSelection.deck,
-        false,
-      );
-      const issuedAt = Date.now();
-      const identity = await commandIdentity(request, body, "NEW", player.id, 0);
-      const baseSeed = secureToken(32);
-      const capability = secureMatchCapability();
-      const capabilityHash = await digestMatchCapability(capability);
-      const controllerId = newMatchControllerId();
-      let code = "";
-      let result: ReturnType<typeof initializeMatch> | null = null;
-      for (let attempt = 0; attempt < 12; attempt += 1) {
-        code = roomCode();
-        // Managed engine codes remain reserved even after snapshot retention.
-        if (await managedSeriesForCode(database, code)) continue;
-        result = initializeMatch(code, body.format, [player], {
-          commandId: identity.commandId,
-          actorId: player.id,
-          issuedAt,
-          randomSeed: `${baseSeed}:${code}`,
-          requestHash: identity.requestHash,
-        });
-        if (requestedRanked) {
-          const rankedLobby = initializeRankedLobby(
-            result.state,
-            player.id,
-            account!.id,
-            account!.displayName,
-            body.rankedDecks ?? [],
-            ruleset!.version,
-            ruleset!.restrictions,
-            ruleset!.deckSize,
-          ) as EngineBackedMatchState;
-          result.state = rankedLobby;
-        }
-        if (!result.receipt) throw new ServiceUnavailableError("The match could not be created.", "Match initialization did not produce a command receipt.");
-        if (await persistInitialMatch(database, result.state, result.events, result.receipt, {
-          playerId: player.id,
-          capabilityHash,
-          controllerId,
-          createdAt: issuedAt,
-        })) break;
-        result = null;
-      }
-      if (!result) throw new ServiceUnavailableError("A unique room code could not be allocated.");
-      await associateMatchSeatAccount(database, code, player.id, account?.id, issuedAt);
-      await touchPresence(code, player.id, issuedAt);
-      if (!coordinated) await publishMatchState(result.state);
-      console.info(JSON.stringify({ event: "match_created", correlationId, commandId: identity.commandId, code, playerId: player.id, version: result.state.version }));
-      await recordObservationSafely(transitionObservation(result.state, result.state, {
-        commandId: identity.commandId,
-        gameId: result.state.id,
-        actorId: player.id,
-        expectedVersion: 0,
-        issuedAt,
-        randomSeed: `${baseSeed}:${code}`,
-        requestHash: identity.requestHash,
-        command: { type: "CHAT", message: "" },
-      }, result.events, 0, correlationId));
-      return json({
-        ...eventResponse(null, result.state, result.events, player.id),
-        commandId: identity.commandId,
-        duplicate: false,
-        previousVersion: 0,
-        capability,
-        capabilityVersion: 1,
-        controllerId,
-        correlationId,
-      });
-    }
-
+    await enforceD1RateLimit(await getDatabase(), `${requestClientKey(request)}:game`, 180, 60_000);
     if (!body.code) throw new ValidationError("Room code required.");
     const code = body.code.toUpperCase();
     const managed = await managedSeriesForCode(await getDatabase(), code);
-    if(PERSISTENT_LOBBY_ENABLED&&!managed)throw new ConflictError("This legacy room is no longer active. Use Play to recover your lobby.");
-    if (managed && ["join", "lobby-settings", "lobby-deck", "ranked-roster", "chat"].includes(body.action)) {
-      throw new ConflictError("This series uses persistent lobby preparation.");
-    }
+    if (!managed) throw new ConflictError("Open Play to recover your lobby.");
     let record = await load(code);
     if (!record) return json({ error: "Match room not found.", code: "VALIDATION_ERROR", correlationId }, 404);
 
-    if (body.action !== "join") {
-      if (!body.playerId || !record.state.players.some((player) => player.id === body.playerId)) {
-        throw new AuthorizationError("Unknown player.");
-      }
-      if (!await authenticateSeat(request, code, body.playerId)) throw new AuthorizationError("Invalid match seat capability.");
-      const account = await getSessionUser(request);
-      if (!managed) await associateMatchSeatAccount(await getDatabase(), code, body.playerId, account?.id, Date.now());
-      await touchPresence(code, body.playerId);
+    if (!body.playerId || !record.state.players.some((player) => player.id === body.playerId)) {
+      throw new AuthorizationError("Unknown player.");
     }
+    if (!await authenticateSeat(request, code, body.playerId)) throw new AuthorizationError("Invalid match seat capability.");
+    await touchPresence(code, body.playerId);
     await hydratePresence(record.state);
 
     const deadlineResult = await applyExpiredDeadline(record.state, record.previous, coordinated);
@@ -564,114 +409,6 @@ export async function POST(request: Request) {
       });
     }
 
-    if (body.action === "join") {
-      if (!body.selection) throw new ValidationError("Canonical player selection required.");
-      if (body.format && body.format !== state.format) {
-        throw new ValidationError(`This lobby uses ${state.format === "bo3" ? "Best of Three" : "Best of One"}. Select the matching structure before joining.`);
-      }
-      const ranked = rankedSeries(state);
-      const account = await getSessionUser(request);
-      if (ranked && !account) throw new AuthorizationError("Sign in to join a Ranked lobby.");
-      if (ranked && body.format !== "bo3") throw new ValidationError("Ranked is locked to Best of Three.");
-      if (!ranked && body.rankedDecks) throw new ValidationError("This is not a Ranked lobby.");
-      const submittedSelection = ranked ? { ...body.selection, name: account!.displayName } : body.selection;
-      // Joining seats are provisional: non-Ranked players choose the lobby’s actual
-      // Standard/Singleton deck after entering, not while opening the room.
-      const provisionalFormat = ranked ? "competitive" : "standard";
-      const effectiveSelection = canonicalSelectionForFormat(submittedSelection, provisionalFormat);
-      const player = tagLobbyPlayerDeck(
-        ranked ? makeCanonicalPlayerWithRestrictions(effectiveSelection, ranked.restrictions, ranked.deckSize ?? 50) : makeCanonicalPlayer(effectiveSelection),
-        effectiveSelection.deck,
-        false,
-      );
-      if (account) {
-        const occupied = await (await getDatabase()).prepare(
-          "SELECT player_id FROM match_seat_accounts WHERE code = ? AND user_id = ? LIMIT 1",
-        ).bind(code, account.id).first<{ player_id: string }>();
-        if (occupied && occupied.player_id !== player.id) {
-          throw new ConflictError("Your account already occupies a seat in this room. Resume that seat instead.");
-        }
-      }
-      if (state.players.some((candidate) => candidate.id === player.id)) {
-        if (!await authenticateSeat(request, code, player.id)) {
-          throw new AuthorizationError("A valid seat capability is required to reconnect.");
-        }
-        await associateMatchSeatAccount(await getDatabase(), code, player.id, account?.id, Date.now());
-        return json({
-          accepted: true,
-          snapshot: true,
-          reconnect: true,
-          newVersion: state.version,
-          versions: versionProfile(state),
-          state: projectMatchForPlayer(state, player.id),
-          publicEvents: [],
-          privateEvents: [],
-          statePatch: [],
-          correlationId,
-        });
-      }
-      if (state.players.length >= 2) throw new ConflictError("Room is full.");
-
-      const expectedVersion = body.expectedVersion ?? state.version;
-      const identity = await commandIdentity(request, body, code, player.id, expectedVersion);
-      const database = await getDatabase();
-      const duplicate = await duplicateCommandResponse(database, state, player.id, identity.commandId, identity.requestHash, correlationId);
-      if (duplicate) return duplicate;
-      if (expectedVersion !== state.version) return latestConflict(code, player.id, correlationId);
-
-      const envelope: CommandEnvelope = {
-        commandId: identity.commandId,
-        gameId: state.id,
-        actorId: player.id,
-        expectedVersion,
-        issuedAt: Date.now(),
-        randomSeed: secureToken(32),
-        requestHash: identity.requestHash,
-        command: { type: "JOIN_PLAYER", player },
-      };
-      diagnosticEnvelope = envelope;
-      const result = reduceMatch(state, envelope);
-      if (!result.receipt) throw new ServiceUnavailableError("The player could not join the room.", "Join did not produce a command receipt.");
-      if (ranked) {
-        const rankedLobby = joinRankedLobby(
-          result.state,
-          player.id,
-          account!.id,
-          account!.displayName,
-          body.rankedDecks ?? [],
-          ranked.restrictions,
-        ) as EngineBackedMatchState;
-        result.state = rankedLobby;
-      }
-      const capability = secureMatchCapability();
-      const controllerId = newMatchControllerId();
-      const saved = await persistTransition(database, {
-        code,
-        next: result.state,
-        previous: state,
-        expectedVersion,
-        events: result.events,
-        receipt: result.receipt,
-        seat: { playerId: player.id, capabilityHash: await digestMatchCapability(capability), controllerId, createdAt: envelope.issuedAt },
-      });
-      if (!saved) return latestConflict(code, player.id, correlationId);
-      await associateMatchSeatAccount(database, code, player.id, account?.id, envelope.issuedAt);
-      await touchPresence(code, player.id, envelope.issuedAt);
-      if (!coordinated) await publishMatchState(result.state);
-      await recordObservationSafely(transitionObservation(state, result.state, envelope, result.events, 0, correlationId));
-      return json({
-        ...eventResponse(state, result.state, result.events, player.id),
-        commandId: identity.commandId,
-        duplicate: false,
-        previousVersion: expectedVersion,
-        capability,
-        capabilityVersion: 1,
-        controllerId,
-        correlationId,
-      });
-    }
-
-    if (!body.playerId) throw new AuthorizationError("Unknown player.");
     const expectedVersion = body.expectedVersion ?? state.version;
     const identity = await commandIdentity(request, body, code, body.playerId, expectedVersion);
     const database = await getDatabase();
@@ -680,21 +417,6 @@ export async function POST(request: Request) {
     if (expectedVersion !== state.version) return latestConflict(code, body.playerId, correlationId);
 
     let payload = body.payload ?? {};
-    if (body.action === "ranked-roster") {
-      if (!rankedSeries(state)) throw new ValidationError("Ranked rosters can only be submitted in Ranked lobbies.");
-      if (!body.rankedDecks) throw new ValidationError("Select exactly three Ranked decks.");
-      const seatName = state.players.find((candidate) => candidate.id === body.playerId)?.name ?? "";
-      payload = { ...payload, selections: body.rankedDecks.map((selection) => ({ ...selection, name: seatName })) };
-    }
-    if (body.action === "lobby-deck") {
-      if (rankedSeries(state)) throw new ValidationError("Ranked deck changes use the locked series selection.");
-      if (!body.selection) throw new ValidationError("Canonical player selection required.");
-      const requiredFormat = requiredDeckFormat(lobbyConfig(state).rulesFormat);
-      const effectiveSelection = canonicalSelectionForFormat(body.selection, requiredFormat);
-      const replacement = tagLobbyPlayerDeck(makeCanonicalPlayer(effectiveSelection), effectiveSelection.deck);
-      if (replacement.id !== body.playerId) throw new AuthorizationError("A player can only change their own lobby deck.");
-      payload = { ...payload, player: replacement };
-    }
     if ((body.action === "ranked-ban" || body.action === "ranked-select") && !rankedSeries(state)) {
       throw new ValidationError("This action is only available in Ranked lobbies.");
     }
@@ -719,7 +441,7 @@ export async function POST(request: Request) {
     if (!result.changed || !result.receipt) {
       throw new ServiceUnavailableError("The match command could not be completed.", "The command did not produce a persistent transition.");
     }
-    const previous = body.action === "chat" ? record.previous : before;
+    const previous = before;
     if (!await persistTransition(database, {
       code,
       next: result.state,
