@@ -2,7 +2,7 @@ import { applyDatabaseCardOverrides } from "./administration-server";
 import { makeCanonicalPlayerWithRestrictions, type CanonicalPlayerSelection } from "./data";
 import { initializeMatch } from "./engine/reducer";
 import type { EngineBackedMatchState } from "./engine/types";
-import { applyLobbyConfig, tagLobbyPlayerDeck, type LobbyConfig } from "./lobby-config";
+import { applyLobbyConfig, lobbyConfig, tagLobbyPlayerDeck, type LobbyConfig } from "./lobby-config";
 import { startLobbyMatch } from "./lobby";
 import { initializeRankedLobby, joinRankedLobby } from "./ranked-lobby";
 import { digestMatchCapability, newMatchControllerId, secureMatchCapability } from "./match-seat-auth";
@@ -109,10 +109,13 @@ export async function trainingCheckpoint(database:D1Database,identity:LobbyIdent
   const previous=JSON.parse(row.state_json) as EngineBackedMatchState;
   if(!state||typeof state!=="object"||state.id!==previous.id||state.code!==previous.code||state.format!==previous.format||
     !Array.isArray(state.players)||state.players.length!==2||state.players[0]?.id!==room.ownId||state.players[1]?.id!=="training-bot"||
-    !Number.isSafeInteger(state.version)||state.version<previous.version||body.expectedRevision!==row.revision)throw new ConflictError("Invalid or stale Training checkpoint.");
+    !Number.isSafeInteger(state.version)||state.version<previous.version||body.expectedRevision!==row.revision||
+    JSON.stringify(lobbyConfig(state))!==JSON.stringify(lobbyConfig(previous)))throw new ConflictError("Invalid or stale Training checkpoint.");
   const completed=body.action==="complete-training";
+  const target=state.format==="bo3"?2:1;
   if(completed&&(state.phase!=="result"||!state.players.some(p=>p.id===state.winner)||
-    Number(state.series?.[state.winner])<(state.format==="bo3"?2:1)))throw new ValidationError("Training series is not complete.");
+    !Number.isInteger(state.series?.[state.winner])||state.series[state.winner]!==target||
+    !state.players.every(p=>Number.isInteger(state.series?.[p.id])&&state.series[p.id]>=0&&state.series[p.id]<=target)))throw new ValidationError("Training series is not complete.");
   const now=Date.now();
   const result=await database.prepare(`UPDATE lobby_training_series SET state_json=?,revision=revision+1,status=?,ended_at=?
     WHERE id=? AND revision=? AND identity_key=? AND status='active' AND EXISTS(

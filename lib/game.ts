@@ -772,9 +772,10 @@ export const createMatch = (code: string, format: "bo1" | "bo3", players: Player
 export const setReady = (input: MatchState, playerId: string) => {
   const state = cloneMatch(input); const player = playerById(state, playerId);
   if (!player || state.phase !== "lobby") throw new Error("Ready is not legal now.");
-  const rankedSize = (state as MatchState & {ranked?:{deckSize:number}}).ranked?.deckSize;
-  const expectedSize = rankedSize ?? 40;
-  if (player.bakugan.length !== 3 || player.cores.length !== 6 || player.deckCards.length !== expectedSize - 5 || player.hand.length !== 5) throw new Error(`Lock a legal ${expectedSize}-card deck, three Bakugan, and six matching BakuCores.`);
+  const ranked = (state as MatchState & {ranked?:{deckSize?:number}}).ranked;
+  const expectedSize = ranked ? ranked.deckSize ?? 50 : 40;
+  const expectedHand = Math.min(5, expectedSize);
+  if (player.bakugan.length !== 3 || player.cores.length !== 6 || player.deckCards.length !== expectedSize - expectedHand || player.hand.length !== expectedHand) throw new Error(`Lock a legal ${expectedSize}-card deck, three Bakugan, and six matching BakuCores.`);
   player.ready = true; player.lastSeen = Date.now(); entry(state, "system", `${player.name} locked a legal deck.`);
   if (state.players.length === 2 && state.players.every((candidate) => candidate.ready)) {
     const selected = state.players[secureRandomInt(state.players.length)];

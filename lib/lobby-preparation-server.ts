@@ -61,9 +61,9 @@ export async function synchronizePreparation(database:D1Database,identity:LobbyI
       configuration={structure:"bo3",format:"competitive",meta:DEFAULT_META};
       next={...clearPreparationReadiness(next),ruleset};
     }
-  } else if(room.mode==="training" && !next.aiDeck){
+  } else if(room.mode==="training" && (!next.aiDeck || deckProblem(next.aiDeck,configuration,null))){
     const aiDeck=await automaticTrainingDeck(database,configuration);
-    if(aiDeck)next={...clearPreparationReadiness(next),aiDeck};
+    if(aiDeck || next.aiDeck)next={...clearPreparationReadiness(next),aiDeck};
   }
   if(next!==room.preparation){
     await writePreparation(database,identity,room,next,configuration);
@@ -94,7 +94,7 @@ export function projectPreparation(room:PreparationState,now=Date.now()) {
   return {version:room.version,configuration:room.configuration,seats,requiredDeckCount:requiredDeckCount(room.mode),
     canStart:canStart&&room.ownId===room.members[0]?.id,
     ai:room.mode==="training"?{name:"Mira Nova",ready:aiReady,deck:ai?deckPreview(ai):null}:null,
-    ruleset:ranked?room.preparation.ruleset:null};
+    ruleset:ranked&&room.preparation.ruleset?{version:room.preparation.ruleset.version,deckSize:room.preparation.ruleset.deckSize,restrictions:room.preparation.ruleset.restrictions,publishedAt:room.preparation.ruleset.publishedAt}:null};
 }
 export async function prepareRecovery(database:D1Database,identity:LobbyIdentity) {
   const room=await loadPreparation(database,identity);

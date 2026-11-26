@@ -22,3 +22,7 @@ All requests currently fail closed at the existing session cutover gate.
 - checkpoint-training / complete-training: membershipId, seriesId, expectedRevision, state
 
 The new recovery response includes projected preparation. Start returns a series identity, not controller secrets. Online authenticated credential claim/recovery (including guests), live publication, application-wide presence, navigation, legacy entry-point migration, Ranked gameplay presentation and unified chat remain cutover gates. No production migration or deployment.
+
+## Verification
+
+Migration 0019 was exercised against a minimal SQLite schema matching its dependencies. Smoke checks covered reconnect readiness reset, rejected unready start, local registration, completion reset, departure abandonment and the online activation guard. The SQL test fixture and pure preparation/projection regressions are committed. Full repository TypeScript, engine and Cloudflare execution still require verification. Local Training checkpoint history/retention and authenticated recovery remain cutover work.
