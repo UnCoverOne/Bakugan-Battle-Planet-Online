@@ -48,6 +48,8 @@ function EnabledLobbySessionProvider({children}){
   const authenticatedReady=app.ready&&!app.authChecking&&(!app.authUser||app.accountDataReady);
   const accept=useCallback((result,generation)=>{
     if(generation!==epoch.current)throw new Error("Account changed during lobby recovery.");
+    const expectedAccount=appRef.current.authUser?.id??null;
+    if((result.accountId??null)!==expectedAccount)throw new Error("Browser account and server lobby identity differ. Sign in again or complete sign-out.");
     const old=recoveryRef.current,prior=memberOf(old),next=memberOf(result);
     // Keep controller secrets in the existing session credential store, never in the lobby response cache.
     const {claim,training,result:completedResult,...publicResult}=result;

@@ -25,17 +25,18 @@ export async function lobbyRecovery(database: D1Database, identities: Identities
   const account = identities.account ? await service.activeMembership(identities.account) : null;
   const guest = identities.guest ? await service.activeMembership(identities.guest) : null;
   if (identities.account && guest) {
-    return { status: "identity-conflict" as const, account, guest,
+    return { status: "identity-conflict" as const, identityKind:"account" as const, accountId:identities.account.id, account, guest,
       accountLobby: account ? await service.read(identities.account) : null,
       guestLobby: await service.read(identities.guest!) };
   }
   const identity = identities.primary;
   if (!identity) return { status: "identity-required" as const };
   const membership = account ?? guest;
-  if(!membership)return {status:"none" as const};
+  const identityDetails={identityKind:identity.kind,accountId:identity.kind==="account"?identity.id:null};
+  if(!membership)return {status:"none" as const,...identityDetails};
   const lobby=await service.read(identity);
-  if(!lobby)return {status:"none" as const};
-  return {status:"member" as const,membership,lobby,preparation:await prepareRecovery(database,identity),
+  if(!lobby)return {status:"none" as const,...identityDetails};
+  return {status:"member" as const,...identityDetails,membership,lobby,preparation:await prepareRecovery(database,identity),
     controller:lobby.mode!=="training"&&lobby.currentSeriesId?await controllerOffer(database,identity,membership.id,lobby.currentSeriesId):null};
 }
 export async function executeLobbyCommand(database: D1Database, identities: Identities, body: Record<string, unknown>) {

@@ -301,8 +301,10 @@ export async function createLobbyInvitation(db: AccountDatabase, inviterId: stri
       await db.prepare("INSERT OR IGNORE INTO lobby_invitations (id,lobby_code,inviter_user_id,recipient_user_id,status,created_at,expires_at,managed_lobby_id,inviter_membership_id) VALUES (?,?,?,?,'pending',?,?,?,?)")
         .bind(invite.id,lobby.code,inviterId,recipientId,now,invite.expires_at,managed.id,managed.hostMemberId).run();
     }catch(error){if(error instanceof Error&&error.message.includes("LOBBY_INVITE_UNAVAILABLE"))throw new ConflictError("Your lobby no longer has an open slot.");throw error;}
-    return await db.prepare("SELECT id,lobby_code,inviter_user_id,recipient_user_id,status,created_at,expires_at FROM lobby_invitations WHERE managed_lobby_id=? AND inviter_membership_id=? AND recipient_user_id=? AND status='pending'")
-      .bind(managed.id,managed.hostMemberId,recipientId).first<InviteRow>()??invite;
+    const saved=await db.prepare("SELECT id,lobby_code,inviter_user_id,recipient_user_id,status,created_at,expires_at FROM lobby_invitations WHERE managed_lobby_id=? AND inviter_membership_id=? AND recipient_user_id=? AND status='pending'")
+      .bind(managed.id,managed.hostMemberId,recipientId).first<InviteRow>();
+    if(!saved)throw new ConflictError("Lobby invitation was not created. Refresh and retry.");
+    return saved;
   }
   await db.prepare("INSERT OR IGNORE INTO lobby_invitations (id, lobby_code, inviter_user_id, recipient_user_id, status, created_at, expires_at) VALUES (?, ?, ?, ?, 'pending', ?, ?)")
     .bind(invite.id, invite.lobby_code, inviterId, recipientId, now, invite.expires_at).run();
@@ -368,7 +370,7 @@ export async function buildSocialSnapshot(
   if(PERSISTENT_LOBBY_ENABLED){
     for(const row of visibleInvites){if(!row.managed_lobby_id||!row.inviter_membership_id)continue;
       const summary=await managedInvitationLobby(db,row.inviter_user_id,row.managed_lobby_id,row.inviter_membership_id);
-      if(summary)inviteLobbies.set(row.lobby_code,summary);
+      if(summary)inviteLobbies.set(row.id,summary);
     }
   }else if (inviteCodes.length) {
     const placeholders = inviteCodes.map(() => "?").join(", ");
@@ -417,7 +419,7 @@ export async function buildSocialSnapshot(
     });
   const invitations: LobbyInviteSummary[] = visibleInvites.flatMap((row) => {
     const inviter = byId.get(row.inviter_user_id);
-    const invitedLobby = inviteLobbies.get(row.lobby_code);
+    const invitedLobby = inviteLobbies.get(PERSISTENT_LOBBY_ENABLED?row.id:row.lobby_code);
     if (!inviter || !invitedLobby) return [];
     return [{
       id: row.id,

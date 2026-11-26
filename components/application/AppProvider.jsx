@@ -675,7 +675,13 @@ export function AppProvider({ children }) {
     if (retainSession && userId) {
       try { localStorage.setItem("bbp-skipped-account-session-v1", userId); } catch {}
     }
-    if(PERSISTENT_LOBBY_ENABLED){clearBrowserMatchCredentials();setMatchCapability("");setMatchControllerId("");setMatch(null);setOnline(false);void import("../game-screen-v2/matchStore").then(({primeMatchStore})=>primeMatchStore({match:null,online:false,capability:"",controllerId:""}));}
+    if(PERSISTENT_LOBBY_ENABLED){
+      const endedSeries=snapshotRef.current?.match?.id;
+      clearBrowserMatchCredentials();setMatchCapability("");setMatchControllerId("");setMatch(null);setOnline(false);
+      void import("../game-screen-v2/matchStore").then(({readMatchStore,primeMatchStore})=>{
+        if(readMatchStore().match?.id===endedSeries)primeMatchStore({match:null,online:false,capability:"",controllerId:""});
+      });
+    }
     activeAccountId.current = "";
     cloudLoaded.current = false;
     setAccountDataReady(false);
