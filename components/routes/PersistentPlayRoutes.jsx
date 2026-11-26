@@ -1,17 +1,12 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
 import {usePathname,useRouter} from "next/navigation";
-import {ManagedLobby} from "./ManagedLobby";
 import {ManagedSeriesResult} from "./ManagedSeriesResult";
-import {LobbyChatPanel} from "../application/LobbyChatPanel";
 import {useLobbySession} from "../application/LobbySessionProvider";
 import {useAppFields} from "../application/AppProvider";
 import {lobbyRouteDecision} from "../../lib/lobby-client-routing";
 import {isCompletedSeriesResult} from "../../lib/match-result-navigation";
-import {eligibleRankedDecks,rankedSeries} from "../../lib/ranked-lobby";
-import {lobbyCanStart} from "../../lib/lobby";
-import {dispatchLocalGameAction} from "../../lib/engine/local-command-dispatcher";
-import {matchCommandHeaders,readMatchStore,publishMatch,useMatchSelector,useMatchTransport} from "../game-screen-v2/matchStore";
+import { SeriesPreparation } from "./SeriesPreparation";
 import styles from "./PersistentPlayRoutes.module.css";
 
 function Status({title,children}){return <section className={styles.screen}><h1>{title}</h1>{children}</section>;}
@@ -71,46 +66,10 @@ function ManagedGame({children}){
   if(completed&&!seriesId)return <ManagedSeriesResult/>;
   if(!claimed)return <Status title="Recovering gameplay"><p>{claimError||"Connecting your game controller."}</p><Button disabled={claiming} onClick={async()=>{await session.refresh();void claim();}}>Retry</Button>{claimError&&r.lobby?.mode!=="training"&&<Button disabled={claiming} onClick={()=>{if(window.confirm("Take over this game from the other device?"))void claim(true);}}>Take over controller</Button>}<Button onClick={()=>void session.returnToLobby()}>Return to Lobby</Button></Status>;
   if(session.checkpointError?.startsWith("Training checkpoint changed"))return <Status title="Training recovery required"><p role="alert">{session.checkpointError}</p><Button disabled={claiming} onClick={()=>void claim()}>Recover checkpoint</Button><Button onClick={()=>void session.returnToLobby()}>Return to Lobby</Button></Status>;
+  if (match.phase === "lobby") return <SeriesPreparation />;
   return <>
-    {match.phase==="lobby"?<ManagedGamePreparation/>:children}
+    {children}
     <div className={styles.gameReturn}><Button onClick={()=>void session.returnToLobby()}>Return to Lobby</Button>
       {session.checkpointError&&<><span role="alert">{session.checkpointError}</span><Button disabled={claiming} onClick={()=>void claim()}>Recover checkpoint</Button></>}</div>
   </>;
-}
-/** Transitional game-owned controls for the existing engine's internal lobby
- * phase. Final Ranked presentation is intentionally a separate design phase. */
-function ManagedGamePreparation(){
-  useMatchTransport();
-  const stored=useMatchSelector(s=>({match:s.match,playerId:s.playerId,online:s.online}));
-  const {authUser}=useAppFields(["authUser"]);
-  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[choice,setChoice]=useState("");
-  const state=stored.match,actor=stored.playerId;
-  const ranked=state&&rankedSeries(state),mine=ranked?.players[actor],opponent=ranked&&Object.entries(ranked.players).find(([id])=>id!==actor)?.[1];
-  useEffect(()=>setChoice(""),[state?.id,ranked?.stage,state?.gameNumber]);
-  if(!state||!actor)return <Status title="Restoring series"/>;
-  const send=async(action,payload={})=>{
-    setBusy(true);setError("");
-    try{
-      const latest=readMatchStore(),current=latest.match;
-      if(!current||current.id!==state.id)throw new Error("Series changed.");
-      if(latest.online){
-        const response=await fetch("/api/game",{method:"POST",headers:matchCommandHeaders(latest),body:JSON.stringify({action,code:current.code,playerId:actor,expectedVersion:current.version,payload})});
-        const data=await response.json();if(data.state)publishMatch(data.state);if(!response.ok)throw new Error(data.error||"Game command failed.");
-      }else{publishMatch(dispatchLocalGameAction(current,actor,action,payload));}
-    }catch(cause){setError(cause.message);}
-    finally{setBusy(false);}
-  };
-  const ban=ranked?.stage==="ban",select=ranked?.stage==="select",ready=state.players.find(p=>p.id===actor)?.ready;
-  const options=ban?opponent?.decks??[]:select?eligibleRankedDecks(state,actor):[];
-  return <Status title={ban?"Ranked · Ban a deck":select?"Ranked · Select round deck":"Prepare next game"}>
-    <p>Series score: {Object.values(state.series).join(" – ")}</p>
-    {(ban||select)?<><div className={styles.deckList}>{options.map(deck=><label key={deck.id}><input type="radio" name="round-deck" checked={choice===deck.id} disabled={busy||Boolean(ban?mine?.bannedDeckId:mine?.selectedDeckId)} onChange={()=>setChoice(deck.id)}/>{deck.name}</label>)}</div>
-      <Button disabled={busy||!choice||Boolean(ban?mine?.bannedDeckId:mine?.selectedDeckId)} onClick={()=>void send(ban?"ranked-ban":"ranked-select",{deckId:choice})}>{ban?"Confirm Ban":"Lock Deck"}</Button>
-      {Boolean(ban?mine?.bannedDeckId:mine?.selectedDeckId)&&<p>Waiting for opponent.</p>}</>:<>
-      <Button disabled={busy} onClick={()=>void send("lobby-ready",{ready:!ready})}>{ready?"Unready":"Ready"}</Button>
-      {state.players[0]?.id===actor&&<Button disabled={busy||!lobbyCanStart(state)} onClick={()=>void send("start-match")}>Start Game</Button>}
-    </>}
-    {error&&<p role="alert">{error}</p>}
-    <div className={styles.lobbyChat}><LobbyChatPanel systemOnly={!stored.online}/></div>
-  </Status>;
 }

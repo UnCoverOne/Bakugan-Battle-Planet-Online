@@ -3,28 +3,16 @@
 import {useEffect,useRef,useState} from "react";
 import Link from "next/link";
 import {useLobbySession} from "../application/LobbySessionProvider";
-import {useLobbyChat} from "../application/LobbyChatProvider";
-import {LobbyChatPanel} from "../application/LobbyChatPanel";
 import {useAppFields} from "../application/AppProvider";
 import {ProfileAvatar} from "../profile/ProfileAvatar";
 import {LucideIcon} from "../design-system/LucideIcon";
 import {LOBBY_METAS,metaName} from "../../lib/meta-formats";
-import {LobbyDeckArtwork,LobbyDeckDetails,LobbyDeckPicker,LobbyModal} from "./LobbyDeckPicker";
+import {LobbyDeckArtwork,LobbyDeckDetails,LobbyDeckPicker} from "./LobbyDeckPicker";
+import { LobbyWorkspace } from "./LobbyWorkspace";
 import styles from "./ManagedLobby.module.css";
 
 const formatNames={standard:"Standard",singleton:"Singleton",competitive:"Competitive"};
 const modes={training:"Training",casual:"Casual",ranked:"Ranked"};
-function useWideLobby(){
-  const [wide,setWide]=useState(false);
-  useEffect(()=>{
-    const query=window.matchMedia("(min-width: 1200px)"),update=()=>setWide(query.matches);
-    update();query.addEventListener("change",update);return ()=>query.removeEventListener("change",update);
-  },[]);
-  return wide;
-}
-function ChatIcon(){return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5ZM8 9h8M8 12h5"/></svg>;}
-function CopyIcon(){return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12"/><path d="M16 8V4H4v12h4"/></svg>;}
-
 function DeckSlot({deck,hidden=false,selected=false,editable=false,onEdit,problem,disabled,slot,compact=false}){
   const contents=deck?<><LobbyDeckArtwork deck={deck}/><LobbyDeckDetails deck={deck} problem={problem}/></>:
     <><div className={styles.placeholderArt}><LucideIcon name={hidden&&selected?"lock":editable?"plus":"rectangle-vertical"} size={26}/></div>
@@ -48,7 +36,7 @@ function BrawlerSeat({seat,mode,count,own=false,ai=false,active,busy,onEdit,onRe
       <div className={styles.status} data-ready={!active&&ready&&connected?"true":"false"}><span className={styles.statusDot}/><span>{status}</span></div>
     </header>
     <div className={styles.deckHeader}><span>{count===1?"Deck":"Decks"}</span><span>{ai?"Automatically assigned":count>1?`${seat?.deckCount??0}/${count} selected`:""}</span></div>
-    <div className={styles.slots} data-hidden={hidden?"true":"false"}>
+    <div className={styles.slots}>
       {Array.from({length:count},(_,index)=><DeckSlot key={index} slot={index} compact={count>1}
         deck={hidden?null:seat?.decks?.[index]} hidden={hidden} selected={index<(seat?.deckCount??0)}
         editable={own&&!active} disabled={busy} onEdit={()=>onEdit(index)} problem={own?seat?.deckProblems?.[index]:null}/>)}
@@ -67,11 +55,11 @@ function RuleField({label,value,editable,children,onChange,disabled=false}){
     <span className={styles.ruleValue}>{value}</span>}</label>;
 }
 export function ManagedLobby(){
-  const session=useLobbySession(),chat=useLobbyChat(),{decks,profile}=useAppFields(["decks","profile"]);
+  const session=useLobbySession(),{decks,profile}=useAppFields(["decks","profile"]);
   const r=session.recovery,room=r.lobby,p=r.preparation;
   const own=p?.seats.find(s=>s.own),active=Boolean(room?.currentSeriesId),host=room?.hostMemberId===r.membership?.id;
-  const [picker,setPicker]=useState(null),[chatOpen,setChatOpen]=useState(false),[localError,setLocalError]=useState(""),[copyState,setCopyState]=useState(""),[pending,setPending]=useState(null);
-  const wide=useWideLobby(),syncKey=useRef(""),copyTimer=useRef(null),inFlight=useRef(false),startId=useRef(null);
+  const [picker,setPicker]=useState(null),[localError,setLocalError]=useState(""),[copyState,setCopyState]=useState(""),[pending,setPending]=useState(null);
+  const syncKey=useRef(""),copyTimer=useRef(null),inFlight=useRef(false),startId=useRef(null);
   useEffect(()=>{
     if(!room||!p||active)return;
     const key=`${r.membership.id}:${room.previousSeriesId??"initial"}`;
@@ -79,9 +67,8 @@ export function ManagedLobby(){
     syncKey.current=key;
     void session.command({action:"sync-preparation",membershipId:r.membership.id}).catch(()=>{});
   },[r.membership?.id,room?.previousSeriesId,Boolean(p),active]);
-  useEffect(()=>{setPicker(null);setChatOpen(false);setLocalError("");setCopyState("");startId.current=null;},[r.membership?.id]);
+  useEffect(()=>{setPicker(null);setLocalError("");setCopyState("");startId.current=null;},[r.membership?.id]);
   useEffect(()=>{if(active)setPicker(null);},[active]);
-  useEffect(()=>{if(wide)setChatOpen(false);},[wide]);
   useEffect(()=>()=>clearTimeout(copyTimer.current),[]);
   if(!room||!p||!own)return <section className={styles.lobby}><h1>RESTORING LOBBY</h1><button className={styles.secondary} onClick={()=>void session.refresh()}>Refresh</button></section>;
   const busy=session.busy||Boolean(pending)||session.unavailable;
@@ -115,7 +102,7 @@ export function ManagedLobby(){
     <header className={styles.heading}>
       <div className={styles.titleGroup}><h1>{modes[room.mode].toUpperCase()} LOBBY</h1>
         {room.mode!=="training"&&<div className={styles.invitation}>
-          <button type="button" className={styles.code} onClick={()=>void copy()} aria-label={`Copy room code ${room.code}`}><span>{room.code}</span><CopyIcon/></button>
+          <button type="button" className={styles.code} onClick={()=>void copy()} aria-label={`Copy room code ${room.code}`}><span>{room.code}</span><LucideIcon name="copy" size={17}/></button>
           <button type="button" className={styles.iconButton} aria-label="Copy invitation link" title="Copy invitation link" onClick={()=>void copy(true)}><LucideIcon name="link" size={18}/></button>
           <span className={styles.copyStatus} role="status">{copyState}</span>
         </div>}
@@ -131,30 +118,20 @@ export function ManagedLobby(){
         {LOBBY_METAS.map(meta=><option key={meta.id} value={meta.id}>{meta.name}</option>)}
       </RuleField>
     </div>
-    <div className={styles.workspace}>
-      <div className={styles.preparation}>
+    <LobbyWorkspace systemOnly={room.mode==="training"} actions={<>
+      {!active&&room.previousSeriesId&&<Link className={styles.resultLink} href="/play/result">Last result</Link>}
+      {active?<button className={styles.start} type="button" onClick={session.returnToGame}>Return to Game</button>:
+        host?<button className={styles.start} type="button" disabled={busy||!p.canStart} onClick={()=>void start()}>{pending==="start-series"?"Starting…":"Start Game"}</button>:<span className={styles.guestAction}>Waiting for host</span>}
+    </>}>
         <div className={styles.seats}>
           <BrawlerSeat seat={own} own mode={room.mode} count={count} active={active} busy={busy} avatar={profile?.avatar}
             onEdit={index=>{setLocalError("");setPicker(index);}} onReady={()=>void send("set-ready",{ready:!own.ready})} readyDisabled={readyDisabled}/>
           <BrawlerSeat seat={opponent} mode={room.mode} count={count} active={active} busy={busy} ai={room.mode==="training"} onSync={()=>void send("sync-preparation")}/>
         </div>
         <div className={styles.feedback} role="status">{localError||session.error||""}</div>
-        <div className={styles.actionBar}>
-          {!wide&&<button type="button" className={styles.chatButton} aria-label={chat.unread?`Open chat, ${chat.unread} unread`:"Open chat"} onClick={()=>setChatOpen(true)}><ChatIcon/> Chat{chat.unread>0&&<span className={styles.unreadDot}/>}</button>}
-          <span className={styles.actionStatus}>{active?"Series in progress":""}</span>{!active&&room.previousSeriesId&&<Link className={styles.resultLink} href="/play/result">Last result</Link>}
-          {active?<button className={styles.start} type="button" onClick={session.returnToGame}>Return to Game</button>:
-            host?<button className={styles.start} type="button" disabled={busy||!p.canStart} onClick={()=>void start()}>{pending==="start-series"?"Starting…":"Start Game"}</button>:<span className={styles.guestAction}>Waiting for host</span>}
-        </div>
-      </div>
-      {wide&&<aside className={styles.chatColumn}><LobbyChatPanel systemOnly={room.mode==="training"}/></aside>}
-    </div>
+    </LobbyWorkspace>
     {picker!==null&&!active&&<LobbyDeckPicker decks={decks??[]} committed={own.decks} configuration={configuration} ruleset={p.ruleset} mode={room.mode}
       limit={count} slot={picker} busy={busy} error={localError} onCancel={()=>{setPicker(null);setLocalError("");}}
       onConfirm={async selected=>{if(await send("select-decks",{decks:selected}))setPicker(null);}}/>}
-    {!wide&&chatOpen&&<LobbyModal className={styles.chatModal} labelledBy="lobby-chat-title" onCancel={()=>setChatOpen(false)}>
-      <div className={styles.modalContent}><header className={styles.modalHeader}><h2 id="lobby-chat-title">CHAT</h2><button type="button" className={styles.iconButton} aria-label="Close chat" onClick={()=>setChatOpen(false)}><LucideIcon name="x"/></button></header>
-        <div className={styles.chatModalBody}><LobbyChatPanel showHeader={false} systemOnly={room.mode==="training"}/></div>
-      </div>
-    </LobbyModal>}
   </section>;
 }

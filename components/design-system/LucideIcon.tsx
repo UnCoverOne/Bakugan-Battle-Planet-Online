@@ -10,7 +10,7 @@ export type LucideIconName =
   | "layout-list" | "layout-grid" | "sliders-horizontal" | "list"
   | "search" | "hexagon" | "rectangle-vertical" | "circle-minus"
   | "plus" | "minus" | "x" | "chevron-left" | "chevron-right"
-  | "file-pen-line" | "link" | "globe" | "image" | "bot" | "swords" | "trophy" | "lock";
+  | "file-pen-line" | "link" | "globe" | "image" | "bot" | "swords" | "trophy" | "lock" | "message-square" | "copy";
 
 const glyphs: Record<LucideIconName, ReactNode> = {
   "arrow-left": <><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></>,
@@ -37,6 +37,8 @@ const glyphs: Record<LucideIconName, ReactNode> = {
   "swords": <><path d="m14.5 17.5 3 3M13 19l6-6M2 2l9.5 9.5M2 2v5l5 5M22 2l-9.5 9.5M22 2v5l-5 5M2 22l5-5M5 14l5 5M17 17l5 5"/></>,
   "trophy": <><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.7V17c0 .6-.5 1-1 1-1.7 0-3 1.3-3 3v1M14 14.7V17c0 .6.5 1 1 1 1.7 0 3 1.3 3 3v1"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></>,
   "lock": <><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>,
+  "message-square": <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>,
+  "copy": <><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2"/></>,
   "image": <><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></>,
 
 };

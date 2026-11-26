@@ -254,7 +254,7 @@ test("engine history is the only live replay source and replay archives compile 
 
 test("all player-visible local mutation layers route through the command dispatcher", async () => {
   const paths = [
-    "components/routes/PersistentPlayRoutes.jsx",
+    "components/routes/SeriesPreparation.jsx",
     "components/game-screen-v2/GameplayClient.tsx",
     "components/game-screen-v2/BakuCoreLayer.tsx",
     "components/game-screen-v2/ChoiceQueueLayer.tsx",

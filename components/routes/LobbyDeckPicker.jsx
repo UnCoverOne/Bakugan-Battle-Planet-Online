@@ -15,7 +15,7 @@ import styles from "./ManagedLobby.module.css";
 export function LobbyDeckArtwork({deck}){
   // Projected opponent previews intentionally omit cardIds. Supply only the
   // already-public featured card to the shared gallery artwork renderer.
-  const artwork={...deck,cardIds:deck.cardIds??(deck.leadCardId?[deck.leadCardId]:[])};
+  const artwork={...deck,cardIds:deck.cardIds?.length ? deck.cardIds : (deck.leadCardId ? [deck.leadCardId] : [])};
   return <div className={styles.artwork}><DeckPreview deck={artwork}/></div>;
 }
 export function LobbyDeckDetails({deck,problem}){
