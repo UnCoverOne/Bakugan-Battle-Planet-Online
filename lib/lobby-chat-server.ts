@@ -28,11 +28,11 @@ export async function readLobbyChat(database:D1Database,identity:LobbyIdentity,m
       WHERE lobby_id=? AND sequence>=? AND (? IS NULL OR sequence<?) ORDER BY sequence DESC LIMIT ?`)
       .bind(seat.lobby_id,seat.visible_from,before??null,before??null,PAGE_SIZE+1),
     database.prepare(`SELECT c.read_through AS readThrough,
-      COALESCE(MAX(msg.sequence),0) AS latest,
-      COALESCE(SUM(CASE WHEN msg.sequence>c.read_through AND (msg.kind='system' OR msg.membership_id<>m.id) THEN 1 ELSE 0 END),0) AS unread
+      COALESCE((SELECT MAX(sequence) FROM lobby_chat_messages WHERE lobby_id=m.lobby_id AND sequence>=c.visible_from),0) AS latest,
+      (SELECT COUNT(*) FROM lobby_chat_messages msg WHERE msg.lobby_id=m.lobby_id AND msg.sequence>MAX(c.read_through,c.visible_from-1)
+        AND (msg.kind='system' OR msg.membership_id<>m.id)) AS unread
       FROM lobby_memberships m JOIN lobby_sessions l ON l.id=m.lobby_id JOIN lobby_chat_cursors c ON c.membership_id=m.id
-      LEFT JOIN lobby_chat_messages msg ON msg.lobby_id=m.lobby_id AND msg.sequence>=c.visible_from
-      WHERE ${activePredicate} GROUP BY m.id,c.read_through`).bind(membershipId,key(identity),now),
+      WHERE ${activePredicate}`).bind(membershipId,key(identity),now),
   ]);
   const summary=results[1].results?.[0] as {readThrough:number;latest:number;unread:number}|undefined;
   if(!summary)throw new AuthorizationError("Lobby membership ended.");

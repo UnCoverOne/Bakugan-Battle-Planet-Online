@@ -77,7 +77,7 @@ CREATE TRIGGER lobby_chat_settings AFTER UPDATE OF configuration_json ON lobby_s
 WHEN OLD.configuration_json<>NEW.configuration_json
 BEGIN
   INSERT INTO lobby_chat_messages(lobby_id,kind,author,message,created_at)
-  VALUES(NEW.id,'system','System','Match settings changed.',CAST(unixepoch('subsec')*1000 AS INTEGER));
+  VALUES(NEW.id,'system','System','Match settings changed.',(CAST(strftime('%s','now') AS INTEGER)*1000+CAST(substr(strftime('%f','now'),4,3) AS INTEGER)));
 END;
 CREATE TRIGGER lobby_chat_preparation AFTER UPDATE OF preparation_json ON lobby_sessions
 WHEN OLD.preparation_json<>NEW.preparation_json AND NEW.current_series_id IS NULL AND OLD.current_series_id IS NULL
@@ -85,7 +85,7 @@ BEGIN
   INSERT INTO lobby_chat_messages(lobby_id,membership_id,kind,author,message,created_at)
   SELECT NEW.id,m.id,'system','System',n.name ||
     CASE WHEN json_extract(p.value,'$.ready')=1 THEN ' is ready.' ELSE ' is no longer ready.' END,
-    CAST(unixepoch('subsec')*1000 AS INTEGER)
+    (CAST(strftime('%s','now') AS INTEGER)*1000+CAST(substr(strftime('%f','now'),4,3) AS INTEGER))
   FROM json_each(NEW.preparation_json,'$.members') p
   JOIN lobby_memberships m ON m.id=p.key AND m.left_at IS NULL
   JOIN lobby_chat_member_names n ON n.id=m.id
@@ -93,7 +93,7 @@ BEGIN
 
   -- Never copy deck names, IDs, cards or roster contents into the public stream.
   INSERT INTO lobby_chat_messages(lobby_id,membership_id,kind,author,message,created_at)
-  SELECT NEW.id,m.id,'system','System',n.name || ' updated deck selection.',CAST(unixepoch('subsec')*1000 AS INTEGER)
+  SELECT NEW.id,m.id,'system','System',n.name || ' updated deck selection.',(CAST(strftime('%s','now') AS INTEGER)*1000+CAST(substr(strftime('%f','now'),4,3) AS INTEGER))
   FROM json_each(NEW.preparation_json,'$.members') p
   JOIN lobby_memberships m ON m.id=p.key AND m.left_at IS NULL
   JOIN lobby_chat_member_names n ON n.id=m.id
@@ -102,7 +102,7 @@ BEGIN
   INSERT INTO lobby_chat_messages(lobby_id,kind,author,message,created_at)
   SELECT NEW.id,'system','System',
     CASE WHEN json_type(NEW.preparation_json,'$.aiDeck')='object' THEN 'Mira Nova selected a deck.' ELSE 'No compatible AI deck available.' END,
-    CAST(unixepoch('subsec')*1000 AS INTEGER)
+    (CAST(strftime('%s','now') AS INTEGER)*1000+CAST(substr(strftime('%f','now'),4,3) AS INTEGER))
   WHERE NEW.mode='training' AND COALESCE(json_extract(OLD.preparation_json,'$.aiDeck'),'null')<>COALESCE(json_extract(NEW.preparation_json,'$.aiDeck'),'null');
 END;
 
@@ -110,7 +110,7 @@ CREATE TRIGGER lobby_chat_series_started AFTER UPDATE OF current_series_id ON lo
 WHEN OLD.current_series_id IS NULL AND NEW.current_series_id IS NOT NULL
 BEGIN
   INSERT OR IGNORE INTO lobby_chat_messages(lobby_id,kind,author,message,created_at,event_key)
-  VALUES(NEW.id,'system','System','Series started.',CAST(unixepoch('subsec')*1000 AS INTEGER),'series:' || NEW.current_series_id || ':start');
+  VALUES(NEW.id,'system','System','Series started.',(CAST(strftime('%s','now') AS INTEGER)*1000+CAST(substr(strftime('%f','now'),4,3) AS INTEGER)),'series:' || NEW.current_series_id || ':start');
 END;
 CREATE TRIGGER lobby_chat_series_ended AFTER UPDATE OF current_series_id ON lobby_sessions
 WHEN OLD.current_series_id IS NOT NULL AND NEW.current_series_id IS NULL
@@ -118,9 +118,9 @@ BEGIN
   INSERT OR IGNORE INTO lobby_chat_messages(lobby_id,kind,author,message,created_at,event_key)
   VALUES(NEW.id,'system','System',
     CASE WHEN EXISTS(SELECT 1 FROM lobby_training_series WHERE id=OLD.current_series_id AND status='abandoned') THEN 'Training series abandoned.'
-      WHEN EXISTS(SELECT 1 FROM lobby_series_departures WHERE series_id=OLD.current_series_id) THEN 'Series ended by forfeiture.'
+      WHEN EXISTS(SELECT 1 FROM lobby_series_bindings b JOIN matches g ON g.code=b.match_code WHERE b.id=OLD.current_series_id AND json_extract(g.state_json,'$.stepLabel')='Series forfeited') THEN 'Series ended by forfeiture.'
       ELSE 'Series completed.' END,
-    CAST(unixepoch('subsec')*1000 AS INTEGER),'series:' || OLD.current_series_id || ':end');
+    (CAST(strftime('%s','now') AS INTEGER)*1000+CAST(substr(strftime('%f','now'),4,3) AS INTEGER)),'series:' || OLD.current_series_id || ':end');
 END;
 
 -- Only public lifecycle facts, never the engine event log or arbitrary client
@@ -140,7 +140,7 @@ WHEN json_extract(NEW.state_json,'$.phase')='result' AND json_extract(OLD.state_
 BEGIN
   INSERT OR IGNORE INTO lobby_chat_messages(lobby_id,kind,author,message,created_at,event_key)
   SELECT NEW.lobby_id,'system','System','Game ' || CAST(json_extract(NEW.state_json,'$.gameNumber') AS INTEGER) || ' completed.',
-    CAST(unixepoch('subsec')*1000 AS INTEGER),'series:' || NEW.id || ':game:' || CAST(json_extract(NEW.state_json,'$.gameNumber') AS INTEGER) || ':end'
+    (CAST(strftime('%s','now') AS INTEGER)*1000+CAST(substr(strftime('%f','now'),4,3) AS INTEGER)),'series:' || NEW.id || ':game:' || CAST(json_extract(NEW.state_json,'$.gameNumber') AS INTEGER) || ':end'
   WHERE CAST(json_extract(NEW.state_json,'$.gameNumber') AS INTEGER) BETWEEN 1 AND 3;
 END;
 

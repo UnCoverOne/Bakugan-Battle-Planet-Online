@@ -4,7 +4,7 @@ import {useLobbyChat} from "./LobbyChatProvider";
 import styles from "./LobbyChatPanel.module.css";
 
 export function LobbyChatPanel({systemOnly=false,showHeader=true}){
-  const chat=useLobbyChat(),page=chat.page,scroll=useRef(null),pinned=useRef(true),anchor=useRef(null);
+  const chat=useLobbyChat(),page=chat.page,scroll=useRef(null),pinned=useRef(true),anchor=useRef(null),visibleLatest=useRef(0);
   const [atEnd,setAtEnd]=useState(true);
   const onlySystem=systemOnly||page?.systemOnly;
   const messages=page?.messages??[];
@@ -13,7 +13,7 @@ export function LobbyChatPanel({systemOnly=false,showHeader=true}){
   useEffect(()=>chat.openView(),[chat.openView]);
   useLayoutEffect(()=>{if(scope!==page?.membershipId){setScope(page?.membershipId);pinned.current=true;anchor.current=null;setAtEnd(true);}},[scope,page?.membershipId]);
   const acknowledge=()=>{
-    if(pinned.current&&document.visibilityState==="visible"&&document.hasFocus()&&latest&&latest===page?.latest)void chat.markRead(latest);
+    if(pinned.current&&visibleLatest.current===latest&&document.visibilityState==="visible"&&document.hasFocus()&&latest&&latest===page?.latest)void chat.markRead(latest);
   };
   useLayoutEffect(()=>{
     const el=scroll.current;if(!el)return;
@@ -23,6 +23,19 @@ export function LobbyChatPanel({systemOnly=false,showHeader=true}){
       anchor.current=null;
     }else if(pinned.current)el.scrollTop=el.scrollHeight;
   },[messages]);
+  useEffect(()=>{
+    // A mounted lobby panel can be below the fold on a narrow screen. Only
+    // acknowledge when the newest message intersects the actual viewport.
+    visibleLatest.current=0;
+    const node=latest?scroll.current?.querySelector(`[data-message-id="${latest}"]`):null;
+    if(!node||typeof IntersectionObserver==="undefined")return;
+    const observer=new IntersectionObserver(entries=>{
+      visibleLatest.current=entries.some(entry=>entry.isIntersecting&&entry.intersectionRatio>0)?latest:0;
+      acknowledge();
+    },{threshold:[0,0.1]});
+    observer.observe(node);
+    return ()=>{observer.disconnect();visibleLatest.current=0;};
+  },[latest,page?.membershipId]);
   useEffect(()=>{
     acknowledge();
     const wake=()=>acknowledge();

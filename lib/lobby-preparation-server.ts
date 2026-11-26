@@ -17,7 +17,7 @@ export const identityKey = (identity:LobbyIdentity) => `${identity.kind}:${ident
 export async function loadPreparation(database:D1Database,identity:LobbyIdentity):Promise<PreparationState|null> {
   const row=await database.prepare(`SELECT l.id,l.code,l.mode,l.version,l.configuration_json,l.preparation_json,l.current_series_id,own.id AS own_id,
     (SELECT json_group_array(json_object('id',m.id,'identity_key',m.identity_key,'name',m.name,'last_seen_at',m.last_seen_at,'expires_at',m.expires_at))
-      FROM (SELECT m.*,COALESCE(u.display_name,'Brawler ' || (SELECT COUNT(*) FROM lobby_memberships p WHERE p.lobby_id=m.lobby_id AND p.left_at IS NULL AND p.sequence<=m.sequence)) AS name
+      FROM (SELECT m.*,COALESCE(u.display_name,'Brawler ' || (SELECT COUNT(*) FROM lobby_memberships p WHERE p.lobby_id=m.lobby_id AND p.sequence<=m.sequence)) AS name
         FROM lobby_memberships m LEFT JOIN users u ON m.identity_key='account:' || u.id
         WHERE m.lobby_id=l.id AND m.left_at IS NULL ORDER BY m.sequence) m) AS members_json
     FROM lobby_sessions l JOIN lobby_memberships own ON own.lobby_id=l.id
