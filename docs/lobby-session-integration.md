@@ -17,3 +17,7 @@ Remaining work: controller/seat binding and revocation, actual engine series bri
 ## Managed engine bridge
 
 See [managed series bridge](lobby-series-bridge.md) for the transactional engine/series binding, credential fencing, private coordinator departure operations and scheduled recovery. The public session endpoint remains gated until canonical lobby preparation, Training, credential recovery and all entry points are migrated.
+
+## Preparation
+
+See [authoritative preparation](lobby-preparation.md) for the new versioned preparation commands, initial series creation, automatic AI assignment and local Training registration. The public gate remains closed.

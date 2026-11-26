@@ -80,7 +80,7 @@ function joinPlayer(input: MatchState, player: PlayerState, issuedAt: number) {
   if (state.players.length >= 2) throw new EngineCommandError("ROOM_FULL", "The room is full.");
   state.players.push(player);
   state.series[player.id] = 0;
-  captureOriginalDeckManifest(state, player);
+  if (!rankedSeries(state) && (player as PlayerState & {lobbyDeckFormat?:string}).lobbyDeckFormat!=="competitive") captureOriginalDeckManifest(state, player);
   state.version += 1;
   state.log.push({ id: `${issuedAt}-join-${state.version}`, at: issuedAt, kind: "connection", message: `${player.name} joined the room.` });
   return state;
@@ -128,7 +128,7 @@ function dispatchCommand(input: MatchState, actorId: string, command: GameComman
     case "UPDATE_LOBBY_DECK": {
       const state = replaceLobbyDeck(input, actorId, command.player) as EngineBackedMatchState;
       const player = state.players.find((candidate) => candidate.id === actorId);
-      if (player) captureOriginalDeckManifest(state, player);
+      if (player && !rankedSeries(state)) captureOriginalDeckManifest(state, player);
       return state;
     }
     case "RANKED_SUBMIT_ROSTER": return submitRankedRoster(input, actorId, command.selections);
@@ -292,11 +292,14 @@ export function initializeMatch(
   players: PlayerState[],
   options: InitializeMatchOptions,
 ): ReduceResult {
-  const state = withDeterministicRuntime({ now: options.issuedAt, randomSeed: options.randomSeed }, () => createMatch(code, format, players)) as EngineBackedMatchState;
+  const state = withDeterministicRuntime({ now: options.issuedAt, randomSeed: options.randomSeed }, () => {
+    const initial=createMatch(code,format,players);
+    return options.configureInitialState ? options.configureInitialState(initial) : initial;
+  }) as EngineBackedMatchState;
   ensureRulesState(state);
   normalizeRuleObjects(state);
   ensureEngineMetadata(state);
-  ensureOriginalDeckManifests(state);
+  if (!rankedSeries(state) && !state.players.some(player => (player as PlayerState & {lobbyDeckFormat?:string}).lobbyDeckFormat==="competitive")) ensureOriginalDeckManifests(state);
   const envelope: CommandEnvelope = {
     commandId: options.commandId,
     gameId: state.id,

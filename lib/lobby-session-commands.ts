@@ -1,3 +1,5 @@
+import { executePreparationCommand, prepareRecovery } from "./lobby-preparation-server";
+import { startPreparedSeries, trainingCheckpoint } from "./lobby-prepared-start";
 import { createLobbySessionService } from "./lobby-session-server";
 import type { LobbyIdentity, LobbyConfiguration, LobbyMode } from "./lobby-session";
 import { ValidationError, ConflictError, AuthenticationError } from "./server-errors";
@@ -27,7 +29,7 @@ export async function lobbyRecovery(database: D1Database, identities: Identities
   const identity = identities.primary;
   if (!identity) return { status: "identity-required" as const };
   const membership = account ?? guest;
-  return membership ? { status: "member" as const, membership, lobby: await service.read(identity) }
+  return membership ? { status: "member" as const, membership, lobby: await service.read(identity), preparation: await prepareRecovery(database, identity) }
     : { status: "none" as const };
 }
 export async function executeLobbyCommand(database: D1Database, identities: Identities, body: Record<string, unknown>) {
@@ -59,6 +61,18 @@ export async function executeLobbyCommand(database: D1Database, identities: Iden
       if (active?.id === id) throw new ConflictError("Departure requires active-series resolution.");
     } else if (!ok) throw new ConflictError("This membership is no longer reachable.");
     return lobbyRecovery(database, identities);
+  }
+  if (["sync-preparation","select-decks","set-ready","update-settings"].includes(String(action))) {
+    await executePreparationCommand(database,identity,body);
+    return lobbyRecovery(database,identities);
+  }
+  if (action==="start-series") {
+    const series=await startPreparedSeries(database,identity,body);
+    return {...await lobbyRecovery(database,identities),series};
+  }
+  if (["recover-training","checkpoint-training","complete-training"].includes(String(action))) {
+    const training=await trainingCheckpoint(database,identity,body);
+    return {...await lobbyRecovery(database,identities),training};
   }
   if (action !== "create" && action !== "join") throw new ValidationError("Unknown lobby command.");
   const commandId = stringId(body.commandId);
@@ -92,6 +106,13 @@ export async function executeLobbyCommand(database: D1Database, identities: Iden
         }
         throw new ConflictError("Could not allocate a room code. Retry.");
       })();
+    // First-time preparation synchronization is recoverable and does not
+    // change the atomic admission receipt. A failed AI lookup must not undo membership.
+    if(action==="create" && mode==="training"){
+      try{await executePreparationCommand(database,identity,{action:"sync-preparation",membershipId:admission.membershipId});}catch(error){console.warn("Training preparation will retry",String(error));}
+    }else if(action==="create" && mode==="ranked"){
+      try{await executePreparationCommand(database,identity,{action:"sync-preparation",membershipId:admission.membershipId});}catch(error){console.warn("Ranked preparation will retry",String(error));}
+    }
     return { ...await lobbyRecovery(database, identities), admission };
   } catch (error) {
     const message = error instanceof Error ? error.message : "";

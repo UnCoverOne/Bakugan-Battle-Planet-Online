@@ -23,13 +23,14 @@ async function handle(request: Request) {
     await enforceD1RateLimit(database, `lobby-session:${requestClientKey(request)}`, 120, 60000);
     if (request.method === "GET") return json(await lobbyRecovery(database, identities));
     const raw = await request.text();
-    if (new TextEncoder().encode(raw).byteLength > 4096) throw new ValidationError("Lobby command too large.");
+    if (new TextEncoder().encode(raw).byteLength > 1_048_576) throw new ValidationError("Lobby command too large.");
     let body: Record<string, unknown>;
     try {
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error();
       body = parsed;
     } catch { throw new ValidationError("Invalid lobby command."); }
+    if (!["checkpoint-training","complete-training"].includes(String(body.action)) && new TextEncoder().encode(raw).byteLength > 196608) throw new ValidationError("Lobby command too large.");
     if (body.action === "bootstrap") {
       if (identities.primary) return json(await lobbyRecovery(database, identities));
       return json({ status: "identity-required", retry: true }, await issueGuestIdentity(database, request));

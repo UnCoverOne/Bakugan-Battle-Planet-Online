@@ -140,6 +140,8 @@ export type ReduceResult = {
   faulted?: boolean;
 };
 export type InitializeMatchOptions = {
+  /** Trusted server-only configuration before recording genesis. */
+  configureInitialState?: (state: MatchState) => MatchState;
   commandId: string;
   actorId: string;
   issuedAt: number;

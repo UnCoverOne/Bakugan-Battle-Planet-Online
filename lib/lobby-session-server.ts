@@ -20,7 +20,7 @@ export function createLobbySessionService(database: D1Database, clock = Date.now
     const at = now();
     const result = await database.prepare(`UPDATE lobby_memberships SET left_at = ?, departure_reason = 'expired'
       WHERE left_at IS NULL AND expires_at <= ? AND EXISTS (
-        SELECT 1 FROM lobby_sessions WHERE id = lobby_memberships.lobby_id AND current_series_id IS NULL
+        SELECT 1 FROM lobby_sessions WHERE id = lobby_memberships.lobby_id AND (current_series_id IS NULL OR mode = 'training')
       )`).bind(at, at).run();
     return Number(result.meta?.changes ?? 0);
   };
@@ -110,7 +110,7 @@ export function createLobbySessionService(database: D1Database, clock = Date.now
     // that integration is implemented, reject rather than silently abandon it.
     const result = await database.prepare(`UPDATE lobby_memberships SET left_at = ?, departure_reason = 'left'
       WHERE id = ? AND identity_key = ? AND left_at IS NULL AND expires_at > ? AND EXISTS (
-        SELECT 1 FROM lobby_sessions WHERE id = lobby_memberships.lobby_id AND current_series_id IS NULL
+        SELECT 1 FROM lobby_sessions WHERE id = lobby_memberships.lobby_id AND (current_series_id IS NULL OR mode = 'training')
       )`).bind(at, membershipId, identityKey(identity), at).run();
     return Number(result.meta?.changes ?? 0) === 1;
   };
