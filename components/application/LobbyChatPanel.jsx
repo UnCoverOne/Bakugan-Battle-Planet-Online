@@ -8,8 +8,10 @@ export function LobbyChatPanel({systemOnly=false,showHeader=true}){
   const [atEnd,setAtEnd]=useState(true);
   const onlySystem=systemOnly||page?.systemOnly;
   const messages=page?.messages??[];
+  const [scope,setScope]=useState(page?.membershipId);
   const latest=messages.at(-1)?.id??0;
   useEffect(()=>chat.openView(),[chat.openView]);
+  useLayoutEffect(()=>{if(scope!==page?.membershipId){setScope(page?.membershipId);pinned.current=true;anchor.current=null;setAtEnd(true);}},[scope,page?.membershipId]);
   const acknowledge=()=>{
     if(pinned.current&&document.visibilityState==="visible"&&document.hasFocus()&&latest&&latest===page?.latest)void chat.markRead(latest);
   };
@@ -26,7 +28,7 @@ export function LobbyChatPanel({systemOnly=false,showHeader=true}){
     const wake=()=>acknowledge();
     window.addEventListener("focus",wake);document.addEventListener("visibilitychange",wake);
     return ()=>{window.removeEventListener("focus",wake);document.removeEventListener("visibilitychange",wake);};
-  },[latest,page?.latest,page?.unread,page?.readThrough,atEnd,chat.markRead]);
+  },[page,atEnd,chat.markRead]);
   const onScroll=()=>{
     const el=scroll.current;if(!el)return;
     const end=el.scrollHeight-el.scrollTop-el.clientHeight<=24;

@@ -19,7 +19,7 @@ test("controller claims are membership-scoped and serialized",()=>{
 });
 test("navigation and checkpoint synchronization live outside gameplay routes",()=>{
   const layout=source("app/layout.tsx"),provider=source("components/application/LobbySessionProvider.jsx");
-  assert.match(layout,/<LobbySessionProvider><AppShell>/);
+  assert.match(layout,/<LobbySessionProvider><LobbyChatProvider><AppShell>/);
   assert.match(provider,/HEARTBEAT_MS=12000/);
   assert.match(provider,/action:"heartbeat",membershipId:current.membership.id/);
   assert.match(provider,/expectedRevision:saved.revision/);

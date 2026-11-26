@@ -342,6 +342,8 @@ export function MatchCommunicationLayer() {
           className={styles.chatBox}
           aria-label="Match chat"
           data-chat-box="true"
+          data-managed={managed?"true":undefined}
+          aria-hidden={managed&&!chatOpen?true:undefined}
           data-focused={chatFocused ? "true" : "false"}
           onFocusCapture={() => setChatFocused(true)}
           onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setChatFocused(false); }}

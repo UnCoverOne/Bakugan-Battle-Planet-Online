@@ -1,0 +1,83 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {DatabaseSync} from "node:sqlite";
+import test from "node:test";
+
+function fixture(){
+  const db=new DatabaseSync(":memory:");
+  db.exec(readFileSync("migrations/0016_lobby_sessions.sql","utf8"));
+  db.exec(`CREATE TABLE users(id TEXT PRIMARY KEY,display_name TEXT);
+    CREATE TABLE matches(code TEXT PRIMARY KEY,state_json TEXT,updated_at INTEGER);
+    CREATE TABLE lobby_series_bindings(id TEXT,match_code TEXT,lobby_id TEXT,status TEXT);
+    CREATE TABLE lobby_series_departures(series_id TEXT,membership_id TEXT,reason TEXT);
+    CREATE TABLE lobby_training_series(id TEXT,lobby_id TEXT,state_json TEXT,status TEXT);
+    ALTER TABLE lobby_sessions ADD COLUMN preparation_json TEXT NOT NULL DEFAULT '{"members":{},"aiDeck":null,"ruleset":null}';`);
+  db.exec(readFileSync("migrations/0020_lobby_chat.sql","utf8"));
+  const at=100000;
+  const room=(id:string,mode="casual")=>db.prepare("INSERT INTO lobby_sessions(id,code,mode,configuration_json,created_at) VALUES(?,?,?,?,?)").run(id,id,mode,'{"structure":"bo1","format":"standard","meta":"battle-brawlers"}',at);
+  const join=(id:string,lobbyId:string,now=at)=>db.prepare("INSERT INTO lobby_memberships(id,lobby_id,identity_key,joined_at,last_seen_at,expires_at) VALUES(?,?,?,?,?,?)").run(id,lobbyId,"account:"+id,now,now,now+3600000);
+  const send=(id:string,lobbyId:string,cmd:string,message="Hello",now=at)=>db.prepare("INSERT INTO lobby_chat_messages(lobby_id,membership_id,kind,author,message,created_at,command_id) VALUES(?,?,'chat','Player',?,?,?)").run(lobbyId,id,message,now,cmd);
+  const history=(id:string)=>db.prepare("SELECT message FROM lobby_chat_messages WHERE lobby_id=? ORDER BY sequence").all(id).map(row=>row.message);
+  const visible=(id:string)=>db.prepare("SELECT msg.message FROM lobby_chat_messages msg JOIN lobby_memberships m ON m.lobby_id=msg.lobby_id JOIN lobby_chat_cursors c ON c.membership_id=m.id WHERE m.id=? AND msg.sequence>=c.visible_from ORDER BY msg.sequence").all(id).map(row=>row.message);
+  const leave=(id:string)=>db.prepare("UPDATE lobby_memberships SET left_at=?,departure_reason='left' WHERE id=?").run(at+1000,id);
+  return{db,at,room,join,send,history,visible,leave};
+}
+test("history survives series and excludes messages before a replacement's admission",()=>{
+  const {db,room,join,send,history,visible,leave}=fixture();
+  room("casual");join("a","casual");join("b","casual");
+  send("a","casual","one","Private first-series chat");
+  db.prepare("UPDATE lobby_sessions SET current_series_id='one' WHERE id='casual'").run();
+  db.prepare("UPDATE lobby_sessions SET current_series_id=NULL,previous_series_id='one' WHERE id='casual'").run();
+  db.prepare("UPDATE lobby_sessions SET current_series_id='two' WHERE id='casual'").run();
+  db.prepare("UPDATE lobby_sessions SET current_series_id=NULL,previous_series_id='two' WHERE id='casual'").run();
+  assert.equal(history("casual").filter(s=>s==="Series started.").length,2);
+  assert.equal(history("casual").filter(s=>s==="Series completed.").length,2);
+  assert.ok(visible("b").includes("Private first-series chat"));
+  leave("b");join("c","casual",101001);
+  assert.ok(!visible("c").includes("Private first-series chat"));
+  assert.ok(visible("a").includes("Private first-series chat"));
+  assert.throws(()=>send("b","casual","late"),/LOBBY_CHAT_FORBIDDEN/);
+  db.close();
+});
+test("chat rejects duplicate commands, cross-room writes, expired members and Training messages",()=>{
+  const {db,at,room,join,send}=fixture();
+  room("one");room("two","training");join("a","one");join("b","two");
+  send("a","one","first");
+  assert.throws(()=>send("a","one","first"),/UNIQUE/);
+  assert.throws(()=>send("a","two","cross"),/LOBBY_CHAT_FORBIDDEN/);
+  assert.throws(()=>send("b","two","training"),/LOBBY_CHAT_FORBIDDEN/);
+  assert.throws(()=>send("a","one","expired","Hello",at+3600000),/LOBBY_CHAT_FORBIDDEN/);
+  for(let i=0;i<11;i++)send("a","one","msg-"+i);
+  assert.throws(()=>send("a","one","rate"),/LOBBY_CHAT_RATE_LIMIT/);
+  db.close();
+});
+test("system lifecycle updates are transactional, deduplicated and redact deck details",()=>{
+  const {db,at,room,join,history}=fixture();
+  room("room","ranked");join("a","room");join("b","room");
+  const prep=JSON.stringify({members:{a:{ready:true,decks:[{id:"secret-id",name:"Secret deck",cardIds:["secret-card"]}]}},aiDeck:null,ruleset:null});
+  const update=db.prepare("UPDATE lobby_sessions SET preparation_json=? WHERE id='room'");
+  db.exec("BEGIN");update.run(prep);db.exec("ROLLBACK");
+  assert.ok(!history("room").some(s=>String(s).includes("is ready")));
+  update.run(prep);update.run(prep);
+  assert.equal(history("room").filter(s=>String(s).includes("is ready")).length,1);
+  assert.doesNotMatch(history("room").join(" "),/Secret deck|secret-id|secret-card/);
+  db.prepare("UPDATE lobby_chat_cursors SET connected=0,observed_at=? WHERE membership_id='b'").run(at+30000);
+  db.prepare("UPDATE lobby_chat_cursors SET connected=0,observed_at=? WHERE membership_id='b'").run(at+31000);
+  db.prepare("UPDATE lobby_memberships SET last_seen_at=?,expires_at=? WHERE id='b'").run(at+32000,at+32000+3600000);
+  assert.equal(history("room").filter(s=>String(s).includes("disconnected.")).length,1);
+  assert.equal(history("room").filter(s=>String(s).includes("reconnected.")).length,1);
+  db.close();
+});
+test("engine intermission messages do not copy private logs or change gameplay state",()=>{
+  const {db,room,join,history}=fixture();room("room");join("a","room");join("b","room");
+  const before=JSON.stringify({phase:"play",gameNumber:1,log:[{message:"Private engine event"}]});
+  const after=JSON.stringify({phase:"result",gameNumber:1,log:[{message:"Private engine event"}]});
+  db.prepare("INSERT INTO matches VALUES(?,?,?)").run("GAME01",before,100000);
+  db.prepare("INSERT INTO lobby_series_bindings VALUES(?,?,?,?)").run("series","GAME01","room","active");
+  db.prepare("UPDATE matches SET state_json=? WHERE code='GAME01'").run(after);
+  db.prepare("UPDATE matches SET state_json=? WHERE code='GAME01'").run(after);
+  assert.equal(history("room").filter(s=>s==="Game 1 completed.").length,1);
+  assert.doesNotMatch(history("room").join(" "),/Private engine event/);
+  assert.equal(db.prepare("SELECT state_json FROM matches").get()?.state_json,after);
+  db.close();
+});

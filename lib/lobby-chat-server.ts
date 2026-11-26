@@ -1,4 +1,4 @@
-import type { LobbyIdentity } from "./lobby-session";
+import { LOBBY_DISCONNECTED_AFTER_MS, type LobbyIdentity } from "./lobby-session";
 import { normalizeChatMessage } from "./chat";
 import { AuthorizationError, ConflictError, RateLimitError, ValidationError } from "./server-errors";
 
@@ -22,7 +22,7 @@ export async function readLobbyChat(database:D1Database,identity:LobbyIdentity,m
   await database.prepare(`UPDATE lobby_chat_cursors SET connected=0,observed_at=?
     WHERE connected=1 AND membership_id IN (SELECT id FROM lobby_memberships
       WHERE lobby_id=? AND left_at IS NULL AND last_seen_at<=? AND expires_at>?)`)
-    .bind(now,seat.lobby_id,now-30000,now).run();
+    .bind(now,seat.lobby_id,now-LOBBY_DISCONNECTED_AFTER_MS,now).run();
   const results=await database.batch([
     database.prepare(`SELECT sequence,membership_id,kind,author,message,created_at FROM lobby_chat_messages
       WHERE lobby_id=? AND sequence>=? AND (? IS NULL OR sequence<?) ORDER BY sequence DESC LIMIT ?`)

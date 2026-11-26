@@ -746,3 +746,6 @@
 }
 
 .communicationButton{position:relative}.chatUnread{position:absolute;top:5px;right:5px;width:7px;height:7px;background:var(--bb-link);border-radius:50%;pointer-events:none}
+
+.chatBox[data-managed="true"]{display:none}
+.chatDock[data-open="true"] .chatBox[data-managed="true"]{display:flex;flex-direction:column;pointer-events:auto;background:var(--bb-nav);padding:10px;width:min(320px,calc(100vw - 24px));height:min(380px,55dvh);min-height:180px}

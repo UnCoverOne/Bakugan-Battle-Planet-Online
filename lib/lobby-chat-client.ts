@@ -9,8 +9,9 @@ export function mergeLobbyChatPage(previous:LobbyChatPage|null,incoming:LobbyCha
   const contiguous=older||overlap||incoming.messages.length===0||previous.messages.length===0;
   if(!contiguous)return incoming;
   const messages=[...new Map([...previous.messages,...incoming.messages].map(message=>[message.id,message])).values()].sort((a,b)=>a.id-b.id);
-  // Retain the newest 600 rendered entries. Older server history remains available.
-  const limit=older?Math.max(600,messages.length):600;
-  return {...incoming,messages:messages.slice(-limit),hasOlder:messages.length>limit||(older?incoming.hasOlder:previous.hasOlder||incoming.hasOlder),
-    readThrough:Math.max(previous.readThrough,incoming.readThrough)};
+  // Preserve the history boundary of the earliest loaded page, not the
+  // latest poll's page boundary. Explicit pagination can reach admission.
+  const hasOlder=older?incoming.hasOlder:
+    previous.messages.length&&(!incoming.messages.length||previous.messages[0].id<=incoming.messages[0].id)?previous.hasOlder:incoming.hasOlder;
+  return {...incoming,messages,hasOlder,readThrough:Math.max(previous.readThrough,incoming.readThrough)};
 }

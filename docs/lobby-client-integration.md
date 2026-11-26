@@ -15,3 +15,7 @@ Remaining cutover gates: reconcile legacy account/guest sessions and all social 
 ## Local verification
 
 The routing helper and two regression tests were copied from the committed GitHub blobs and their Git hashes verified. Both tests passed on Node 22 using native TypeScript stripping (only the test import was adapted to include the .ts suffix for Node). Full repository build, browser, controller claim and Cloudflare tests remain unexecuted because the local environment cannot resolve github.com.
+
+## Unified communication
+
+See [persistent lobby communication](lobby-chat.md). The common chat provider and membership-scoped API are staged behind the same disabled cutover flag. Final responsive placement remains part of the next design phase.

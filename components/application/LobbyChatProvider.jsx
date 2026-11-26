@@ -1,5 +1,5 @@
 "use client";
-import {createContext,useCallback,useContext,useEffect,useMemo,useRef,useState} from "react";
+import {createContext,useCallback,useContext,useLayoutEffect,useMemo,useRef,useState} from "react";
 import {mergeLobbyChatPage} from "../../lib/lobby-chat-client";
 import {useLobbySession} from "./LobbySessionProvider";
 
@@ -10,8 +10,7 @@ const Context=createContext(empty);
 export function useLobbyChat(){return useContext(Context);}
 export function LobbyChatProvider({children}){
   const session=useLobbySession(),member=session.enabled&&session.recovery.status==="member"?session.recovery.membership:null;
-  if(!member)return <Context.Provider value={empty}>{children}</Context.Provider>;
-  return <ActiveLobbyChat key={member.id} member={member}>{children}</ActiveLobbyChat>;
+  return <ActiveLobbyChat member={member}>{children}</ActiveLobbyChat>;
 }
 function ActiveLobbyChat({member,children}){
   const [page,setPage]=useState(null),[error,setError]=useState(""),[draft,setDraftState]=useState(""),[sending,setSending]=useState(false),[loadingOlder,setLoadingOlder]=useState(false);
@@ -20,7 +19,7 @@ function ActiveLobbyChat({member,children}){
   const execute=useCallback((body,older=false)=>{
     const controller=lifecycle.current;
     const run=async()=>{
-      if(!controller||controller.signal.aborted)throw new Error("Chat membership changed.");
+      if(!member||!controller||controller.signal.aborted)throw new Error("Chat membership changed.");
       const response=await fetch("/api/lobby/chat",{method:"POST",cache:"no-store",credentials:"same-origin",
         headers:{"content-type":"application/json"},body:JSON.stringify({...body,membershipId:member.id}),
         signal:AbortSignal.any([controller.signal,AbortSignal.timeout(10000)])});
@@ -34,14 +33,18 @@ function ActiveLobbyChat({member,children}){
     const pending=queue.current.catch(()=>{}).then(run);
     queue.current=pending.catch(()=>{});
     return pending.catch(cause=>{if(controller&&!controller.signal.aborted&&lifecycle.current===controller)setError(cause.message||"Lobby chat unavailable.");throw cause;});
-  },[member.id,member.lobbyId]);
+  },[member?.id,member?.lobbyId]);
   const refresh=useCallback(()=>{
     if(refreshing.current)return refreshing.current;
     const pending=execute({action:"history"}).catch(()=>null).finally(()=>{if(refreshing.current===pending)refreshing.current=null;});
     refreshing.current=pending;return pending;
   },[execute]);
-  useEffect(()=>{
+  useLayoutEffect(()=>{
+    // Reset the chat scope without remounting the website shell or its routes.
     const controller=new AbortController();lifecycle.current=controller;queue.current=Promise.resolve();refreshing.current=null;
+    pageRef.current=null;draftRef.current="";retry.current=null;sendPending.current=false;olderPending.current=false;readPending.current=0;
+    setPage(null);setDraftState("");setError("");setSending(false);setLoadingOlder(false);
+    if(!member)return ()=>controller.abort();
     let lastPoll=0;
     const tick=(force=false)=>{
       if(document.visibilityState!=="visible"||!navigator.onLine)return;
@@ -53,7 +56,7 @@ function ActiveLobbyChat({member,children}){
     const wake=()=>tick(true);
     window.addEventListener("online",wake);window.addEventListener("focus",wake);document.addEventListener("visibilitychange",wake);
     return ()=>{controller.abort();clearInterval(timer);window.removeEventListener("online",wake);window.removeEventListener("focus",wake);document.removeEventListener("visibilitychange",wake);};
-  },[refresh]);
+  },[refresh,member?.id,member?.lobbyId]);
   const openView=useCallback(()=>{
     views.current+=1;
     // Children may mount before the parent's first passive effect; the
@@ -67,6 +70,7 @@ function ActiveLobbyChat({member,children}){
     draftRef.current=next;setDraftState(next);
   },[]);
   const send=useCallback(async()=>{
+    const controller=lifecycle.current;
     const message=draftRef.current.trim();
     if(!message||sendPending.current||pageRef.current?.systemOnly)return false;
     const attempt=retry.current?.message===message?retry.current:{message,commandId:crypto.randomUUID()};
@@ -74,27 +78,28 @@ function ActiveLobbyChat({member,children}){
     try{
       const data=await execute({action:"send",message,commandId:attempt.commandId});
       if(!data.sent)throw new Error("Message delivery was not confirmed.");
-      if(retry.current===attempt){retry.current=null;draftRef.current="";setDraftState("");}
+      if(lifecycle.current===controller&&!controller?.signal.aborted&&retry.current===attempt){retry.current=null;draftRef.current="";setDraftState("");}
       return true;
     }catch{return false;}
-    finally{sendPending.current=false;setSending(false);}
+    finally{if(lifecycle.current===controller&&!controller?.signal.aborted){sendPending.current=false;setSending(false);}}
   },[execute]);
   const loadOlder=useCallback(async()=>{
+    const controller=lifecycle.current;
     const current=pageRef.current,before=current?.messages[0]?.id;
     if(!before||!current.hasOlder||olderPending.current)return false;
     olderPending.current=true;setLoadingOlder(true);
     try{await execute({action:"history",before},true);return true;}
     catch{return false;}
-    finally{olderPending.current=false;setLoadingOlder(false);}
+    finally{if(lifecycle.current===controller&&!controller?.signal.aborted){olderPending.current=false;setLoadingOlder(false);}}
   },[execute]);
   const markRead=useCallback(async through=>{
-    const current=pageRef.current;
+    const controller=lifecycle.current,current=pageRef.current;
     if(!current||!current.unread||!through||through<=current.readThrough||through<=readPending.current)return;
     if(!current.messages.some(message=>message.id===through))return;
     readPending.current=through;
-    try{await execute({action:"read",through});}catch{}finally{if(readPending.current===through)readPending.current=0;}
+    try{await execute({action:"read",through});}catch{}finally{if(lifecycle.current===controller&&readPending.current===through)readPending.current=0;}
   },[execute]);
   const value=useMemo(()=>({enabled:true,page,unread:page?.unread??0,draft,error,sending,loadingOlder,openView,refresh,loadOlder,send,markRead,setDraft}),
     [page,draft,error,sending,loadingOlder,openView,refresh,loadOlder,send,markRead,setDraft]);
-  return <Context.Provider value={value}>{children}</Context.Provider>;
+  return <Context.Provider value={member&&(!page||page.membershipId===member.id)?value:empty}>{children}</Context.Provider>;
 }
