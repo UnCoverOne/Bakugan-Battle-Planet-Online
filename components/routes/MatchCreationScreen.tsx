@@ -9,6 +9,7 @@ import { normalizeRoomCode } from "../../lib/room-code";
 import { initializeLocalReplayJournal } from "../../lib/replay-journal";
 import { createTrainingLobbyState } from "../../lib/training-lobby";
 import { primeMatchStore } from "../game-screen-v2/matchStore";
+import { LEGACY_LOBBY_CREATION_CLOSED } from "../../lib/lobby-cutover";
 import { useLobbySession } from "../application/LobbySessionProvider";
 import { useAppFields } from "../application/AppProvider";
 import { LucideIcon, type LucideIconName } from "../design-system/LucideIcon";
@@ -119,6 +120,7 @@ export function MatchCreationScreen() {
 
   const createLobby = async () => {
     if (busy) return;
+    if(LEGACY_LOBBY_CREATION_CLOSED&&!lobbySession.enabled){setError("New lobbies are temporarily closed for migration.");return;}
     setError("");
     if (mode === "ranked" && !authUser) {
       setError("Sign in before creating a Ranked lobby.");

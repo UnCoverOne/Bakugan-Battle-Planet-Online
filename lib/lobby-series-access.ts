@@ -1,5 +1,5 @@
 import type { MatchState } from "./game";
-import { LOBBY_DISCONNECTED_AFTER_MS } from "./lobby-session";
+import { LOBBY_DISCONNECTED_AFTER_MS, type LobbyIdentity } from "./lobby-session";
 
 export type ManagedSeriesBinding = { id: string; lobby_id: string; match_code: string; status: "initializing" | "active" | "completed"; start_command_id: string };
 
@@ -45,4 +45,15 @@ export async function hydrateManagedPresence(database: D1Database, state: MatchS
     if (row) player.lastSeen = row.last_seen_at;
   }
   return true;
+}
+
+/** A controller capability does not transfer account or guest membership. */
+export async function managedIdentityOwnsSeat(database:D1Database,code:string,playerId:string,identity:LobbyIdentity,now=Date.now()){
+  const row=await database.prepare(`SELECT 1 AS allowed FROM lobby_series_bindings b
+    JOIN lobby_series_seats s ON s.series_id=b.id JOIN lobby_memberships m ON m.id=s.membership_id
+    JOIN lobby_sessions l ON l.id=m.lobby_id WHERE b.match_code=? AND b.status='active' AND s.player_id=?
+    AND m.identity_key=? AND m.left_at IS NULL AND m.expires_at>? AND l.current_series_id=b.id
+    AND NOT EXISTS(SELECT 1 FROM lobby_series_departures d WHERE d.series_id=b.id AND d.membership_id=m.id)`)
+    .bind(code,playerId,`${identity.kind}:${identity.id}`,now).first();
+  return Boolean(row);
 }

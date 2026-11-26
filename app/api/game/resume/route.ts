@@ -1,7 +1,8 @@
+import { PERSISTENT_LOBBY_ENABLED } from "../../../../lib/lobby-cutover";
 import { getDatabase, getSessionUser } from "../../../../lib/account-server";
 import { ensureMatchSessionSchema } from "../../../../lib/match-session-schema";
 import { assertSameOrigin, enforceD1RateLimit, requestClientKey } from "../../../../lib/request-security";
-import { AuthenticationError, ServiceUnavailableError, ValidationError, serverErrorResponse } from "../../../../lib/server-errors";
+import { AuthenticationError, ConflictError, ServiceUnavailableError, ValidationError, serverErrorResponse } from "../../../../lib/server-errors";
 
 export const dynamic = "force-dynamic";
 const MAX_RESUME_BODY_BYTES = 2_048;
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
   const correlationId = request.headers.get("x-correlation-id") ?? crypto.randomUUID();
   try {
     assertSameOrigin(request);
+    if(PERSISTENT_LOBBY_ENABLED)throw new ConflictError("Recover your series through your lobby.");
     const user = await getSessionUser(request);
     if (!user) throw new AuthenticationError();
     const database = await getDatabase();

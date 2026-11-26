@@ -47,3 +47,23 @@ WHEN substr(NEW.identity_key,1,8)='account:' AND NOT EXISTS(SELECT 1 FROM users 
 BEGIN
   SELECT RAISE(ABORT,'LOBBY_ACCOUNT_MISSING');
 END;
+
+CREATE VIEW lobby_legacy_room_inventory AS
+SELECT m.code,m.updated_at,
+  CASE WHEN NOT json_valid(m.state_json) THEN 'unknown'
+    WHEN COALESCE(json_type(m.state_json,'$.players'),'')<>'array'
+      OR COALESCE(json_array_length(m.state_json,'$.players'),0)<1
+      OR COALESCE(json_extract(m.state_json,'$.format'),'') NOT IN ('bo1','bo3')
+      OR COALESCE(json_type(m.state_json,'$.phase'),'')<>'text'
+      OR COALESCE(json_type(m.state_json,'$.series'),'')<>'object'
+      OR EXISTS(SELECT 1 FROM json_each(m.state_json,'$.players') p WHERE p.type<>'object' OR COALESCE(json_type(p.value,'$.id'),'')<>'text')
+      THEN 'unknown'
+    WHEN json_extract(m.state_json,'$.phase')='result' THEN
+      CASE WHEN NOT EXISTS(SELECT 1 FROM json_each(m.state_json,'$.players') p WHERE json_extract(p.value,'$.id')=json_extract(m.state_json,'$.winner'))
+        OR EXISTS(SELECT 1 FROM json_each(m.state_json,'$.series') score WHERE score.type<>'integer' OR score.value<0)
+        THEN 'unknown'
+        WHEN COALESCE((SELECT score.value FROM json_each(m.state_json,'$.series') score WHERE score.key=json_extract(m.state_json,'$.winner')),0)
+          >= CASE json_extract(m.state_json,'$.format') WHEN 'bo3' THEN 2 ELSE 1 END THEN 'completed'
+        ELSE 'unfinished' END
+    ELSE 'unfinished' END AS status
+FROM matches m WHERE NOT EXISTS(SELECT 1 FROM lobby_series_bindings b WHERE b.match_code=m.code);

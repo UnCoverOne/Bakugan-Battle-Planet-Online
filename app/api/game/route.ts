@@ -30,6 +30,8 @@ import {
   type CommandEnvelope,
   type EngineBackedMatchState,
 } from "../../../lib/engine";
+import { resolveLobbyIdentities } from "../../../lib/lobby-identity-server";
+import { managedIdentityOwnsSeat } from "../../../lib/lobby-series-access";
 import { PERSISTENT_LOBBY_ENABLED, LEGACY_LOBBY_CREATION_CLOSED } from "../../../lib/lobby-cutover";
 import { managedSeriesForCode, hydrateManagedPresence } from "../../../lib/lobby-series-access";
 import { isInternalMatchRequest } from "../../../lib/internal-request";
@@ -244,7 +246,13 @@ async function commandIdentity(request: Request, body: Body, code: string, playe
 
 async function authenticateSeat(request: Request, code: string, playerId: string) {
   const database = await getDatabase();
-  return Boolean(await authenticateMatchSeat(database, request, code, playerId));
+  const seat=await authenticateMatchSeat(database,request,code,playerId);
+  if(!seat)return false;
+  if(await managedSeriesForCode(database,code)){
+    const identities=await resolveLobbyIdentities(database,request);
+    return Boolean(identities.primary&&await managedIdentityOwnsSeat(database,code,playerId,identities.primary));
+  }
+  return !PERSISTENT_LOBBY_ENABLED;
 }
 
 async function load(code: string): Promise<MatchRecord | null> {
@@ -514,6 +522,7 @@ export async function POST(request: Request) {
     if (!body.code) throw new ValidationError("Room code required.");
     const code = body.code.toUpperCase();
     const managed = await managedSeriesForCode(await getDatabase(), code);
+    if(PERSISTENT_LOBBY_ENABLED&&!managed)throw new ConflictError("This legacy room is no longer active. Use Play to recover your lobby.");
     if (managed && ["join", "lobby-settings", "lobby-deck", "ranked-roster", "chat"].includes(body.action)) {
       throw new ConflictError("This series uses persistent lobby preparation.");
     }

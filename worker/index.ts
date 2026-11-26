@@ -5,9 +5,9 @@ import handler from "vinext/server/app-router-entry";
 import { runWithExecutionContext } from "vinext/shims/request-context";
 import { normalizeMatchState, type MatchState } from "../lib/game";
 import { normalizeEngineState, persistTransition, projectMatchForPlayer, reduceMatch, type CommandEnvelope, type EngineBackedMatchState, type GameCommand } from "../lib/engine";
-import { LEGACY_LOBBY_CREATION_CLOSED } from "../lib/lobby-cutover";
+import { LEGACY_LOBBY_CREATION_CLOSED, PERSISTENT_LOBBY_ENABLED } from "../lib/lobby-cutover";
 import { claimManagedController, publicControllerClaim } from "../lib/lobby-controller-server";
-import { managedSeriesForCode, managedSeatAllowed, hydrateManagedPresence } from "../lib/lobby-series-access";
+import { managedSeriesForCode, managedSeatAllowed, hydrateManagedPresence, managedIdentityOwnsSeat } from "../lib/lobby-series-access";
 import { finalizeManagedSeries, managedSeriesMaintenanceCodes, reconcileManagedSeries, requestManagedDeparture } from "../lib/lobby-series-bridge";
 import { resolveLobbyIdentities } from "../lib/lobby-identity-server";
 import { createLobbySessionService } from "../lib/lobby-session-server";
@@ -486,8 +486,15 @@ export class MatchRoom {
       playerId,
     );
     if (!seat) return new Response("Forbidden", { status: 403 });
-    const account = await getSessionUserFromDatabase(request, this.env.DB);
-    if (!await managedSeriesForCode(this.env.DB, code)) await associateMatchSeatAccount(this.env.DB, code, playerId, account?.id, Date.now());
+    const binding=await managedSeriesForCode(this.env.DB,code);
+    if(binding){
+      const identity=(await resolveLobbyIdentities(this.env.DB,request)).primary;
+      if(!identity||!await managedIdentityOwnsSeat(this.env.DB,code,playerId,identity))return new Response("Forbidden",{status:403});
+    }else{
+      if(PERSISTENT_LOBBY_ENABLED)return new Response("Legacy room ended",{status:409});
+      const account=await getSessionUserFromDatabase(request,this.env.DB);
+      await associateMatchSeatAccount(this.env.DB,code,playerId,account?.id,Date.now());
+    }
 
     for (const existing of this.state.getWebSockets(playerId)) {
       const attachment = existing.deserializeAttachment?.() as MatchSocketAttachment | undefined;
@@ -568,7 +575,7 @@ export class MatchRoom {
     if (!stored) return;
     const now = Date.now();
     const managed = await managedSeriesForCode(this.env.DB, stored.code);
-    if (managed?.status === "completed") return;
+    if (managed?.status === "completed" || (PERSISTENT_LOBBY_ENABLED&&!managed)) return;
     const managedResult = managed ? await reconcileManagedSeries(this.env.DB, stored.code, now) : null;
     if (managedResult) { await this.publish(managedResult); return; }
     const row = managed ? await this.env.DB.prepare("SELECT state_json FROM matches WHERE code = ?").bind(stored.code).first<{ state_json: string }>() : null;
@@ -812,7 +819,7 @@ async function runScheduled(_controller: ScheduledController, env: Env) {
   const cutoff = Date.now();
   const managedSchema = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'lobby_series_bindings'").first();
   const preserveManaged = managedSchema ? " AND code NOT IN (SELECT match_code FROM lobby_series_bindings WHERE status = 'active')" : "";
-  const preserveDrain = LEGACY_LOBBY_CREATION_CLOSED ? " AND CASE WHEN json_valid(state_json) THEN COALESCE(json_extract(state_json,'$.phase')='result' AND json_extract(state_json,'$.winner') IS NOT NULL AND EXISTS (SELECT 1 FROM json_each(state_json,'$.series') WHERE key=json_extract(state_json,'$.winner') AND value>=CASE json_extract(state_json,'$.format') WHEN 'bo3' THEN 2 ELSE 1 END),0) ELSE 0 END" : "";
+  const preserveDrain = LEGACY_LOBBY_CREATION_CLOSED ? " AND code NOT IN (SELECT code FROM lobby_legacy_room_inventory WHERE status<>'completed')" : "";
   await ensureSocialSchema(env.DB);
   await env.DB.batch([
     env.DB.prepare("CREATE TABLE IF NOT EXISTS rum_events (id TEXT PRIMARY KEY, route TEXT NOT NULL, metric TEXT NOT NULL, value REAL NOT NULL, device TEXT NOT NULL, created_at INTEGER NOT NULL)"),
