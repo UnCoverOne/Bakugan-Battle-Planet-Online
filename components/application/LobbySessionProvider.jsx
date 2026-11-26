@@ -6,6 +6,7 @@ import {shouldEnterStartedSeries} from "../../lib/lobby-client-routing";
 import {isCompletedSeriesResult} from "../../lib/match-result-navigation";
 import {useAppFields} from "./AppProvider";
 
+/** @type {import("react").Context<any>} */
 const Context=createContext(null);
 const initial={status:"checking"};
 const disabled={enabled:false,recovery:initial,unavailable:false,error:"",busy:false,refresh:async()=>null,command:async()=>{throw new Error("Persistent lobby is disabled.");}};
@@ -28,6 +29,7 @@ async function requestSession(body,headers={},signal){
   if(result.status==="member"&&(!result.lobby?.id||!result.membership?.id||result.membership.lobbyId!==result.lobby.id))throw new Error("Incomplete lobby recovery response.");
   return result;
 }
+/** @returns {any} Session contract is supplied by the enabled provider. */
 export function useLobbySession(){return useContext(Context)??disabled;}
 export function LobbySessionProvider({children}){
   if(!PERSISTENT_LOBBY_ENABLED)return <Context.Provider value={disabled}>{children}</Context.Provider>;
