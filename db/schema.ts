@@ -1,4 +1,5 @@
-import { index, integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const matches = sqliteTable("matches", {
   code: text("code").primaryKey(),
@@ -309,4 +310,30 @@ export const rumEvents = sqliteTable("rum_events", {
 }, (table) => [
   index("rum_events_metric_created_idx").on(table.metric, table.createdAt),
   index("rum_events_route_created_idx").on(table.route, table.createdAt),
+]);
+
+export const socialMessages=sqliteTable("social_messages",{
+ id:integer("id").primaryKey({autoIncrement:true}),
+ senderId:text("sender_id").notNull().references(()=>users.id,{onDelete:"cascade"}),
+ recipientId:text("recipient_id").notNull().references(()=>users.id,{onDelete:"cascade"}),
+ clientId:text("client_id").notNull(),
+ body:text("body").notNull(),
+ createdAt:integer("created_at").notNull(),
+ readAt:integer("read_at"),
+},table=>[
+ uniqueIndex("social_messages_sender_client_idx").on(table.senderId,table.clientId),
+ index("social_messages_sender_peer_idx").on(table.senderId,table.recipientId,table.id),
+ index("social_messages_recipient_peer_idx").on(table.recipientId,table.senderId,table.id),
+ index("social_messages_unread_idx").on(table.recipientId,table.senderId,table.id).where(sql`${table.readAt} IS NULL`),
+ check("social_messages_distinct_accounts",sql`${table.senderId} <> ${table.recipientId}`),
+ check("social_messages_body_length",sql`length(${table.body}) BETWEEN 1 AND 2000`),
+]);
+export const socialMessageBlocks=sqliteTable("social_message_blocks",{
+ blockerId:text("blocker_id").notNull().references(()=>users.id,{onDelete:"cascade"}),
+ blockedId:text("blocked_id").notNull().references(()=>users.id,{onDelete:"cascade"}),
+ createdAt:integer("created_at").notNull(),
+},table=>[
+ primaryKey({columns:[table.blockerId,table.blockedId]}),
+ index("social_message_blocks_reverse_idx").on(table.blockedId,table.blockerId),
+ check("social_message_blocks_distinct_accounts",sql`${table.blockerId} <> ${table.blockedId}`),
 ]);

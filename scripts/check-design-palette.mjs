@@ -20,6 +20,8 @@ const targets = [
   "components/routes/ManagedLobby.module.css",
   "components/application/LobbyChatPanel.module.css",
   "components/routes/BattleActivityPanel.module.css",
+  "components/social/SocialProvider.module.css",
+  "components/social/MatchResultSocial.module.css",
 ];
 const errors = [];
 for (const target of targets) {

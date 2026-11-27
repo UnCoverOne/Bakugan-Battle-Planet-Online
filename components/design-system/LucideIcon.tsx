@@ -10,9 +10,14 @@ export type LucideIconName =
   | "layout-list" | "layout-grid" | "sliders-horizontal" | "list"
   | "search" | "hexagon" | "rectangle-vertical" | "circle-minus"
   | "plus" | "minus" | "x" | "chevron-left" | "chevron-right"
-  | "file-pen-line" | "link" | "globe" | "image" | "bot" | "swords" | "trophy" | "lock" | "message-square" | "copy";
+  | "users" | "inbox" | "ellipsis" | "send" | "chevron-down" | "file-pen-line" | "link" | "globe" | "image" | "bot" | "swords" | "trophy" | "lock" | "message-square" | "copy";
 
 const glyphs: Record<LucideIconName, ReactNode> = {
+  "users": <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3.87-3.87M16 3.13a4 4 0 0 1 0 7.75"/></>,
+  "inbox": <><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/></>,
+  "ellipsis": <><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></>,
+  "send": <><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></>,
+  "chevron-down": <path d="m6 9 6 6 6-6"/>,
   "arrow-left": <><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></>,
   "arrow-down-up": <><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></>,
   "check": <path d="M20 6 9 17l-5-5"/>,

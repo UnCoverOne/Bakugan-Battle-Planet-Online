@@ -60,7 +60,7 @@ export function AppShell({ children }) {
   );
   const immersiveMatch = pathname === "/play/match";
   return (
-    <SocialProvider>
+    <SocialProvider key={authUser?.id ?? "guest"}>
       <MusicLayer />
       <div className={immersiveMatch ? "blank-shell immersive-shell" : "blank-shell"}>
         <a className="skip-link" href="#main-content">Skip to content</a>

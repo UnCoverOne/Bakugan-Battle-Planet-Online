@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import {DatabaseSync,type SQLInputValue} from "node:sqlite";
+import type {AccountDatabase} from "../lib/account-server";
+import {markMessagesRead,messageInbox,messageThread,reportMessagePeer,sendDirectMessage,setMessageBlock} from "../lib/social-messages-server";
+import {mergeMessages,normalizeMessage} from "../lib/social-messages";
 import { canonicalSocialPair, socialPresenceShard, sortSocialAccounts } from "../lib/social";
 
 const source = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
@@ -45,21 +49,18 @@ test("presence uses authenticated hibernating WebSockets and independent social 
   assert.match(config, /"SocialPresence"/);
 });
 
-test("drawer and both match result surfaces expose the shared social actions", async () => {
-  const [drawer, shell, coordinator, routes] = await Promise.all([
-    source("components/social/SocialProvider.tsx"),
-    source("components/application/AppShell.jsx"),
-    source("components/game-screen-v2/MatchStateCoordinator.tsx"),
-    source("components/routes/PlayRoutes.tsx"),
+test("social drawer uses the shared navigation and preserves result actions",async()=>{
+  const [menu,nav,coordinator,result]=await Promise.all([
+    source("components/social/SocialMenu.tsx"),source("components/application/SiteNavigation.jsx"),
+    source("components/game-screen-v2/MatchStateCoordinator.tsx"),source("components/social/MatchResultSocial.tsx")
   ]);
-  assert.match(shell, /<SocialMenuButton \/>/);
-  assert.match(drawer, /FRIENDS/);
-  assert.match(drawer, /ONLINE BRAWLERS/);
-  assert.match(drawer, /ADD FRIEND/);
-  assert.match(drawer, /REMOVE FRIEND/);
-  assert.match(drawer, /INVITE TO LOBBY/);
-  assert.match(coordinator, /<MatchResultSocial/);
-  assert.match(routes, /<MatchResultSocial/);
+  assert.match(nav,/<SocialMenuButton \/>/);
+  for(const label of ["Brawlers","Messages","Requests","Friends","Online","Offline","Add friend","Remove friend","Invite to lobby"]) assert.ok(menu.includes(label));
+  assert.match(menu,/openConversation\(account\)/);
+  assert.match(menu,/profileHref\(account\)/);
+  assert.match(coordinator,/<MatchResultSocial/);
+  assert.match(result,/<SocialAccountActions/);
+  assert.doesNotMatch(result,/SocialAccountPreview/);
 });
 
 test("server match archives preserve the opponent account association", async () => {
@@ -74,13 +75,13 @@ test("server match archives preserve the opponent account association", async ()
 
 test("offline directory and hidden-account controls are wired through the social API", async () => {
   const [drawer, social, admin, migration, schema] = await Promise.all([
-    source("components/social/SocialProvider.tsx"),
+    source("components/social/SocialMenu.tsx"),
     source("lib/social-server.ts"),
     source("app/api/admin/route.ts"),
     source("migrations/0015_social_hidden_accounts.sql"),
     source("db/schema.ts"),
   ]);
-  assert.match(drawer, /OFFLINE BRAWLERS/);
+  assert.match(drawer, /name:"Offline"/);
   assert.match(drawer, /snapshot\.offlineBrawlers/);
   assert.match(social, /offlineBrawlers: sortSocialAccounts\(offlineBrawlers\)/);
   assert.match(social, /hiddenIds\.has/);
@@ -88,4 +89,100 @@ test("offline directory and hidden-account controls are wired through the social
   assert.match(admin, /requireAdministrator\(request\)/);
   assert.match(migration, /social_hidden_accounts/);
   assert.match(schema, /socialHiddenAccounts/);
+});
+
+async function messageDatabase(){
+  const sqlite=new DatabaseSync(":memory:");
+  sqlite.exec("PRAGMA foreign_keys=ON; CREATE TABLE users(id TEXT PRIMARY KEY); CREATE TABLE account_bans(user_id TEXT PRIMARY KEY); CREATE TABLE social_hidden_accounts(user_id TEXT PRIMARY KEY); INSERT INTO users VALUES ('alice'),('bob'),('carol');");
+  sqlite.exec(await source("migrations/0013_feedback_reports.sql"));
+  sqlite.exec(await source("migrations/0022_social_messages.sql"));
+  const prepare=(sql:string)=>{
+    const statement=sqlite.prepare(sql);
+    const bind=(...args:SQLInputValue[])=>({
+      first:async()=>statement.get(...args)??null,
+      all:async()=>({results:statement.all(...args)}),
+      run:async()=>({meta:{changes:Number(statement.run(...args).changes)}}),
+    });
+    return {bind,...bind()};
+  };
+  const db={prepare,batch:async(statements:{run():Promise<unknown>}[])=>{
+    sqlite.exec("BEGIN");try{const results=[];for(const statement of statements)results.push(await statement.run());sqlite.exec("COMMIT");return results;}
+    catch(error){sqlite.exec("ROLLBACK");throw error;}
+  }} as unknown as AccountDatabase;
+  return {sqlite,db};
+}
+const key=(n:number)=>"test-message-id-"+String(n).padStart(6,"0");
+test("non-friends can message offline accounts; history, unread and retries are account-scoped",async()=>{
+  const {sqlite,db}=await messageDatabase();
+  try{
+    const first=await sendDirectMessage(db,"alice","bob"," Hello Bob ",key(1));
+    assert.equal(first.body,"Hello Bob");
+    assert.equal((await sendDirectMessage(db,"alice","bob","Hello Bob",key(1))).id,first.id);
+    await assert.rejects(sendDirectMessage(db,"alice","carol","different target",key(1)),/already been used/);
+    const reply=await sendDirectMessage(db,"bob","alice","Hello Alice",key(2));
+    assert.equal((await messageInbox(db,"bob")).unreadCount,1);
+    assert.equal((await messageInbox(db,"alice")).unreadCount,1);
+    assert.equal((await messageInbox(db,"carol")).unreadCount,0);
+    assert.deepEqual((await messageThread(db,"carol","bob")).messages,[]);
+    assert.deepEqual((await messageThread(db,"bob","alice")).messages.map(m=>m.id),[first.id,reply.id]);
+    assert.equal(await markMessagesRead(db,"bob","alice",first.id),1);
+    assert.equal((await messageInbox(db,"bob")).unreadCount,0);
+    assert.equal((await messageInbox(db,"alice")).unreadCount,1);
+    const later=await sendDirectMessage(db,"alice","bob","Another message",key(3));
+    assert.equal(await markMessagesRead(db,"bob","alice",first.id),0);
+    assert.equal((await messageInbox(db,"bob")).unreadCount,1);
+    assert.equal((await messageInbox(db,"bob")).conversations[0].latest.id,later.id);
+    await assert.rejects(sendDirectMessage(db,"alice","alice","self",key(4)),/another Brawler/);
+    await assert.rejects(sendDirectMessage(db,"alice","bob"," ".repeat(3),key(5)),/characters/);
+    await assert.rejects(sendDirectMessage(db,"alice","bob","x".repeat(2001),key(6)),/characters/);
+  }finally{sqlite.close();}
+});
+test("blocks, visibility, reports and deletion are enforced by persistent message storage",async()=>{
+  const {sqlite,db}=await messageDatabase();
+  try{
+    await sendDirectMessage(db,"alice","bob","original",key(10));
+    await setMessageBlock(db,"bob","alice",true);
+    assert.equal((await messageInbox(db,"bob")).unreadCount,0);
+    assert.deepEqual((await messageInbox(db,"bob")).blockedIds,["alice"]);
+    assert.equal((await messageThread(db,"alice","bob")).canSend,false);
+    await assert.rejects(sendDirectMessage(db,"alice","bob","blocked",key(11)),/not accepting/);
+    await assert.rejects(sendDirectMessage(db,"bob","alice","also blocked",key(12)),/not accepting/);
+    await setMessageBlock(db,"bob","alice",false);
+    assert.equal((await messageThread(db,"alice","bob")).canSend,true);
+    await sendDirectMessage(db,"bob","alice","unblocked",key(13));
+    sqlite.exec("INSERT INTO social_hidden_accounts VALUES ('bob')");
+    assert.equal((await messageInbox(db,"alice")).conversations.length,0);
+    await assert.rejects(messageThread(db,"alice","bob"),/unavailable/);
+    await assert.rejects(sendDirectMessage(db,"bob","alice","hidden",key(14)),/unavailable/);
+    sqlite.exec("DELETE FROM social_hidden_accounts; INSERT INTO account_bans VALUES ('bob')");
+    await assert.rejects(sendDirectMessage(db,"alice","bob","banned",key(15)),/unavailable/);
+    sqlite.exec("DELETE FROM account_bans");
+    await reportMessagePeer(db,"alice","bob","This is a user-submitted description.");
+    const report=sqlite.prepare("SELECT message,source_url FROM feedback_reports").get();
+    assert.match(String(report?.message),/account bob/);
+    assert.doesNotMatch(String(report?.message),/original/);
+    assert.equal(report?.source_url,"/brawlers/bob");
+    await setMessageBlock(db,"alice","bob",true);
+    sqlite.exec("DELETE FROM users WHERE id='bob'");
+    assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM social_messages").get()?.n,0);
+    assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM social_message_blocks").get()?.n,0);
+  }finally{sqlite.close();}
+});
+test("history pagination and message merging keep stable ascending order without duplicates",async()=>{
+  const {sqlite,db}=await messageDatabase();
+  try{
+    for(let i=0;i<53;i++)await sendDirectMessage(db,"alice","bob",String(i),key(100+i));
+    const page=await messageThread(db,"bob","alice");
+    assert.equal(page.messages.length,50);assert.equal(page.hasOlder,true);
+    const older=await messageThread(db,"bob","alice",page.messages[0].id);
+    assert.equal(older.messages.length,3);assert.equal(older.hasOlder,false);
+    assert.equal(mergeMessages(older.messages,[...page.messages,page.messages[0]]).length,53);
+    assert.equal(normalizeMessage("  hi\u0000  "),"hi");
+  }finally{sqlite.close();}
+});
+test("social menu source no longer contains legacy preview or decorative branding",async()=>{
+  const [provider,menu,css,route]=await Promise.all([source("components/social/SocialProvider.tsx"),source("components/social/SocialMenu.tsx"),source("components/social/SocialProvider.module.css"),source("app/api/social/messages/route.ts")]);
+  assert.doesNotMatch(provider+menu+css,/SocialAccountPreview|COMM-LINK|linear-gradient|radial-gradient|previewLayer/);
+  assert.match(menu,/badgeSlot/);assert.match(menu,/node.showModal\(\)/);
+  assert.match(route,/getSessionUser\(request\)/);assert.match(route,/assertSameOrigin\(request\)/);
 });

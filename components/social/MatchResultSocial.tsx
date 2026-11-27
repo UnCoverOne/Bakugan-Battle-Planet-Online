@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import Link from "next/link";
 import type { SocialAccountSummary } from "../../lib/social";
 import { readJsonResponse } from "../../lib/json-response";
 import { ProfileAvatar } from "../profile/ProfileAvatar";
-import { SocialAccountActions, SocialAccountPreview } from "./SocialProvider";
+import { SocialAccountActions } from "./SocialProvider";
 import styles from "./MatchResultSocial.module.css";
 
 export function MatchResultSocial({
@@ -20,9 +20,9 @@ export function MatchResultSocial({
   compact?: boolean;
 }) {
   const [account, setAccount] = useState<SocialAccountSummary | null>(null);
-  const [preview, setPreview] = useState(false);
 
   useEffect(() => {
+    setAccount(null);
     if (!matchCode && !opponentUserId) return;
     const controller = new AbortController();
     const query = matchCode
@@ -34,20 +34,20 @@ export function MatchResultSocial({
         const result = await readJsonResponse(response, "Opponent profile returned an invalid response.") as { account?: SocialAccountSummary };
         return response.ok ? result.account ?? null : null;
       })
-      .then((value) => { if (value) setAccount(value); })
+      .then((value) => { if (value && !controller.signal.aborted) setAccount(value); })
       .catch((error) => { if (error instanceof DOMException && error.name === "AbortError") return; });
     return () => controller.abort();
   }, [matchCode, opponentUserId]);
 
   if (!account) return <span className={styles.fallback}>{opponentName}</span>;
   return (
-    <span className={`${styles.root} ${compact ? styles.compact : ""}`}>
-      <button className={styles.account} type="button" onClick={() => setPreview(true)} aria-label={`Preview ${account.displayName}'s profile`}>
+    <div className={`${styles.root} ${compact ? styles.compact : ""}`}>
+      <Link className={styles.account} href={"/brawlers/"+encodeURIComponent(account.userId)} aria-label={"View "+account.displayName+" profile"}>
         <ProfileAvatar profile={{ name: account.displayName, avatar: account.avatar }} className={styles.avatar} />
         <span><strong>{account.displayName}</strong><small>{account.rank} · {account.bp} BP</small></span>
-      </button>
+      </Link>
       <SocialAccountActions account={account} compact={compact} />
-      {preview && typeof document !== "undefined" && createPortal(<SocialAccountPreview account={account} onClose={() => setPreview(false)} />, document.body)}
-    </span>
+
+    </div>
   );
 }
