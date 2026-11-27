@@ -1,6 +1,38 @@
 export const SOCIAL_SHARD_COUNT = 8;
 export const SOCIAL_INVITE_TTL_MS = 10 * 60 * 1000;
 
+export const SOCIAL_AWAY_MS = 5 * 60_000;
+export const SOCIAL_ACTIVITY_REPORT_MS = 15_000;
+export type SocialMode = "casual" | "ranked" | "training";
+export type SocialPresence =
+  | { kind: "offline" | "online" | "away" }
+  | { kind: "lobby"; mode: SocialMode; away: boolean }
+  | { kind: "game"; mode: SocialMode };
+
+export function socialIsAway(lastActiveAt: number, now = Date.now()) {
+  return now - lastActiveAt >= SOCIAL_AWAY_MS;
+}
+
+export function resolveSocialPresence(online: boolean, away: boolean, lobby?: { mode: SocialMode; inGame: boolean }): SocialPresence {
+  if (!online) return { kind: "offline" };
+  if (lobby?.inGame) return { kind: "game", mode: lobby.mode };
+  if (lobby) return { kind: "lobby", mode: lobby.mode, away };
+  return { kind: away ? "away" : "online" };
+}
+
+const MODE_LABELS: Record<SocialMode, string> = { casual: "Casual", ranked: "Ranked", training: "Training" };
+
+export function socialPresenceDisplay(account: Pick<SocialAccountSummary, "online" | "presence">) {
+  const presence: SocialPresence = account.online ? account.presence ?? { kind: "online" } : { kind: "offline" };
+  switch (presence.kind) {
+    case "game": return { label: "In Game – " + MODE_LABELS[presence.mode], tone: "game", away: false };
+    case "lobby": return { label: "In Lobby – " + MODE_LABELS[presence.mode], tone: presence.away ? "away" : "active", away: presence.away };
+    case "away": return { label: "Away", tone: "away", away: true };
+    case "online": return { label: "Online", tone: "active", away: false };
+    default: return { label: "Offline", tone: "offline", away: false };
+  }
+}
+
 export type SocialRelationship = "friend" | "incoming" | "outgoing" | "none";
 
 export type SocialAccountSummary = {
@@ -15,6 +47,7 @@ export type SocialAccountSummary = {
   losses: number;
   winRate: number;
   online: boolean;
+  presence?: SocialPresence;
   relationship: SocialRelationship;
 };
 

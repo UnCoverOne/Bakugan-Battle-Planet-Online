@@ -12,7 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { useLobbySession } from "../application/LobbySessionProvider";
-import type { SocialAccountSummary, SocialSnapshot } from "../../lib/social";
+import { SOCIAL_AWAY_MS, SOCIAL_ACTIVITY_REPORT_MS, type SocialAccountSummary, type SocialSnapshot } from "../../lib/social";
 import { readJsonResponse } from "../../lib/json-response";
 import { useAppFields } from "../application/AppProvider";
 import { EMPTY_INBOX, type MessageInbox } from "../../lib/social-messages";
@@ -157,12 +157,33 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     let retry: number | undefined;
     let attempts = 0;
     let disposed = false;
+    let lastInteraction = document.visibilityState === "visible" ? Date.now() : Date.now() - SOCIAL_AWAY_MS;
+    let lastReportedInteraction = 0;
+    let lastReport = 0;
+    const reportActivity = (force = false) => {
+      if (socket?.readyState !== WebSocket.OPEN) return;
+      const now = Date.now();
+      if (!force && (lastReportedInteraction === lastInteraction || now - lastReport < SOCIAL_ACTIVITY_REPORT_MS)) return;
+      socket.send("activity:" + Math.min(SOCIAL_AWAY_MS, Math.max(0, now - lastInteraction)));
+      lastReport = now;
+      lastReportedInteraction = lastInteraction;
+    };
+    const interact = (event: Event) => {
+      if (!event.isTrusted || document.visibilityState !== "visible") return;
+      const now = Date.now();
+      const wasAway = now - lastInteraction >= SOCIAL_AWAY_MS;
+      lastInteraction = now;
+      reportActivity(wasAway);
+    };
+    const activityEvents = ["pointerdown", "pointermove", "keydown", "wheel", "touchstart"] as const;
+    for (const event of activityEvents) window.addEventListener(event, interact, { passive: true });
+    const activityTimer = window.setInterval(() => reportActivity(), SOCIAL_ACTIVITY_REPORT_MS);
     const connect = () => {
       if (disposed || !navigator.onLine || socket?.readyState===WebSocket.OPEN || socket?.readyState===WebSocket.CONNECTING) return;
       if(retry){window.clearTimeout(retry);retry=undefined;}
       const protocol = location.protocol === "https:" ? "wss:" : "ws:";
       socket = new WebSocket(`${protocol}//${location.host}/api/social/socket`, "bbp-social-v1");
-      socket.addEventListener("open", () => { attempts = 0; });
+      socket.addEventListener("open", () => { attempts = 0; reportActivity(true); });
       socket.addEventListener("message", (event) => {
         let message: { type?: string; actorId?: string } = {};
         try { message = JSON.parse(String(event.data)) as { type?: string; actorId?: string }; } catch { return; }
@@ -193,6 +214,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       disposed = true;
       if (retry) window.clearTimeout(retry);
       window.removeEventListener("online", reconnect);
+      window.clearInterval(activityTimer);
+      for (const event of activityEvents) window.removeEventListener(event, interact);
       socket?.close(1000, "Page closed");
     };
   }, [authUser, notify, refresh, refreshInbox]);

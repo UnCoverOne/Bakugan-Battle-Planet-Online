@@ -4,8 +4,10 @@ import test from "node:test";
 import {DatabaseSync,type SQLInputValue} from "node:sqlite";
 import type {AccountDatabase} from "../lib/account-server";
 import {markMessagesRead,messageInbox,messageThread,reportMessagePeer,sendDirectMessage,setMessageBlock} from "../lib/social-messages-server";
+import {enrichSocialPresence} from "../lib/social-presence-state";
+import type {SocialAccountSummary} from "../lib/social";
 import {mergeMessages,normalizeMessage} from "../lib/social-messages";
-import { canonicalSocialPair, socialPresenceShard, sortSocialAccounts } from "../lib/social";
+import { canonicalSocialPair, socialPresenceShard, sortSocialAccounts, socialIsAway, resolveSocialPresence, socialPresenceDisplay, SOCIAL_AWAY_MS } from "../lib/social";
 
 const source = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -28,6 +30,24 @@ test("social accounts sort online first and then by display name", () => {
     { displayName: "Dan", online: true },
   ]);
   assert.deepEqual(sorted.map((account) => account.displayName), ["Dan", "Wynton", "Zane"]);
+});
+
+test("automatic presence respects connection, inactivity, lobby and game priority", () => {
+  assert.equal(socialIsAway(1000, 1000 + SOCIAL_AWAY_MS - 1), false);
+  assert.equal(socialIsAway(1000, 1000 + SOCIAL_AWAY_MS), true);
+  assert.deepEqual(socialPresenceDisplay({online:true}), {label:"Online",tone:"active",away:false});
+  assert.equal(socialPresenceDisplay({online:true,presence:resolveSocialPresence(true,true)}).label,"Away");
+  for (const mode of ["casual","ranked","training"] as const) {
+    const label=mode[0].toUpperCase()+mode.slice(1);
+    for(const away of [false,true]) {
+      assert.deepEqual(socialPresenceDisplay({online:true,presence:resolveSocialPresence(true,away,{mode,inGame:false})}),
+        {label:"In Lobby – "+label,tone:away?"away":"active",away});
+      assert.deepEqual(socialPresenceDisplay({online:true,presence:resolveSocialPresence(true,away,{mode,inGame:true})}),
+        {label:"In Game – "+label,tone:"game",away:false});
+      assert.deepEqual(resolveSocialPresence(false,away,{mode,inGame:true}),{kind:"offline"});
+    }
+  }
+  assert.equal(socialPresenceDisplay({online:false,presence:{kind:"game",mode:"ranked"}}).label,"Offline");
 });
 
 test("social persistence enforces relationship and invitation invariants", async () => {
@@ -111,6 +131,39 @@ async function messageDatabase(){
   }} as unknown as AccountDatabase;
   return {sqlite,db};
 }
+test("presence uses current unexpired lobby memberships, not client mode claims",async()=>{
+  const {sqlite,db}=await messageDatabase();
+  const now=100000;
+  const account=(userId:string,online=true,away=false):SocialAccountSummary=>({
+    userId,displayName:userId,faction:"Pyrus",avatar:"",titleId:"",rank:"",bp:0,wins:0,losses:0,winRate:0,
+    online,relationship:"none",presence:resolveSocialPresence(online,away),
+  });
+  try {
+    sqlite.exec(await source("migrations/0016_lobby_sessions.sql"));
+    const add=sqlite.prepare("INSERT INTO lobby_sessions(id,code,mode,configuration_json,created_at) VALUES (?,?,?,'{}',0)");
+    const join=sqlite.prepare("INSERT INTO lobby_memberships(id,lobby_id,identity_key,joined_at,last_seen_at,expires_at) VALUES (?,?,?,0,?,?)");
+    for(const mode of ["casual","ranked","training"]){
+      add.run(mode,mode,mode);
+      join.run(mode,mode,"account:"+mode,0,3600000);
+    }
+    const accounts=[account("casual",true,true),account("ranked"),account("training"),account("other"),account("offline",false)];
+    const get=async()=>Object.fromEntries((await enrichSocialPresence(db,accounts,now)).map(a=>[a.userId,socialPresenceDisplay(a)]));
+    let statuses=await get();
+    assert.deepEqual(statuses.casual,{label:"In Lobby – Casual",tone:"away",away:true});
+    assert.equal(statuses.ranked.label,"In Lobby – Ranked");
+    assert.equal(statuses.training.label,"In Lobby – Training");
+    assert.equal(statuses.other.label,"Online");
+    assert.equal(statuses.offline.label,"Offline");
+    sqlite.exec("UPDATE lobby_sessions SET current_series_id='series-'||id");
+    statuses=await get();
+    for(const mode of ["casual","ranked","training"])assert.equal(statuses[mode].tone,"game");
+    sqlite.exec("UPDATE lobby_sessions SET current_series_id=NULL WHERE id='ranked'; UPDATE lobby_memberships SET left_at=100,departure_reason='left' WHERE id='casual'; UPDATE lobby_memberships SET last_seen_at=-3600000,expires_at=0 WHERE id='training'");
+    statuses=await get();
+    assert.equal(statuses.casual.label,"Away");
+    assert.equal(statuses.ranked.label,"In Lobby – Ranked");
+    assert.equal(statuses.training.label,"Online");
+  }finally{sqlite.close();}
+});
 const key=(n:number)=>"test-message-id-"+String(n).padStart(6,"0");
 test("non-friends can message offline accounts; history, unread and retries are account-scoped",async()=>{
   const {sqlite,db}=await messageDatabase();

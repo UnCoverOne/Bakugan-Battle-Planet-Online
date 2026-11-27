@@ -1,3 +1,4 @@
+import { enrichSocialPresence } from "./social-presence-state";
 import { managedInvitableLobby, managedInvitationLobby, acceptManagedInvitation } from "./lobby-social-server";
 import { ensureAdministrationSchema, type AccountDatabase } from "./account-server";
 import { ensureAccountDataSchema } from "./account-data-server";
@@ -96,6 +97,7 @@ function accountFromRow(row: ProfileRow): SocialAccountSummary {
     losses,
     winRate: decided ? Math.round((wins / decided) * 1_000) / 10 : 0,
     online: false,
+    presence: { kind: "offline" },
     relationship: "none",
   };
 }
@@ -294,6 +296,7 @@ export async function buildSocialSnapshot(
 ): Promise<SocialSnapshot> {
   await ensureSocialSchema(db);
   await expireInvitations(db);
+  onlineAccounts = await enrichSocialPresence(db, onlineAccounts);
   const [relationships, inviteRows, lobby] = await Promise.all([
     db.prepare("SELECT user_low, user_high, requested_by, status FROM social_relationships WHERE user_low = ? OR user_high = ? ORDER BY updated_at DESC")
       .bind(viewerId, viewerId).all<RelationshipRow>(),

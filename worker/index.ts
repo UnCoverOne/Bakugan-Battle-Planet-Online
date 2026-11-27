@@ -30,7 +30,7 @@ import { assertSameOrigin } from "../lib/request-security";
 import { AuthorizationError, ValidationError, serverErrorResponse } from "../lib/server-errors";
 import { ensureSocialSchema, loadSocialAccount } from "../lib/social-server";
 import { ensureMatchSessionSchema } from "../lib/match-session-schema";
-import { socialPresenceShard, type SocialAccountSummary } from "../lib/social";
+import { SOCIAL_AWAY_MS, socialIsAway, resolveSocialPresence, socialPresenceShard, type SocialAccountSummary } from "../lib/social";
 
 interface Env {
   ASSETS: Fetcher;
@@ -62,6 +62,8 @@ type HibernatingState = {
 type SocialSocketAttachment = {
   userId: string;
   account: SocialAccountSummary;
+  lastActiveAt?: number;
+  lastActivityReportAt?: number;
 };
 
 function socialSocketSend(socket: WebSocket, payload: unknown) {
@@ -80,12 +82,16 @@ function socialSocketSend(socket: WebSocket, payload: unknown) {
 export class SocialPresence {
   constructor(private state: HibernatingState, private env: Env) {}
 
-  private accounts() {
+  private accounts(userId?: string) {
     const accounts = new Map<string, SocialAccountSummary>();
-    for (const socket of this.state.getWebSockets()) {
+    const now = Date.now();
+    for (const socket of this.state.getWebSockets(userId)) {
+      if (socket.readyState !== WebSocket.OPEN) continue;
       const attachment = socket.deserializeAttachment?.() as SocialSocketAttachment | undefined;
       if (attachment?.userId && attachment.account) {
-        accounts.set(attachment.userId, { ...attachment.account, online: true, relationship: "none" });
+        const previous = accounts.get(attachment.userId);
+        const away = socialIsAway(attachment.lastActiveAt ?? now, now) && (!previous || previous.presence?.kind === "away");
+        accounts.set(attachment.userId, { ...attachment.account, online: true, presence: resolveSocialPresence(true, away), relationship: "none" });
       }
     }
     return [...accounts.values()];
@@ -120,14 +126,14 @@ export class SocialPresence {
     if (!userId || account?.userId !== userId) return new Response("Forbidden", { status: 403 });
     const protocols = (request.headers.get("sec-websocket-protocol") ?? "").split(",").map((value) => value.trim());
     if (!protocols.includes("bbp-social-v1")) return new Response("Social protocol required", { status: 400 });
-    const wasOnline = this.state.getWebSockets(userId).length > 0;
+    const wasOnline = this.state.getWebSockets(userId).some(socket => socket.readyState === WebSocket.OPEN);
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
-    server.serializeAttachment?.({ userId, account } satisfies SocialSocketAttachment);
+    server.serializeAttachment?.({ userId, account, lastActiveAt: Date.now() } satisfies SocialSocketAttachment);
     this.state.acceptWebSocket(server, [userId]);
-    socialSocketSend(server, { type: "presence.snapshot", accounts: this.accounts() });
-    if (!wasOnline) this.broadcast({ type: "presence.changed", account: { ...account, online: true, relationship: "none" } }, server);
+    socialSocketSend(server, { type: "presence.snapshot" });
+    if (!wasOnline) this.broadcast({ type: "presence.changed" }, server);
     return new Response(null, {
       status: 101,
       webSocket: client,
@@ -136,17 +142,25 @@ export class SocialPresence {
   }
 
   webSocketMessage(socket: WebSocket, message: string | ArrayBuffer) {
-    if (typeof message === "string" && message === "ping") socialSocketSend(socket, { type: "pong" });
+    if (message === "ping") { socialSocketSend(socket, { type: "pong" }); return; }
+    // A client reports elapsed time since its own last interaction, never a game mode or another account.
+    if (typeof message !== "string" || !/^activity:[0-9]{1,6}$/.test(message)) return;
+    const age = Math.min(SOCIAL_AWAY_MS, Number(message.slice(9)));
+    const attachment = socket.deserializeAttachment?.() as SocialSocketAttachment | undefined;
+    if (!attachment?.userId) return;
+    const now = Date.now();
+    if (attachment.lastActivityReportAt && now - attachment.lastActivityReportAt < 1000) return;
+    const before = this.accounts(attachment.userId)[0]?.presence?.kind;
+    socket.serializeAttachment?.({ ...attachment, lastActiveAt: now - age, lastActivityReportAt: now } satisfies SocialSocketAttachment);
+    const after = this.accounts(attachment.userId)[0]?.presence?.kind;
+    if (before !== after) this.broadcast({ type: "presence.changed" });
   }
 
   webSocketClose(socket: WebSocket) {
     const attachment = socket.deserializeAttachment?.() as SocialSocketAttachment | undefined;
     if (!attachment?.userId) return;
-    const stillOnline = this.state.getWebSockets(attachment.userId).some((candidate) => candidate !== socket);
-    if (!stillOnline) this.broadcast({
-      type: "presence.changed",
-      account: { ...attachment.account, online: false, relationship: "none" },
-    }, socket);
+    // A closing active tab can leave only inactive tabs behind.
+    this.broadcast({ type: "presence.changed" }, socket);
   }
 
   webSocketError(socket: WebSocket) { this.webSocketClose(socket); }
