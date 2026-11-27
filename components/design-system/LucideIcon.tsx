@@ -10,9 +10,19 @@ export type LucideIconName =
   | "layout-list" | "layout-grid" | "sliders-horizontal" | "list"
   | "search" | "hexagon" | "rectangle-vertical" | "circle-minus"
   | "plus" | "minus" | "x" | "chevron-left" | "chevron-right"
+  | "user-round" | "history" | "settings" | "log-out" | "shield" | "layers" | "layout-dashboard" | "play" | "library-big"
   | "users" | "inbox" | "ellipsis" | "send" | "chevron-down" | "file-pen-line" | "link" | "globe" | "image" | "bot" | "swords" | "trophy" | "lock" | "message-square" | "copy";
 
 const glyphs: Record<LucideIconName, ReactNode> = {
+  "user-round": <><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></>,
+  "history": <><path d="M3 12a9 9 0 1 1 9 9 9 9 0 0 1-6.7-3"/><path d="M3 3v9h9M12 7v5l4 2"/></>,
+  "settings": <><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.16-.09a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.16.09a2 2 0 0 1 1 1.73v.5a2 2 0 0 1-1 1.74l-.16.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.16-.09a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.16.09a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.16-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.73l.16-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.16.09a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></>,
+  "log-out": <><path d="M10 17l5-5-5-5M15 12H3M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7"/></>,
+  "shield": <path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11z"/>,
+  "layout-dashboard": <><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></>,
+  "play": <polygon points="6 3 20 12 6 21 6 3"/>,
+  "layers": <><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.64 0l8.6-3.9A1 1 0 0 0 22 12M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.64 0l8.6-3.9A1 1 0 0 0 22 17"/></>,
+  "library-big": <><rect width="8" height="18" x="3" y="3" rx="1"/><path d="M7 3v18M20.4 18.9c.2.5-.1 1.1-.6 1.3l-1.9.7c-.5.2-1.1-.1-1.3-.6L11.1 5.1a1 1 0 0 1 .6-1.3l1.9-.7a1 1 0 0 1 1.3.6Z"/></>,
   "users": <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3.87-3.87M16 3.13a4 4 0 0 1 0 7.75"/></>,
   "inbox": <><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/></>,
   "ellipsis": <><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></>,

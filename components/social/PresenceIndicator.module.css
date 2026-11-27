@@ -1,0 +1,5 @@
+.presence{display:block;font:12px/1.3 var(--bb-font-content);color:var(--bb-muted)}
+.presence i{display:inline-block;width:7px;height:7px;margin-right:5px;border-radius:50%;background:var(--bb-muted)}
+.presence[data-tone=active] i{background:var(--bb-success)}
+.presence[data-tone=away] i{background:var(--bb-presence-away)}
+.presence[data-tone=game] i{background:var(--bb-nav-indicator)}

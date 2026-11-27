@@ -1,0 +1,9 @@
+# Profile menu
+
+The avatar opens a 310px non-modal desktop menu or a full-viewport native modal dialog at 850px and below. Both layouts use the same horizontal identity header, faction-bordered 58px avatar, equipped title, automatic presence and menu rows. The background and hover are the same shared tokens as Social. View Profile, Achievements, Match Records and Collection share one style; dividers separate identity, personal features, utilities and session management. Sign Out stays at the bottom on mobile. No manual presence or statistics are introduced.
+
+Guests see a neutral avatar, registration and login, Settings and Feedback & Reports; private destinations and sign-out are not displayed. Administrators alone see Administration, while the existing server authorization remains mandatory. Feedback is imported on demand, reusing the existing authenticated submission form. Sign-out retains AppShell's cloud-save and recovery safeguards.
+
+The social snapshot carries the authenticated viewer's own resolved presence, without adding the viewer to any directory group. Both menus use PresenceIndicator and its shared colour CSS. There is no new database migration. The old profile menu and its scoped CSS are removed from SiteNavigation, and mobile primary nav glyphs use LucideIcon.
+
+Verification: run npm run check:palette, node --import tsx --test tests/profile-menu.test.ts, npm run test:social, npm run build, and npm run test:visual -- tests/visual/profile-menu.spec.ts. The new browser tests cover guests, mocked authenticated Brawlers and administrators, shared colours, section dividers, responsive dimensions, keyboard dismissal, feedback sign-in and menu switching. On isolated preview, also verify real account profile links, presence transitions, feedback submission, admin authorization and sign-out with unsynced changes.

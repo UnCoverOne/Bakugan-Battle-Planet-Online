@@ -370,6 +370,7 @@ export async function buildSocialSnapshot(
     }];
   });
   return {
+    selfPresence: onlineAccounts.find(account => account.userId === viewerId)?.presence ?? { kind: "offline" },
     friends: sortSocialAccounts(friends),
     incomingRequests: sortSocialAccounts(incomingRequests),
     outgoingRequests: sortSocialAccounts(outgoingRequests),

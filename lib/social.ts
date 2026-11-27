@@ -69,6 +69,7 @@ export type ActiveSocialLobby = {
 };
 
 export type SocialSnapshot = {
+  selfPresence?: SocialPresence;
   friends: SocialAccountSummary[];
   incomingRequests: SocialAccountSummary[];
   outgoingRequests: SocialAccountSummary[];

@@ -4,11 +4,12 @@ import {useEffect,useLayoutEffect,useRef,useState,type ReactNode} from "react";
 import {ProfileAvatar} from "../profile/ProfileAvatar";
 import {LucideIcon,type LucideIconName} from "../design-system/LucideIcon";
 import {useAppFields} from "../application/AppProvider";
-import {socialPresenceDisplay,sortSocialAccounts,type SocialAccountSummary,type LobbyInviteSummary} from "../../lib/social";
+import {sortSocialAccounts,type SocialAccountSummary,type LobbyInviteSummary} from "../../lib/social";
 import {useSocial,type SocialTab} from "./SocialProvider";
 import {Conversation} from "./Conversation";
 import {messageRequest} from "./message-client";
 import styles from "./SocialProvider.module.css";
+import {PresenceIndicator} from "./PresenceIndicator";
 
 const tabs:{name:SocialTab;icon:LucideIconName}[]=[{name:"Brawlers",icon:"users"},{name:"Messages",icon:"message-square"},{name:"Requests",icon:"inbox"}];
 function Badge({count}:{count:number}){return count>0?<span className={styles.badge} aria-label={count+" unread"}>{count>99?"99+":count}</span>:null;}
@@ -21,8 +22,7 @@ export function SocialAvatar({account}:{account:SocialAccountSummary}){
 }
 export function Presence({account,showRelationship=false}:{account:SocialAccountSummary;showRelationship?:boolean}){
  const pending=showRelationship?(account.relationship==="incoming"?" · Friend request":account.relationship==="outgoing"?" · Request sent":""):"";
- const {label,tone,away}=socialPresenceDisplay(account);
- return <small className={styles.presence} data-tone={tone} title={away&&label!=="Away"?label+" (Away)":label} aria-label={label+(away&&label!=="Away"?", away":"")+pending}><i aria-hidden="true"/>{label}{pending}</small>;
+ return <PresenceIndicator account={account} suffix={pending}/>;
 }
 function allAccounts(snapshot:ReturnType<typeof useSocial>["snapshot"]){
  const result=new Map<string,SocialAccountSummary>();

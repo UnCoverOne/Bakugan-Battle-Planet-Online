@@ -21,6 +21,8 @@ const targets = [
   "components/application/LobbyChatPanel.module.css",
   "components/routes/BattleActivityPanel.module.css",
   "components/social/SocialProvider.module.css",
+  "components/social/PresenceIndicator.module.css",
+  "components/application/ProfileMenu.module.css",
   "components/social/MatchResultSocial.module.css",
 ];
 const errors = [];

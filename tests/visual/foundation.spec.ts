@@ -41,104 +41,12 @@ async function waitForWorkspace(page: Page) {
 }
 
 
-test("mobile shell shares the desktop account menu and primary tabs", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "mobile", "Mobile shell contract");
-
-  await page.goto("/dashboard");
-  await waitForWorkspace(page);
-
-  const bottomNavigation = page.locator(".mobile-bottom-nav");
-  await expect(bottomNavigation).toBeVisible();
-  await expect(bottomNavigation.locator("a")).toHaveCount(5);
-  await expect(bottomNavigation.locator("a span")).toHaveText([
-    "Home",
-    "Play",
-    "Decks",
-    "Compendium",
-    "Leaderboard",
-  ]);
-  await expect(bottomNavigation.getByText("Profile", { exact: true })).toHaveCount(0);
-
-  const accountTrigger = page.getByRole("button", {
-    name: "Open profile menu",
-  });
-  await expect(accountTrigger).toBeVisible();
-  await accountTrigger.click();
-
-  const accountMenu = page.locator("#profile-menu");
-  await expect(accountMenu).toBeVisible();
-  const [menuBounds, viewport] = await Promise.all([
-    accountMenu.boundingBox(),
-    Promise.resolve(page.viewportSize()),
-  ]);
-  expect(menuBounds).not.toBeNull();
-  expect(viewport).not.toBeNull();
-  expect(menuBounds!.x).toBeGreaterThanOrEqual(0);
-  expect(menuBounds!.y).toBeGreaterThanOrEqual(64);
-  expect(menuBounds!.x + menuBounds!.width).toBeLessThanOrEqual(viewport!.width);
-  expect(menuBounds!.y + menuBounds!.height).toBeLessThanOrEqual(viewport!.height);
-  await expect(accountMenu.getByRole("link", { name: "View Profile" })).toBeVisible();
-  await expect(accountMenu.getByRole("link", { name: "Achievements" })).toBeVisible();
-  await expect(accountMenu.getByRole("link", { name: "Settings" })).toBeVisible();
-  await expect(accountMenu.locator(".profile-popover-title img")).toBeVisible();
-  await expect(accountMenu.locator(".profile-popover-stat-value")).toHaveCount(2);
-  await expect(accountMenu.getByRole("button", { name: "Log out" })).toBeVisible();
-});
-
-test("account menu rows keep identical alignment on Home and secondary routes", async ({ page }) => {
-  for (const route of ["/dashboard", "/compendium"]) {
-    await page.goto(route);
-    await waitForWorkspace(page);
-    await page.getByRole("button", { name: "Open profile menu" }).click();
-
-    const accountMenu = page.locator("#profile-menu");
-    await expect(accountMenu.locator(".profile-popover-row-label")).toHaveText([
-      "View Profile",
-      "Achievements",
-      "Settings",
-    ]);
-
-    const geometry = await accountMenu.evaluate((menu) => {
-      const navigation = menu.querySelector("nav")!;
-      const navigationBounds = navigation.getBoundingClientRect();
-      return Array.from(menu.querySelectorAll<HTMLElement>(".profile-popover-row")).map((row) => {
-        const rowBounds = row.getBoundingClientRect();
-        const label = row.querySelector<HTMLElement>(".profile-popover-row-label")!;
-        const chevron = row.querySelector<HTMLElement>(".profile-popover-chevron")!;
-        return {
-          navigationLeft: navigationBounds.left,
-          navigationRight: navigationBounds.right,
-          rowLeft: rowBounds.left,
-          rowRight: rowBounds.right,
-          labelLeft: label.getBoundingClientRect().left,
-          chevronLeft: chevron.getBoundingClientRect().left,
-          chevronRight: chevron.getBoundingClientRect().right,
-          labelAlignment: getComputedStyle(label).textAlign,
-        };
-      });
-    });
-
-    expect(geometry).toHaveLength(3);
-    for (const row of geometry) {
-      expect(Math.abs(row.rowLeft - row.navigationLeft)).toBeLessThanOrEqual(1);
-      expect(Math.abs(row.rowRight - row.navigationRight)).toBeLessThanOrEqual(1);
-      expect(row.labelAlignment).toBe("left");
-      expect(row.labelLeft).toBeLessThan(row.chevronLeft);
-      expect(row.chevronRight).toBeLessThanOrEqual(row.rowRight);
-    }
-
-    if (route === "/compendium") {
-      const layers = await page.evaluate(() => {
-        const topbar = document.querySelector<HTMLElement>(".overhaul-topbar");
-        const toolbar = document.querySelector<HTMLElement>("main [class*='toolbar']");
-        return {
-          topbar: Number(getComputedStyle(topbar!).zIndex),
-          toolbar: Number(getComputedStyle(toolbar!).zIndex),
-        };
-      });
-      expect(layers.topbar).toBeGreaterThan(layers.toolbar);
-    }
-  }
+test("mobile primary navigation has the four current destinations", async ({page},testInfo)=>{
+  test.skip(testInfo.project.name!=="mobile","Mobile shell contract");
+  await page.goto("/");
+  const nav=page.getByRole("navigation",{name:"Primary navigation"});
+  await expect(nav).toBeVisible({timeout:15000});
+  await expect(nav.getByRole("link")).toHaveText(["HOME","PLAY","DECKS","COMPENDIUM"]);
 });
 
 async function attachViewport(page: Page, testInfo: TestInfo, routeName: string) {
