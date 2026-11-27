@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { OriginalImage } from "@/components/media/OriginalImage";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -242,7 +243,7 @@ function TieBreakLayerContent({
         <div className={styles.errorPopup} role="alert">
           <strong>Tie-break</strong>
           <span>{error}</span>
-          <button type="button" onClick={() => setError("")} aria-label="Dismiss tie-break error">×</button>
+          <button type="button" onClick={() => setError("")} aria-label="Dismiss tie-break error"><LucideIcon name="x" size={20}/></button>
         </div>,
         document.body,
       ) : null}

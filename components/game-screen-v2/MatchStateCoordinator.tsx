@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { OriginalImage } from "@/components/media/OriginalImage";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
@@ -200,7 +201,7 @@ function MatchResultDialog({
           aria-label="Close match result"
           onClick={onDismiss}
         >
-          ×
+          <LucideIcon name="x" size={20}/>
         </button>
         <header className={styles.header}>
           <OriginalImage className={styles.logo} src="/assets/logo.png" alt="" aria-hidden="true" />

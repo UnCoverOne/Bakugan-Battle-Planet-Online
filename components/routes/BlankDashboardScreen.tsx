@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import Link from "next/link";
 import { useState } from "react";
 import { achievementsForProfile, ACHIEVEMENT_CATEGORY_DETAILS } from "../../lib/achievements";
@@ -94,14 +95,14 @@ export function BlankDashboardScreen() {
                     <span className={styles.actionTitle}>{activeLobby?"RETURN TO LOBBY":"PLAY"}</span>
                     <span className={styles.actionSubtitle}>{activeLobby?(activeLobby.currentSeriesId?"Series in progress":"Lobby open"):(lobbySession.unavailable||lobbySession.recovery.status==="checking")?"Check lobby status":"Start a New Game"}</span>
                   </span>
-                  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="m8 5.5 11 6.5-11 6.5v-13Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>
+                  <LucideIcon name="play"/>
                 </Link>
                 <Link href="/decks" className={`${styles.action} ${styles.secondary}`}>
                   <span className={styles.actionCopy}>
                     <span className={styles.actionTitle}>DECKS</span>
                     <span className={styles.actionSubtitle}>Build and Manage Decks</span>
                   </span>
-                  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="0" stroke="currentColor" strokeWidth="1.8"/><path d="M8 7h8M8 11h8M8 15h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+                  <LucideIcon name="file-text"/>
                 </Link>
               </div>
             </div>

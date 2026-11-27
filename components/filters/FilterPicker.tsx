@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { OriginalImage } from "@/components/media/OriginalImage";
 
 import { createPortal } from "react-dom";
@@ -115,7 +116,7 @@ export function FilterPicker({
               <span>{label}</span>
               <strong>{localValues.length ? `${localValues.length} selected` : "All"}</strong>
             </div>
-            <button type="button" onClick={() => setOpen(false)} aria-label={`Close ${label} options`}>×</button>
+            <button type="button" onClick={() => setOpen(false)} aria-label={`Close ${label} options`}><LucideIcon name="x" size={20}/></button>
           </header>
           {searchable && (
             <label className={styles.search}>

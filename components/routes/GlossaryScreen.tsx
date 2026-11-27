@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { filterGlossary, glossaryKey, glossaryRuleHref, PRINTED_ICON_RULES } from "../../lib/glossary";
 import { OriginalImage } from "../media/OriginalImage";
 import { CompendiumSidebar } from "./CompendiumSidebar";
@@ -16,7 +17,7 @@ type GlossaryProps = {
 function RuleLink({ rule, title }: { rule: string; title: string }) {
   return <a className={styles.ruleLink} href={glossaryRuleHref(rule)}
     aria-label={`View rules for ${title}`}>
-    View rules <span aria-hidden="true">↗</span>
+    View rules <LucideIcon name="arrow-up-right" size={16}/>
   </a>;
 }
 

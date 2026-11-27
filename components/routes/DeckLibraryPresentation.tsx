@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import Link from "next/link";
 import { type ReactNode } from "react";
 import { FACTIONS } from "../../lib/card-filters";
@@ -53,13 +54,13 @@ export function DeckToolbar({
   return <div className={library.toolbar} role="search" aria-label="Search and filter decks">
     <label className={library.search}>
       <span className={library.srOnly}>Search decks</span>
-      <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <LucideIcon name="search"/>
       <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search decks…" />
-      {query && <button type="button" className={library.clearSearch} aria-label="Clear deck search" onClick={() => setQuery("")}>×</button>}
+      {query && <button type="button" className={library.clearSearch} aria-label="Clear deck search" onClick={() => setQuery("")}><LucideIcon name="x" size={16}/></button>}
     </label>
     <details className={library.filterWrap}>
       <summary className={library.filterButton}>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg>
+        <LucideIcon name="filter"/>
         <span className={library.filterText}>Filters</span>
         {activeFilters > 0 && <span className={library.filterCount}>{activeFilters}</span>}
       </summary>
@@ -90,8 +91,8 @@ export function DeckToolbar({
       </select>
     </label>
     <div className={library.viewToggle} role="group" aria-label="Deck layout">
-      <button type="button" className={library.viewButton} title="Grid view" aria-label="Grid view" aria-pressed={view === "grid"} onClick={() => setView("grid")}><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button>
-      <button type="button" className={library.viewButton} title="List view" aria-label="List view" aria-pressed={view === "list"} onClick={() => setView("list")}><svg viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12M3 6h2M3 12h2M3 18h2"/></svg></button>
+      <button type="button" className={library.viewButton} title="Grid view" aria-label="Grid view" aria-pressed={view === "grid"} onClick={() => setView("grid")}><LucideIcon name="layout-grid"/></button>
+      <button type="button" className={library.viewButton} title="List view" aria-label="List view" aria-pressed={view === "list"} onClick={() => setView("list")}><LucideIcon name="list"/></button>
     </div>
   </div>;
 }

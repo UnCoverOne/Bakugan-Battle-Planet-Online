@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { WEBSITE_UPDATE, websitePatchHref } from "../../lib/content/website-updates";
@@ -14,12 +15,7 @@ export function WebsiteUpdatesStrip() {
     <section className={styles.strip} aria-labelledby="home-updates-title">
       <div className={styles.identity}>
         <span className={styles.icon} aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 12a9 9 0 0 1 15.4-6.4L21 8" />
-            <path d="M21 3v5h-5" />
-            <path d="M21 12a9 9 0 0 1-15.4 6.4L3 16" />
-            <path d="M3 21v-5h5" />
-          </svg>
+          <LucideIcon name="refresh-cw"/>
         </span>
         <div className={styles.summary}>
           <h2 id="home-updates-title">Website Updates</h2>
@@ -28,7 +24,7 @@ export function WebsiteUpdatesStrip() {
       </div>
       <div className={styles.actions}>
         <span className={styles.version} aria-label={`Website version ${APPLICATION_VERSION}`}>v{APPLICATION_VERSION}</span>
-        <Link href={websitePatchHref(update)}>Patch Notes <span aria-hidden="true">↗</span></Link>
+        <Link href={websitePatchHref(update)}>Patch Notes <LucideIcon name="arrow-up-right" size={16}/></Link>
       </div>
     </section>
   );

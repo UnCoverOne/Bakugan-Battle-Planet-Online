@@ -216,3 +216,6 @@ body { line-height: 1.5; }
 :root[data-motion="reduced"] :where(.blank-shell:not(.immersive-shell) *,dialog[data-settings-menu] *,dialog[data-match-menu] *){
   animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important;
 }
+
+/* Shared Lucide icons stay aligned with text and keep their aspect ratio in flex rows. */
+.bb-lucide{vertical-align:middle;flex-shrink:0}

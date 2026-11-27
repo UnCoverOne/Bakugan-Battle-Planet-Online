@@ -1,4 +1,5 @@
 "use client";
+import { LucideIcon } from "../design-system/LucideIcon";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import styles from "./CompendiumSidebar.module.css";
 
@@ -50,8 +51,8 @@ export function CompendiumSidebar({ label, open, desktopVisible, onClose, childr
     <div className={styles.header}><strong>{label}</strong>
       <button type="button" ref={closeRef} aria-label={mobile ? `Close ${label}` : `Collapse ${label} panel`} onClick={onClose}>
         {/* Lucide ChevronLeft: desktop collapse direction. */}
-        <svg className={styles.collapseIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
-        <svg className={styles.closeIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+        <LucideIcon name="chevron-left" className={styles.collapseIcon}/>
+        <LucideIcon name="x" className={styles.closeIcon}/>
       </button>
     </div>
     {onClear && <div className={styles.clearRow}><span>{activeCount} active {activeCount === 1 ? "filter" : "filters"}</span><button type="button" onClick={onClear} disabled={activeCount === 0}>Clear all</button></div>}

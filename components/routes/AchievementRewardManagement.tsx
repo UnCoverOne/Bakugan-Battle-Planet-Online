@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ACHIEVEMENT_CATEGORIES,
@@ -414,13 +415,13 @@ export function AchievementRewardManagement() {
                       <>
                         <small>{reward.groupLabel}</small>
                         <strong>{reward.label}</strong>
-                        <span>Change reward →</span>
+                        <span>Change reward <LucideIcon name="arrow-right" size={16}/></span>
                       </>
                     ) : (
                       <>
                         <small>Reward</small>
                         <strong>No reward</strong>
-                        <span>Select reward →</span>
+                        <span>Select reward <LucideIcon name="arrow-right" size={16}/></span>
                       </>
                     )}
                   </button>
@@ -642,7 +643,7 @@ function RewardPickerModal({
               ) : permanent ? (
                 <StatusChip tone="success">DEFAULT</StatusChip>
               ) : (
-                <span aria-hidden="true">→</span>
+                <LucideIcon name="arrow-right" size={16}/>
               )}
             </button>
           );
@@ -768,7 +769,7 @@ function AdminModal({
             <h2 id="achievement-admin-dialog-title">{title}</h2>
             <p>{description}</p>
           </div>
-          <button type="button" aria-label="Close" onClick={onClose}>×</button>
+          <button type="button" aria-label="Close" onClick={onClose}><LucideIcon name="x" size={20}/></button>
         </header>
         <div className={styles.dialogBody}>{children}</div>
       </Surface>

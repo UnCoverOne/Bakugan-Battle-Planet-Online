@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
@@ -264,7 +265,7 @@ export function CollectionScreen() {
         <main className={compendiumStyles.gallery}>
           {activeTab === "cards" ? <CardGrid className={`${styles.cardGrid} ${cardState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={cardState.density === "compact" ? "9.25rem" : "11.5rem"}>{(visible as typeof CARDS).map((card) => { const entry = cardEntries.get(card.catalogId)!; return <CollectionCard key={card.catalogId} card={card} entry={entry} selected={selected?.catalogId === card.catalogId} onSelect={selectCard} onQuickChange={(field, delta) => changeCollection(card.catalogId, field, delta)} />; })}</CardGrid> : <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>{(visible as typeof CORE_COMPENDIUM).map((core) => { const entry = collectionEntryForIds(collection, coreCollectionIds(core)); return <CollectionCore key={core.id} core={core} entry={entry} selected={selectedCore?.id === core.id} onSelect={selectCore} onQuickChange={(field, delta) => changeCollection(core.catalogId ?? core.id, field, delta)} />; })}</CardGrid>}
           {!visible.length && <Surface className={compendiumStyles.emptyResults} role="status"><span>◇</span><h2>No collection items match</h2><p>Adjust the search or clear the active filters to return to the full archive.</p><ActionButton tone="secondary" onClick={clearFilters}>Clear filters</ActionButton></Surface>}
-          <nav className={compendiumStyles.pagination} aria-label="Collection pages"><button disabled={page === 1} onClick={() => setPage(page - 1)}>← Previous</button><span>Page {page} of {pages}</span><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next →</button></nav>
+          <nav className={compendiumStyles.pagination} aria-label="Collection pages"><button disabled={page === 1} onClick={() => setPage(page - 1)}><LucideIcon name="arrow-left" size={16}/> Previous</button><span>Page {page} of {pages}</span><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next <LucideIcon name="arrow-right" size={16}/></button></nav>
         </main>
         {selectedCard && <CardInspector card={selectedCard} allCards={CARDS} tab={inspectorTab} printingId={searchParams.get("printing") ?? ""} onPrintingChange={(printing) => navigate({ printing })} onSelectCard={selectRelatedCard} collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={(tab) => navigate({ tab })} onClose={closeInspector} returnFocusRef={inspectorTrigger} />}
         {selectedCore && <CardInspector core={selectedCore} allCores={CORE_COMPENDIUM} tab={inspectorTab} printingId={searchParams.get("printing") ?? ""} onPrintingChange={(printing) => navigate({ printing })} preferredCorePrintingId={coreState.set.length === 1 ? selectedCore.printings?.find(p => p.set === coreState.set[0])?.id : undefined} collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={(tab) => navigate({ tab })} onClose={closeInspector} returnFocusRef={inspectorTrigger} />}
@@ -287,9 +288,9 @@ function CollectionCore({ core, entry, selected, onSelect, onQuickChange }: { co
 function CollectionFooter({ label, owned, wishlist, standard, onQuickChange }: { label: string; owned: number; wishlist: number; standard: number; onQuickChange: (field: CollectionField, delta: number) => void }) {
   return <div className={styles.collectionFooter}>
     <div data-ui="quantity-control" className={styles.quickCounter} aria-label={`${label} owned copies`}>
-      <button type="button" aria-label={`Decrease standard copies for ${label}`} disabled={!standard} onClick={() => onQuickChange("standard", -1)}>−</button>
+      <button type="button" aria-label={`Decrease standard copies for ${label}`} disabled={!standard} onClick={() => onQuickChange("standard", -1)}><LucideIcon name="minus" size={16}/></button>
       <span className={styles.collectionBadge}><MotionValue value={owned} /></span>
-      <button type="button" aria-label={`Increase standard copies for ${label}`} onClick={() => onQuickChange("standard", 1)}>+</button>
+      <button type="button" aria-label={`Increase standard copies for ${label}`} onClick={() => onQuickChange("standard", 1)}><LucideIcon name="plus" size={16}/></button>
     </div>
     {wishlist > 0 && <span className={styles.collectionBadge} aria-label={`${label} wishlist copies`}>★ <MotionValue value={wishlist} /></span>}
   </div>;

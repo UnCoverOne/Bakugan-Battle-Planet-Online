@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { OriginalImage } from "@/components/media/OriginalImage";
 
 import Link from "next/link";
@@ -316,10 +317,7 @@ function ShowcaseSection({
 
 function PencilIcon() {
   return (
-    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
-      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25Z" />
-      <path d="m14.06 4.19 2.37-2.37a1 1 0 0 1 1.42 0l4.33 4.33a1 1 0 0 1 0 1.42l-2.37 2.37-5.75-5.75Z" />
-    </svg>
+    <LucideIcon name="pencil"/>
   );
 }
 

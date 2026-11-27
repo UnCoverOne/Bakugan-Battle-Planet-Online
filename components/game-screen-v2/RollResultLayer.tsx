@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { OriginalImage } from "@/components/media/OriginalImage";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
@@ -94,7 +95,7 @@ export function RollResultLayer({
           aria-label="Close roll results"
           onClick={onDismiss}
         >
-          ×
+          <LucideIcon name="x" size={20}/>
         </button>
         <header className={styles.header}>
           <h2 id="roll-result-title">Roll Results</h2>

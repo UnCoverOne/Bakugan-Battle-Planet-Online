@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { useEffect, useState } from "react";
 import { cardChoiceSpec, fusionActivationRequirements, type CardChoices, type MatchState, type PlayerState } from "../../lib/game";
 import { cardEnergyPaymentState } from "../../lib/cardPayment";
@@ -476,7 +477,7 @@ export function MatchHudLayer({
             type="button"
             onClick={() => activeBoardChoice?.error ? activeBoardChoice.clearError() : setError("")}
             aria-label="Close message"
-          >×</button>
+          ><LucideIcon name="x" size={20}/></button>
         </div>
       ) : null}
       {flipChoiceOpen && match.revealedFlip ? (

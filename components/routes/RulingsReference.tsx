@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CARDS } from "../../lib/data";
 import { cardSetCode } from "../../lib/content/catalogue";
@@ -214,7 +215,7 @@ export function RulingsReference({ query = "", onCopy, sidebarOpen, desktopSideb
             <h2 id="ruling-dialog-title">{selected.title}</h2>
           </div>
           <button ref={closeButton} className={styles.close} type="button"
-            aria-label="Close source Q&A" onClick={close}>×</button>
+            aria-label="Close source Q&A" onClick={close}><LucideIcon name="x" size={20}/></button>
         </header>
         <div ref={dialogBody} className={styles.modalBody}>
           {transcript.some(block => block.kind === "correction") &&

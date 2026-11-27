@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { createPortal } from "react-dom";
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { OriginalImage } from "../media/OriginalImage";
@@ -129,7 +130,7 @@ export function CompendiumFieldPicker({
         <header className={styles.dialogHeader}>
           <div><h2 id={id}>{label}</h2><span>{draft.length ? `${draft.length} selected` : mode === "single" && !clearable ? "Select one" : "Any"}</span></div>
           <button type="button" ref={closeRef} className={styles.close} aria-label={`Close ${label}`} onClick={closePicker}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            <LucideIcon name="x"/>
           </button>
         </header>
         {searchable && <label className={styles.search}>
@@ -142,7 +143,7 @@ export function CompendiumFieldPicker({
             return <button type="button" key={option.value} className={styles.option}
               role={mode === "single" ? "radio" : "checkbox"} aria-checked={checked}
               onClick={() => toggle(option.value)}>
-              <span className={`${styles.check} ${checked ? styles.checked : ""}`} aria-hidden="true">{checked ? "✓" : ""}</span>
+              <span className={`${styles.check} ${checked ? styles.checked : ""}`} aria-hidden="true">{checked ? <LucideIcon name="check" size={14}/> : null}</span>
               {option.icon && <OriginalImage className={styles.optionIcon} src={option.icon} alt="" width={24} height={24} />}
               <span>{option.label}</span>
             </button>;
@@ -160,7 +161,7 @@ export function CompendiumFieldPicker({
       onClick={openPicker} aria-haspopup="dialog" aria-expanded={open} aria-label={`${label}: ${selected.length ? selected.map(option => option.label).join(", ") : clearable ? "Any" : "Default"}`}>
       <span className={`${styles.headerLine} ${info ? styles.hasInfo : ""}`}>
         <span className={styles.name}>{label}</span>
-        <svg className={styles.chevron} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        <LucideIcon name="chevron-right" className={styles.chevron}/>
       </span>
       <span className={styles.summary} ref={summaryRef}>
         {selected.length ? <>
@@ -190,7 +191,7 @@ export function CompendiumFieldPicker({
         onPointerLeave={(event) => { if (event.pointerType === "mouse") setTipOpen(false); }}
         onFocus={(event) => { if (event.currentTarget.matches(":focus-visible")) setTipOpen(true); }}
         onBlur={() => setTipOpen(false)}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 11v6M12 7h.01"/></svg>
+        <LucideIcon name="info"/>
       </button>
       {tipOpen && typeof document !== "undefined" && createPortal(
         <div ref={tooltipRef} id={`${id}-help`} className={styles.tooltip} role="tooltip"

@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { type CardChoices, type MatchState } from "../../lib/game";
 import { dispatchLocalGameAction } from "../../lib/engine/local-command-dispatcher";
@@ -317,8 +318,8 @@ export function DeckInspectionLayer() {
                 </button>
                 {allowReorder && isChooser ? (
                   <div className={styles.moveControls} aria-label={`Move ${card.displayName || card.name}`}>
-                    <button type="button" disabled={busy || index === 0} onClick={() => setOrderedIds((current) => moveBy(current, index, -1))} aria-label="Move toward top">←</button>
-                    <button type="button" disabled={busy || index === orderedOptions.length - 1} onClick={() => setOrderedIds((current) => moveBy(current, index, 1))} aria-label="Move toward bottom">→</button>
+                    <button type="button" disabled={busy || index === 0} onClick={() => setOrderedIds((current) => moveBy(current, index, -1))} aria-label="Move toward top"><LucideIcon name="arrow-left" size={18}/></button>
+                    <button type="button" disabled={busy || index === orderedOptions.length - 1} onClick={() => setOrderedIds((current) => moveBy(current, index, 1))} aria-label="Move toward bottom"><LucideIcon name="arrow-right" size={18}/></button>
                   </div>
                 ) : null}
               </li>

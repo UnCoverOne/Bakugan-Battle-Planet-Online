@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ManagedPatch, PatchChange, PatchElement, PatchSection } from "../../lib/patch-notes-server";
 import styles from "./AdminPatchEditor.module.css";
@@ -140,14 +141,14 @@ export function AdminPatchEditor() {
       {loading?<p>Loading patches…</p>:null}
       <div className={styles.patchList}>
         {filtered.map(p=><button key={p.version} className={styles.patchRow} onClick={()=>begin(p)}>
-          <strong>v{p.version}</strong><span>{p.title}</span><small>{p.status}</small><span aria-hidden="true">›</span>
+          <strong>v{p.version}</strong><span>{p.title}</span><small>{p.status}</small><LucideIcon name="chevron-right" size={16}/>
         </button>)}
         {!loading&&!filtered.length?<p>No saved patches found. Create a new draft to get started.</p>:null}
       </div>
     </>:<>
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
-          <button onClick={()=>{if(dirty&&!confirm("Discard unsaved edits?"))return;setPatch(null);setError("");setMessage("");setDirty(false);void load();}}>← Patches</button>
+          <button onClick={()=>{if(dirty&&!confirm("Discard unsaved edits?"))return;setPatch(null);setError("");setMessage("");setDirty(false);void load();}}><LucideIcon name="arrow-left" size={16}/> Patches</button>
           <div><strong>{patch.version?`v${patch.version}`:"New patch"}</strong><small>{dirty?"Unsaved changes":patch.status==="published"?"Published":patch.status==="archived"?"Archived":"Draft"}</small></div>
         </div>
         <div className={styles.toolbarActions}>
@@ -164,8 +165,8 @@ export function AdminPatchEditor() {
           {patch.sections.map((s,i)=><div className={styles.outlineEntry} key={s.id}>
             <button className={selected===s.id?styles.selected:""} onClick={()=>{setSelected(s.id);setOutlineOpen(false);}}>{s.title} <small>{s.changes.length}</small></button>
             <div className={styles.miniActions}>
-              <button title="Move section up" aria-label={`Move ${s.title} up`} disabled={!i} onClick={()=>update(p=>({...p,sections:move(p.sections,i,-1)}))}>↑</button>
-              <button title="Move section down" aria-label={`Move ${s.title} down`} disabled={i===patch.sections.length-1} onClick={()=>update(p=>({...p,sections:move(p.sections,i,1)}))}>↓</button>
+              <button title="Move section up" aria-label={`Move ${s.title} up`} disabled={!i} onClick={()=>update(p=>({...p,sections:move(p.sections,i,-1)}))}><LucideIcon name="arrow-up" size={16}/></button>
+              <button title="Move section down" aria-label={`Move ${s.title} down`} disabled={i===patch.sections.length-1} onClick={()=>update(p=>({...p,sections:move(p.sections,i,1)}))}><LucideIcon name="arrow-down" size={16}/></button>
             </div>
           </div>)}
           <button className={styles.addLink} onClick={()=>{const s=newSection();update(p=>({...p,sections:[...p.sections,s]}));setSelected(s.id);setOutlineOpen(false);}}>+ Add section</button>
@@ -187,7 +188,7 @@ export function AdminPatchEditor() {
             <label>Title <input value={patch.title} onChange={e=>update(p=>({...p,title:e.target.value}))} placeholder="Patch title"/></label>
             <label>Summary <textarea value={patch.summary} rows={3} onChange={e=>update(p=>({...p,summary:e.target.value}))} placeholder="What should players know about this update?"/></label>
             <p className={styles.hint}>Version IDs cannot be changed after the first save, so existing links remain stable. Publishing does not change the deployed software version.</p>
-            <button onClick={()=>setSelected(patch.sections[0]?.id||"")} disabled={!patch.sections.length}>Edit sections →</button>
+            <button onClick={()=>setSelected(patch.sections[0]?.id||"")} disabled={!patch.sections.length}>Edit sections <LucideIcon name="arrow-right" size={16}/></button>
           </div>:active?<div className={styles.form}>
             <div className={styles.sectionHead}>
               <label>Section title <input value={active.title} onChange={e=>editSection(active.id,s=>({...s,title:e.target.value}))}/></label>
@@ -197,8 +198,8 @@ export function AdminPatchEditor() {
               <div className={styles.changeHeader}>
                 <strong>Change {i+1}</strong>
                 <div className={styles.miniActions}>
-                  <button title="Move up" disabled={!i} onClick={()=>editSection(active.id,s=>({...s,changes:move(s.changes,i,-1)}))}>↑</button>
-                  <button title="Move down" disabled={i===active.changes.length-1} onClick={()=>editSection(active.id,s=>({...s,changes:move(s.changes,i,1)}))}>↓</button>
+                  <button title="Move up" disabled={!i} onClick={()=>editSection(active.id,s=>({...s,changes:move(s.changes,i,-1)}))}><LucideIcon name="arrow-up" size={16}/></button>
+                  <button title="Move down" disabled={i===active.changes.length-1} onClick={()=>editSection(active.id,s=>({...s,changes:move(s.changes,i,1)}))}><LucideIcon name="arrow-down" size={16}/></button>
                   <button title="Duplicate" onClick={()=>duplicate(active,c)}>Duplicate</button>
                   <button title="Delete" onClick={()=>{if(confirm("Delete this change?"))editSection(active.id,s=>({...s,changes:s.changes.filter(x=>x.id!==c.id)}));}}>Delete</button>
                 </div>

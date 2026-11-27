@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { useEffect, useMemo, useRef, useState, type ReactNode, type KeyboardEvent, type MouseEvent, type TouchEvent } from "react";
 import { OriginalImage } from "@/components/media/OriginalImage";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
@@ -76,10 +77,10 @@ function CollectionPanel({ id, collection, onChange }: {
         <span>{field[0].toUpperCase() + field.slice(1)}</span>
         <div className={styles.stepper}>
           <button type="button" aria-label={"Decrease " + field + " copies"} disabled={!current[field]}
-            onClick={() => onChange?.(id, field, -1)}>−</button>
+            onClick={() => onChange?.(id, field, -1)}><LucideIcon name="minus" size={16}/></button>
           <output aria-label={field + " copies"}><MotionValue value={current[field]} /></output>
           <button type="button" aria-label={"Increase " + field + " copies"}
-            onClick={() => onChange?.(id, field, 1)}>+</button>
+            onClick={() => onChange?.(id, field, 1)}><LucideIcon name="plus" size={16}/></button>
         </div>
       </div>
     )}
@@ -143,7 +144,7 @@ function CardOverview({ card, allCards, onSelectCard }: {
               onClick={() => onSelectCard?.(base)}>
               <ResponsiveCardImage card={base} presentation="thumbnail" alt="" />
               <span><strong>{base.displayName}</strong><small>{CARD_SET_INFO[cardSetCode(base)].name} · {base.fusionFace === "b" ? "Fused Character" : "Character"}</small></span>
-              <span className={styles.linkArrow} aria-hidden="true">↗</span>
+              <span className={styles.linkArrow} aria-hidden="true"><LucideIcon name="arrow-up-right" size={16}/></span>
             </button>)}
           </div>
           {bases.some(base => base.fusionFace === "b") &&
@@ -158,7 +159,7 @@ function CardOverview({ card, allCards, onSelectCard }: {
           onClick={() => onSelectCard?.(evo)}>
           <ResponsiveCardImage card={evo} presentation="thumbnail" alt="" />
           <span><strong>{evo.displayName}</strong><small>{CARD_SET_INFO[cardSetCode(evo)].name} · Evo</small></span>
-          <span className={styles.linkArrow} aria-hidden="true">↗</span>
+          <span className={styles.linkArrow} aria-hidden="true"><LucideIcon name="arrow-up-right" size={16}/></span>
         </button>)}
       </div>
     </section>}
@@ -201,7 +202,7 @@ function References({ card, core, allCards }: {
       <h3 className={styles.sectionTitle}>Official Rules</h3>
       {rules.length > 0 ? <ul className={styles.referenceList}>
         {rules.map(rule => <li key={rule.id}>
-          <a href={rule.href}><span>Section {rule.id}</span><strong>{rule.title}</strong><span aria-hidden="true">↗</span></a>
+          <a href={rule.href}><span>Section {rule.id}</span><strong>{rule.title}</strong><span aria-hidden="true"><LucideIcon name="arrow-up-right" size={16}/></span></a>
         </li>)}
       </ul> : <p className={styles.muted}>No directly applicable section was identified in the 2019 rulebook.</p>}
     </section>
@@ -214,7 +215,7 @@ function References({ card, core, allCards }: {
         <ul className={styles.referenceList}>
           {rulings.map(ruling => <li key={ruling.slug}>
             <a href={"/compendium/rulings#ruling-" + ruling.slug}>
-              <span>Q{ruling.number}</span><strong>{ruling.title}</strong><span aria-hidden="true">↗</span>
+              <span>Q{ruling.number}</span><strong>{ruling.title}</strong><span aria-hidden="true"><LucideIcon name="arrow-up-right" size={16}/></span>
             </a>
             <p>{ruling.preview}</p>
           </li>)}
@@ -380,7 +381,7 @@ export function CardInspector(props: InspectorProps) {
         <div className={styles.carousel} aria-label={"Artwork for " + label}>
           {hasMultiple && <button type="button" className={styles.previous}
             onClick={() => navigatePrinting(-1)} disabled={slideIndex === 0}
-            aria-label="Previous printing">‹</button>}
+            aria-label="Previous printing"><LucideIcon name="chevron-left" size={24}/></button>}
           <div className={styles.artStack}>
             <button type="button" className={styles.artButton} onClick={onImageClick}
               onKeyDown={onArtworkKeyDown}
@@ -405,7 +406,7 @@ export function CardInspector(props: InspectorProps) {
           </div>
           {hasMultiple && <button type="button" className={styles.next}
             onClick={() => navigatePrinting(1)} disabled={slideIndex === slides.length - 1}
-            aria-label="Next printing">›</button>}
+            aria-label="Next printing"><LucideIcon name="chevron-right" size={24}/></button>}
         </div>
         {hasMultiple && <div className={styles.printingIndicator} role="status" aria-live="polite">
           Printing {slideIndex + 1} of {slides.length}

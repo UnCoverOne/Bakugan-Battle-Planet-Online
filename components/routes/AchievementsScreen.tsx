@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
@@ -217,7 +218,7 @@ export function AchievementsScreen({
         <div className={styles.titleRow}>
           <div>
             <Link className={styles.backLink} href={activeStatus ? "/profile/achievements" : "/profile"}>
-              ← {activeStatus ? "Achievement overview" : "Brawler profile"}
+              <LucideIcon name="arrow-left" size={16}/> {activeStatus ? "Achievement overview" : "Brawler profile"}
             </Link>
             <h1>
               {activeStatus
@@ -314,7 +315,7 @@ export function AchievementsScreen({
                   <p>{STATUS_CONTENT[status].description}</p>
                 </div>
                 <Link className={styles.viewAll} href={destination}>
-                  View All <span aria-hidden="true">→</span>
+                  View All <LucideIcon name="arrow-right" size={16}/>
                 </Link>
               </div>
               {sorted.length ? (

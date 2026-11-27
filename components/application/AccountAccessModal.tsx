@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { usePathname } from "next/navigation";
 import {
@@ -194,7 +195,7 @@ export function AccountAccessModal({
             disabled={authBusy}
             onClick={onClose}
           >
-            ×
+            <LucideIcon name="x" size={20}/>
           </button>
         </header>
 

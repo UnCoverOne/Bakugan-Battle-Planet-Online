@@ -1,32 +1,15 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import Link from "next/link";
 import { playerMatchSummary } from "../../lib/match-statistics";
 import type { MatchResultRecord } from "../../lib/persistence";
 import { useAppFields } from "../application/AppProvider";
 import styles from "./BattleActivityPanel.module.css";
 
-const iconCommon = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.9,
-  strokeLinecap: "round" as const,
-  strokeLinejoin: "round" as const,
-  "aria-hidden": true as const,
-};
-
-function BattleIcon() {
-  return <svg {...iconCommon}><path d="m13 19 6-6M14.5 17.5 3.6 6.6A2 2 0 0 1 3 5.2V3h2.2a2 2 0 0 1 1.4.6l10.9 10.9M14.8 6.2l2.6-2.6A2 2 0 0 1 18.8 3H21v2.2a2 2 0 0 1-.6 1.4l-2.6 2.6M16 16l4 4m-1 1 2-2M5 14l4 4m-4 3-2-2m4.5-2.5L4 20" /></svg>;
-}
-
-function TrophyIcon() {
-  return <svg {...iconCommon}><path d="M8 21h8m-4-4v4M7 4h10v7a5 5 0 0 1-10 0V4ZM7 6H4v2a4 4 0 0 0 4 4m9-6h3v2a4 4 0 0 1-4 4" /></svg>;
-}
-
-function RateIcon() {
-  return <svg {...iconCommon}><path d="M4 20V12m6 8V7m6 13V4m6 16v-9" /></svg>;
-}
+function BattleIcon(){return <LucideIcon name="swords"/>;}
+function TrophyIcon(){return <LucideIcon name="trophy"/>;}
+function RateIcon(){return <LucideIcon name="chart-no-axes-column"/>;}
 
 function recordTime(record: MatchResultRecord) {
   const value = Date.parse(record.at);
@@ -98,7 +81,7 @@ export function BattleActivityPanel() {
               <strong>{latest.score || "—"}</strong>
               {matchDate ? <small>{matchDate}</small> : null}
             </span>
-            <span className={styles.matchArrow} aria-hidden="true">›</span>
+            <span className={styles.matchArrow} aria-hidden="true"><LucideIcon name="chevron-right" size={18}/></span>
           </Link>
         ) : (
           <div className={styles.noMatch}>

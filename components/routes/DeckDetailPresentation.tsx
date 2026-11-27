@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { OriginalImage } from "@/components/media/OriginalImage";
@@ -75,7 +76,7 @@ function AccessibleDialog({ title, onClose, children }: {
     <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={dialogRef} tabIndex={-1}>
       <div className={styles.modalHeader}>
         <h2 id={titleId}>{title}</h2>
-        <button type="button" aria-label="Close" onClick={onClose}>×</button>
+        <button type="button" aria-label="Close" onClick={onClose}><LucideIcon name="x" size={20}/></button>
       </div>
       <div className={styles.modalContent}>{children}</div>
     </div>
@@ -103,10 +104,10 @@ function ShareOptions({ deck, publicView, notify }: {
   };
   return <div className={styles.shareOptions}>
     {publicView && <button type="button" onClick={() => void copy(window.location.href, "Public deck link copied.")}>
-      <span aria-hidden="true">↗</span><span>Copy Deck Link<small>Share this public deck&apos;s URL</small></span>
+      <span aria-hidden="true"><LucideIcon name="arrow-up-right" size={18}/></span><span>Copy Deck Link<small>Share this public deck&apos;s URL</small></span>
     </button>}
     <button type="button" onClick={() => void copy(encodeDeckCode(deck), "Deck code copied.")}>
-      <span aria-hidden="true">⧉</span><span>Copy Deck Code<small>Copy an importable deck code</small></span>
+      <span aria-hidden="true"><LucideIcon name="copy" size={18}/></span><span>Copy Deck Code<small>Copy an importable deck code</small></span>
     </button>
     <button type="button" onClick={() => {
       downloadTextFile(deckExportFilename(deck.name, "txt"), deckTextList(deck));
@@ -183,7 +184,7 @@ function DeckStatistics({ deck, report, formats, rulesAvailable }: {
       <div className={styles.legality}>
         <div className={styles.legalityHead}>
           <span className={selectedFormatLegal ? styles.legalGood : styles.legalBad} aria-hidden="true">
-            {selectedFormatLegal ? "✓" : "!"}
+            <LucideIcon name={selectedFormatLegal?"check":"circle-alert"} size={18}/>
           </span>
           <span>{unknownCompetitive ? "Competitive rules unavailable" : report.isLegal ? "Legal in selected format" : "Needs attention"}</span>
         </div>
@@ -262,7 +263,7 @@ export function DeckDetailPresentation({ deck, publicView = false, notify, prima
   const closeShare = () => setShowShare(false);
   return <div className={styles.route}>
     <div className={styles.shell}>
-      <Link className={styles.back} href={publicView ? "/decks/public" : "/decks"}>← {publicView ? "Public Decks" : "My Decks"}</Link>
+      <Link className={styles.back} href={publicView ? "/decks/public" : "/decks"}><LucideIcon name="arrow-left" size={18}/> {publicView ? "Public Decks" : "My Decks"}</Link>
       <header className={styles.details}>
         <div className={styles.identity}>
           <div className={styles.preview}><DeckPreview deck={deck} /></div>
@@ -283,7 +284,7 @@ export function DeckDetailPresentation({ deck, publicView = false, notify, prima
             </div>
             <div className={styles.summary}>
               <span className={validSelected ? styles.status : styles.statusBad}>
-                {validSelected === null ? "Checking Competitive legality" : validSelected ? "✓ Legal" : "Needs attention"}
+                {validSelected === null ? "Checking Competitive legality" : validSelected ? "Legal" : "Needs attention"}
               </span>
               <time dateTime={dateValue} title={dateLabel + " " + date}>{dateLabel} {date}</time>
             </div>
@@ -295,7 +296,7 @@ export function DeckDetailPresentation({ deck, publicView = false, notify, prima
           {secondaryAction}
           <button type="button" className="bb-button" onClick={() => setShowShare(true)}>Share / Export</button>
           {menuActions && <details className={styles.actionMore}>
-            <summary aria-label="More deck actions">⋯</summary>
+            <summary aria-label="More deck actions"><LucideIcon name="ellipsis" size={22}/></summary>
             <div className={styles.actionMenu}>{menuActions}</div>
           </details>}
         </div>

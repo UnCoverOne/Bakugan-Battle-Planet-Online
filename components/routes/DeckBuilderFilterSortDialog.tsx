@@ -224,9 +224,7 @@ export function DeckBuilderFilterSortDialog({
               {field.info && <button type="button" className={compendium.info}
                 aria-label={"About " + field.label} aria-expanded={helpField === field.key}
                 onClick={() => setHelpField(current => current === field.key ? null : field.key)}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <circle cx="12" cy="12" r="10" /><path d="M12 11v6M12 7h.01" />
-                </svg>
+                <LucideIcon name="info" size={16}/>
               </button>}
               {helpField === field.key && field.info && <p className={styles.fieldHelp}>{field.info}</p>}
             </div>;

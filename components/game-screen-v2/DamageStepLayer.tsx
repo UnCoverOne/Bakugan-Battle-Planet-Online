@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { MatchState } from "../../lib/game";
@@ -92,7 +93,7 @@ export function DamageStepLayer({
         <div className={styles.errorPopup} role="alert">
           <strong>Damage Step</strong>
           <span>{error}</span>
-          <button type="button" onClick={() => setError("")} aria-label="Dismiss damage error">×</button>
+          <button type="button" onClick={() => setError("")} aria-label="Dismiss damage error"><LucideIcon name="x" size={20}/></button>
         </div>
       ) : null}
     </>

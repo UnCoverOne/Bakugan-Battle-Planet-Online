@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { OriginalImage } from "@/components/media/OriginalImage";
 
 import Link from "next/link";
@@ -377,10 +378,10 @@ export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
                   </span>
                   <i aria-hidden="true">
                     {selectedTitle.id === title.id
-                      ? "✓"
+                      ? <LucideIcon name="check" size={16}/>
                       : unlocked
                         ? "○"
-                        : "🔒"}
+                        : <LucideIcon name="lock" size={16}/>}
                   </i>
                 </button>
               );
@@ -514,7 +515,7 @@ function ProfileModal({
             <p>{description}</p>
           </div>
           <button type="button" aria-label="Close" onClick={onClose}>
-            ×
+            <LucideIcon name="x" size={20}/>
           </button>
         </header>
         {children}
@@ -584,7 +585,7 @@ function RecordsPanel({
               <span>{item.score}</span>
               <span>{item.mode ?? "legacy"}</span>
               <small>{formatTimestamp(item.at)}</small>
-              <i>Open →</i>
+              <i>Open <LucideIcon name="arrow-right" size={16}/></i>
             </button>
           ))}
         </Surface>

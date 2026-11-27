@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { CARDS } from "../../lib/data";
 import { cardSetCode } from "../../lib/content/catalogue";
@@ -128,7 +129,7 @@ export default function FeedbackReportsDialog({
       <header className={styles.header}>
         <div><span className={styles.eyebrow}>Player support</span><h2 id="feedback-title">Feedback &amp; Reports</h2>
           <p>Help us improve Bakugan Battle Planet Online.</p></div>
-        <button ref={closeRef} type="button" className={styles.close} onClick={onClose} aria-label="Close Feedback and Reports">×</button>
+        <button ref={closeRef} type="button" className={styles.close} onClick={onClose} aria-label="Close Feedback and Reports"><LucideIcon name="x" size={20}/></button>
       </header>
       {status === "sent" ? <div className={styles.success} role="status">
         <strong>Submission received</strong>

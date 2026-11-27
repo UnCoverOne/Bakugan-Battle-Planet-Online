@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { useEffect, useState } from "react";
 import { PlayerPreview } from "../profile/PlayerPreview";
 import styles from "./LeaderboardScreen.module.css";
@@ -32,6 +33,6 @@ export function LeaderboardScreen() {
         <b>{entry.position}</b><PlayerPreview userId={entry.userId} displayName={entry.displayName}><span><strong>{entry.displayName}</strong><small>{entry.faction}</small></span></PlayerPreview><span>{entry.rank}</span><strong>{entry.bp}</strong><span>{entry.wins}–{entry.losses}</span><span>{entry.winRate}%</span>
       </article>)}
     </section>
-    <nav><button disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>← PREVIOUS</button><span>PAGE {page} OF {pages}</span><button disabled={page >= pages} onClick={() => setPage((value) => value + 1)}>NEXT →</button></nav>
+    <nav><button disabled={page <= 1} onClick={() => setPage((value) => value - 1)}><LucideIcon name="arrow-left" size={16}/> PREVIOUS</button><span>PAGE {page} OF {pages}</span><button disabled={page >= pages} onClick={() => setPage((value) => value + 1)}>NEXT <LucideIcon name="arrow-right" size={16}/></button></nav>
   </div>;
 }

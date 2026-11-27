@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { GameCard } from "../../lib/game";
@@ -189,7 +190,7 @@ function AdministratorInspector({ card, restriction, activeRestriction, rolling,
     <div className={styles.inspector}>
       <header className={styles.inspectorHeader}>
         <div><small>ADMINISTRATOR INSPECTOR · {card.catalogId}</small><h2 id="administrator-card-inspector-title">{card.displayName}</h2></div>
-        <button type="button" onClick={close} aria-label="Close administrator inspector">✕</button>
+        <button type="button" onClick={close} aria-label="Close administrator inspector"><LucideIcon name="x" size={20}/></button>
       </header>
       <div className={styles.inspectorBody}>
         <div className={styles.preview}>
@@ -371,13 +372,13 @@ export function AdministratorCardManagement() {
             </button>)}
           </CardGrid>
           {!filtered.length && <Surface className={styles.message}>No matching cards. Clear filters or change your search.</Surface>}
-          <nav className={styles.pagination} aria-label="Card browser pages"><button type="button" disabled={page <= 1} onClick={() => setPage((n) => n - 1)}>← Previous</button><span>{Math.min(page, pages)} / {pages}</span><button type="button" disabled={page >= pages} onClick={() => setPage((n) => n + 1)}>Next →</button></nav>
+          <nav className={styles.pagination} aria-label="Card browser pages"><button type="button" disabled={page <= 1} onClick={() => setPage((n) => n - 1)}><LucideIcon name="arrow-left" size={16}/> Previous</button><span>{Math.min(page, pages)} / {pages}</span><button type="button" disabled={page >= pages} onClick={() => setPage((n) => n + 1)}>Next <LucideIcon name="arrow-right" size={16}/></button></nav>
         </div>
       </div>
       {filterSheetOpen && <MobileCardFilterSheet onClose={closeFilters} returnFocusRef={filterButtonRef}>
         <div className={styles.filterSheetHeading}>
           <h3>Filter cards</h3>
-          <button type="button" aria-label="Close card filters" onClick={closeFilters}>✕</button>
+          <button type="button" aria-label="Close card filters" onClick={closeFilters}><LucideIcon name="x" size={20}/></button>
         </div>
         {filterControls}
         <ActionButton className={styles.showResultsButton} onClick={closeFilters}>Show {filtered.length} cards</ActionButton>

@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { OriginalImage } from "@/components/media/OriginalImage";
 
 import {
@@ -382,9 +383,7 @@ export function BrawlExperienceLayer({
             aria-pressed={brawlDocked}
             onClick={() => setBrawlDocked((docked) => !docked)}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d={brawlDocked ? "m15 6-6 6 6 6" : "m9 6 6 6-6 6"} />
-            </svg>
+            <LucideIcon name={brawlDocked?"chevron-left":"chevron-right"}/>
           </button>
           <header className={`${styles.brawlHeader} ${missedCombatant ? previewStyles.singleOpenHeader : ""}`}>
             <span>{phaseName(experience.match.phase)}</span>

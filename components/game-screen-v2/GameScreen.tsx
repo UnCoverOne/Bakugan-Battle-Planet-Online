@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { OriginalImage } from "@/components/media/OriginalImage";
 import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
 
@@ -751,7 +752,7 @@ function DiscardPileModal({
             onClick={onClose}
             aria-label="Close discard pile"
           >
-            ×
+            <LucideIcon name="x" size={20}/>
           </button>
         </header>
         <div className={styles.discardModalGrid}>

@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import Link from "next/link";
 import { OriginalImage } from "../media/OriginalImage";
 import { CardArt } from "../cards/CardArt";
@@ -95,11 +96,11 @@ export function DeckGalleryBody({
         <time className={styles.date} dateTime={dateValue} title={`${dateLabel} ${date}`}>{dateLabel} {date}</time>
         <span className={styles.engagement}>
           <span className={styles.views} title={views == null ? "View counts are not yet available" : `${views} views`} aria-label={views == null ? "Views unavailable" : `${views} views`}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <LucideIcon name="eye"/>
             {views == null ? "—" : views.toLocaleString()}
           </span>
           {onLike ? <button type="button" className={styles.like} onClick={onLike} disabled={likeDisabled} aria-pressed={liked} aria-label={`${liked ? "Unlike" : "Like"} ${deck.name}; ${likes ?? 0} likes`}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.7a5.5 5.5 0 0 0-7.8 0L12 5.8l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.5a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+            <LucideIcon name="heart"/>
             {(likes ?? 0).toLocaleString()}
           </button> : likes != null ? <span className={styles.views} aria-label={`${likes} likes`}>♥ {likes.toLocaleString()}</span> : null}
         </span>

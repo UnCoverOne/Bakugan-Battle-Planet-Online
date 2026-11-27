@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MatchResultRecord } from "../../lib/persistence";
 import type { ReplayBundle, ReplayTransportBundle } from "../../lib/engine/replay-types";
@@ -308,7 +309,7 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
       </div>
 
       <header className={styles.header}>
-        <button type="button" onClick={onBack}>← Records</button>
+        <button type="button" onClick={onBack}><LucideIcon name="arrow-left" size={18}/> Records</button>
         <div>
           <span>{record.result} · {record.score}</span>
           <strong>vs {record.opponent}</strong>
@@ -341,10 +342,10 @@ export function ReplayTheatre({ record, onBack }: { record: MatchResultRecord; o
       </aside>
 
       <footer className={styles.controls}>
-        <button type="button" onClick={() => seek(0)} disabled={!index}>|◀</button>
-        <button type="button" onClick={() => seek(index - 1)} disabled={!index}>◀</button>
-        <button className={styles.play} type="button" onClick={() => setPlaying((value) => !value)} disabled={frameCount < 2 || rollResultBlocking} aria-label={playing ? "Pause replay" : "Play replay"}>{playing ? "Ⅱ" : "▶"}</button>
-        <button type="button" onClick={() => seek(index + 1, true)} disabled={index >= frameCount - 1}>▶</button>
+        <button type="button" onClick={() => seek(0)} disabled={!index} aria-label="First replay frame"><LucideIcon name="skip-back" size={20}/></button>
+        <button type="button" onClick={() => seek(index - 1)} disabled={!index} aria-label="Previous replay frame"><LucideIcon name="step-back" size={20}/></button>
+        <button className={styles.play} type="button" onClick={() => setPlaying((value) => !value)} disabled={frameCount < 2 || rollResultBlocking} aria-label={playing ? "Pause replay" : "Play replay"}><LucideIcon name={playing?"pause":"play"} size={20}/></button>
+        <button type="button" onClick={() => seek(index + 1, true)} disabled={index >= frameCount - 1} aria-label="Next replay frame"><LucideIcon name="step-forward" size={20}/></button>
         <input aria-label="Replay position" type="range" min={0} max={Math.max(0, frameCount - 1)} value={Math.min(index, Math.max(0, frameCount - 1))} onChange={(event) => seek(Number(event.target.value))} />
         <div className={styles.markers} aria-label="Replay markers">
           {bundle?.markers.map((marker) => <button type="button" key={`${marker.index}-${marker.type}`} style={{ left: `${frameCount > 1 ? marker.index / (frameCount - 1) * 100 : 0}%` }} onClick={() => seek(marker.index)} title={marker.label} aria-label={`Jump to ${marker.label}`} />)}

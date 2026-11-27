@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import { useLobbySession } from "../application/LobbySessionProvider";
 import { useLobbyChat } from "../application/LobbyChatProvider";
 import { LobbyChatPanel } from "../application/LobbyChatPanel";
@@ -121,12 +122,7 @@ export function MatchCommunicationLayer() {
           aria-label={eventLogOpen ? "Close Event Log" : "Open Event Log"}
           onClick={toggleEventLog}
         >
-          <svg className={styles.buttonIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <circle cx="4" cy="6" r="1" />
-            <circle cx="4" cy="12" r="1" />
-            <circle cx="4" cy="18" r="1" />
-            <path d="M8 6h12M8 12h12M8 18h12" />
-          </svg>
+          <LucideIcon name="list" className={styles.buttonIcon}/>
         </button>
         <button
           type="button"
@@ -137,10 +133,7 @@ export function MatchCommunicationLayer() {
           aria-label={chatOpen ? "Close chat" : lobbyChat.unread ? `Open lobby chat, ${lobbyChat.unread} unread messages` : "Open match chat"}
           onClick={toggleChat}
         >
-          <svg className={styles.buttonIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M4 5h16v11H9l-5 4V5Z" />
-            <path d="M8 9h8M8 12h5" />
-          </svg>
+          <LucideIcon name="message-square" className={styles.buttonIcon}/>
           {lobbyChat.unread>0&&<span className={styles.chatUnread} aria-hidden="true"/>}
         </button>
       </div>
@@ -211,25 +204,8 @@ export function MatchCommunicationLayer() {
           aria-label={eventLogOpen ? "Close Event Log" : "Open Event Log"}
           onClick={toggleEventLog}
         >
-          <svg
-            className={styles.handleIcon}
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <circle cx="4" cy="6" r="1" />
-            <circle cx="4" cy="12" r="1" />
-            <circle cx="4" cy="18" r="1" />
-            <path d="M8 6h12M8 12h12M8 18h12" />
-          </svg>
-          <svg
-            className={styles.handleChevron}
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <path d={eventLogOpen ? "M15 18l-6-6 6-6" : "m9 6 6 6-6 6"} />
-          </svg>
+          <LucideIcon name="list" className={styles.handleIcon}/>
+          <LucideIcon name={eventLogOpen?"chevron-left":"chevron-right"} className={styles.handleChevron}/>
         </button>
       </div>
 
@@ -242,23 +218,8 @@ export function MatchCommunicationLayer() {
           aria-label={chatOpen ? "Close match chat" : "Open match chat"}
           onClick={toggleChat}
         >
-          <svg
-            className={styles.handleIcon}
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <path d="M4 5h16v11H9l-5 4V5Z" />
-            <path d="M8 9h8M8 12h5" />
-          </svg>
-          <svg
-            className={styles.handleChevron}
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <path d={chatOpen ? "m9 6 6 6-6 6" : "M15 18l-6-6 6-6"} />
-          </svg>
+          <LucideIcon name="message-square" className={styles.handleIcon}/>
+          <LucideIcon name={chatOpen?"chevron-right":"chevron-left"} className={styles.handleChevron}/>
         </button>
         <section
           id="match-chat-panel"

@@ -1,5 +1,6 @@
 "use client";
 
+import { LucideIcon } from "../design-system/LucideIcon";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -200,7 +201,7 @@ export function AdminFeedbackManagement() {
             <div><dt>Player</dt><dd><Link href={`/brawlers/${encodeURIComponent(selected.user_id)}`}>{selected.player_name}</Link> <small>{selected.player_email}</small></dd></div>
             <div><dt>Submitted</dt><dd>{dateLabel(selected.submitted_at)}</dd></div>
             <div><dt>Related card</dt><dd>{selected.card_id
-              ? <Link href={`/compendium?card=${encodeURIComponent(selected.card_id)}`}>{selected.card_id} ↗</Link>
+              ? <Link href={`/compendium?card=${encodeURIComponent(selected.card_id)}`}>{selected.card_id} <LucideIcon name="arrow-up-right" size={16}/></Link>
               : "None"}</dd></div>
             <div><dt>Request ID</dt><dd className={styles.mono}>{selected.id}</dd></div>
             {selected.reviewed_at && <div><dt>Last reviewed</dt><dd>{dateLabel(selected.reviewed_at)}</dd></div>}
