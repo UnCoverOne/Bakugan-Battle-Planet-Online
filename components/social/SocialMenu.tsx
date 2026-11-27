@@ -173,7 +173,19 @@ function Requests(){
    {!snapshot.incomingRequests.length&&<p className={styles.empty}>No incoming requests.</p>}
   </section>
   <section><h3 className={styles.groupLabel}>Outgoing friend requests <small>{snapshot.outgoingRequests.length}</small></h3>
-   {snapshot.outgoingRequests.map(account=><article key={account.userId} className={styles.request}><div className={styles.requestIdentity}><SocialAvatar account={account}/><button type="button" className={styles.identity} onClick={()=>openConversation(account)}><strong>{account.displayName}</strong><small>Awaiting response</small></button></div><ActionButton disabled={Boolean(busy)} onClick={()=>void act("cancel-friend",account)}>Cancel</ActionButton></div></article>)}
+   {snapshot.outgoingRequests.map(account=>(
+    <article key={account.userId} className={styles.request}>
+     <div className={styles.requestIdentity}>
+      <SocialAvatar account={account}/>
+      <button type="button" className={styles.identity} onClick={()=>openConversation(account)}>
+       <strong>{account.displayName}</strong><small>Awaiting response</small>
+      </button>
+     </div>
+     <div className={styles.requestActions}>
+      <ActionButton disabled={Boolean(busy)} onClick={()=>void act("cancel-friend",account)}>Cancel</ActionButton>
+     </div>
+    </article>
+   ))}
    {!snapshot.outgoingRequests.length&&<p className={styles.empty}>No outgoing requests.</p>}
   </section>
  </div>;

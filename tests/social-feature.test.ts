@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import ts from "typescript";
 import {DatabaseSync,type SQLInputValue} from "node:sqlite";
 import type {AccountDatabase} from "../lib/account-server";
 import {markMessagesRead,messageInbox,messageThread,reportMessagePeer,sendDirectMessage,setMessageBlock} from "../lib/social-messages-server";
@@ -10,6 +11,19 @@ import {mergeMessages,normalizeMessage} from "../lib/social-messages";
 import { canonicalSocialPair, socialPresenceShard, sortSocialAccounts, socialIsAway, resolveSocialPresence, socialPresenceDisplay, SOCIAL_AWAY_MS } from "../lib/social";
 
 const source = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
+
+test("social components parse as valid TSX", async () => {
+  for (const name of ["SocialMenu", "SocialProvider", "Conversation", "MatchResultSocial"]) {
+    const path = `components/social/${name}.tsx`;
+    const result = ts.transpileModule(await source(path), {
+      fileName: path,
+      reportDiagnostics: true,
+      compilerOptions: { jsx: ts.JsxEmit.Preserve, target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext },
+    });
+    const errors = (result.diagnostics ?? []).filter(diagnostic => diagnostic.category === ts.DiagnosticCategory.Error);
+    assert.deepEqual(errors.map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")), [], path);
+  }
+});
 
 test("friendship pairs are canonical and self-friending is rejected", () => {
   assert.deepEqual(canonicalSocialPair("user-z", "user-a"), ["user-a", "user-z"]);
