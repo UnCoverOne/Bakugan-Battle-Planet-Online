@@ -23,6 +23,8 @@ const targets = [
   "components/social/SocialProvider.module.css",
   "components/social/PresenceIndicator.module.css",
   "components/application/ProfileMenu.module.css",
+  "components/application/SettingsMenu.module.css",
+  "components/game-screen-v2/GameMenuHud.module.css",
   "components/social/MatchResultSocial.module.css",
 ];
 const errors = [];

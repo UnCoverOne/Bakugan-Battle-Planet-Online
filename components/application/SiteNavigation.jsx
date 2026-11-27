@@ -9,6 +9,7 @@ import { useAppFields } from "./AppProvider";
 import { ProfileAvatar } from "../profile/ProfileAvatar";
 import { LucideIcon } from "../design-system/LucideIcon";
 import { ProfileMenu } from "./ProfileMenu";
+import { useSettingsMenu } from "./SettingsMenuProvider";
 import { SocialMenuButton, useSocial } from "../social/SocialProvider";
 import styles from "./SiteNavigation.module.css";
 
@@ -46,6 +47,7 @@ export function SiteNavigation({ onLogout }) {
   const { profile, authUser } = useAppFields(["profile", "authUser"]);
   const { open: socialOpen, setOpen: setSocialOpen } = useSocial();
   const [profileOpen, setProfileOpen] = useState(false);
+  const { open: settingsOpen } = useSettingsMenu();
   const avatarRef = useRef(null);
   const pathname = usePathname();
   const avatarFaction = authUser && ["Pyrus", "Aquos", "Darkus", "Haos", "Ventus", "Aurelus"].includes(profile?.faction)
@@ -53,7 +55,7 @@ export function SiteNavigation({ onLogout }) {
     : authUser ? "Pyrus" : "Guest";
 
   useEffect(() => { setProfileOpen(false); }, [pathname]);
-  useEffect(() => { if (socialOpen) setProfileOpen(false); }, [socialOpen]);
+  useEffect(() => { if (socialOpen || settingsOpen) setProfileOpen(false); }, [socialOpen, settingsOpen]);
 
   const closeProfile = useCallback(() => setProfileOpen(false), []);
 

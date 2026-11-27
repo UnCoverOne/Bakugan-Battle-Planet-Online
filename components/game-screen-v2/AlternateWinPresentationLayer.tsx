@@ -11,6 +11,7 @@ import {
 } from "react";
 import type { MatchState } from "../../lib/game";
 import { useMatchSelector } from "./matchStore";
+import {useReducedMotion} from "../application/useReducedMotion";
 import {
   DRAGONOID_MAXIMUS_HERO_CARD_IDS,
   DRAGONOID_MAXIMUS_SKIP_EVENT,
@@ -49,11 +50,6 @@ type PresentationClock = {
 
 const HERO_FALLBACK_NAMES = ["Dan Kouzo", "Wynton Styles", "Lia Venegas"] as const;
 
-function prefersReducedMotion() {
-  return typeof window !== "undefined"
-    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
 export function AlternateWinPresentationLayer({
   match: replayMatch,
   presentationMode = "live",
@@ -84,7 +80,7 @@ export function AlternateWinPresentationLayer({
   const resultKey = active ? candidateResultKey : "";
   const clockRef = useRef<PresentationClock>({ key: "", startedAt: 0, offset: 0 });
   const skipRef = useRef<HTMLButtonElement | null>(null);
-  const [reducedMotion, setReducedMotion] = useState(prefersReducedMotion);
+  const reducedMotion=useReducedMotion();
   const [finished, setFinished] = useState(false);
 
   if (resultKey && clockRef.current.key !== resultKey) {
@@ -104,14 +100,6 @@ export function AlternateWinPresentationLayer({
   const timelineElapsed = clockRef.current.key === resultKey
     ? clockRef.current.offset
     : 0;
-
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReducedMotion(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
 
   useEffect(() => {
     if (!active || !resultKey || !presentationStartedAt) {

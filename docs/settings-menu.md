@@ -1,0 +1,11 @@
+# Global Settings Menu
+
+Open Settings from the Profile Menu or the Match Menu. The single native dialog stays on the current route and does not pause, concede, restart or remount an active game. Desktop uses four horizontal tabs; mobile (850px and below) opens a category list with full-screen subviews and explicit back/close controls. The header and category-only Restore Defaults footer remain fixed while the content scrolls. The old /settings URL redirects Home and opens Settings once.
+
+Gameplay includes Automatic Draw, Automatic Pass and the default Event Log filter (Cards is the current default). Display combines preview/text scaling, reduced motion and high contrast. Audio has master gain and the three independently adjustable channels; UI Sounds now provide a quiet interface cue. The game menu retains Undo, administrator Download Log, and Concede. The settings switches and nested match dialog are removed.
+
+Preferences use the same normalized model for cloud and guest snapshots. MatchRuntime primes the live gameplay store from AppProvider; transport refreshes do not replace primed preferences with the guest storage copy. Legacy audio keys and historical challenge/replay fields are retained for snapshot compatibility, not exposed as new controls. No schema migration is necessary.
+
+Account forms use the existing authenticated name/password/recovery/deletion endpoints. Guests retain their generic identity. Account mutations and sign-in actions are disabled while a lobby/match or uncertain lobby recovery is present; export remains available. Local guest reset requires sign-out, typed confirmation, and a scoped allowlist applied before startup restoration after page reload. Account recovery and reset-marker namespaces are not cleared. Guest reset does not delete unrelated storage or account recovery copies.
+
+Run node --import tsx --test tests/settings-menu.test.ts, npm run check:palette, npm run test:social, npm run build, and npm run test:visual -- tests/visual/settings-menu.spec.ts tests/visual/profile-menu.spec.ts. On a preview deployment verify real Training/Casual/Ranked preference changes, automatic actions, audible channels, match log filter, cloud reload, security flows and mobile back navigation.

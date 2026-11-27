@@ -9,6 +9,8 @@ import { useAppFields } from "./AppProvider";
 import { SocialProvider, SocialDrawer } from "../social/SocialProvider";
 import { SiteNavigation } from "./SiteNavigation";
 import { MusicLayer } from "./MusicLayer";
+import { SettingsMenuProvider } from "./SettingsMenuProvider";
+import { UISoundLayer } from "./UISoundLayer";
 
 export function AppShell({ children }) {
   const pathname = usePathname();
@@ -61,7 +63,9 @@ export function AppShell({ children }) {
   const immersiveMatch = pathname === "/play/match";
   return (
     <SocialProvider key={authUser?.id ?? "guest"}>
+      <SettingsMenuProvider>
       <MusicLayer />
+      <UISoundLayer />
       <div className={immersiveMatch ? "blank-shell immersive-shell" : "blank-shell"}>
         <a className="skip-link" href="#main-content">Skip to content</a>
         {!immersiveMatch && <SiteNavigation onLogout={logout} />}
@@ -77,6 +81,7 @@ export function AppShell({ children }) {
         {versionMismatch && <VersionMismatchScreen onRefresh={() => window.location.reload()} />}
         <SocialDrawer />
       </div>
+      </SettingsMenuProvider>
     </SocialProvider>
   );
 }

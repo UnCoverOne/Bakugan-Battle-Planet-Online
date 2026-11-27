@@ -26,7 +26,7 @@ test("guest menu is responsive, shares the social background and restores focus"
   await expect(panel.getByText("Guest",{exact:true})).toBeVisible();
   await expect(panel.getByRole("button",{name:"Create Account",exact:true})).toBeVisible();
   await expect(panel.getByRole("button",{name:"Log In",exact:true})).toBeVisible();
-  await expect(panel.getByRole("link",{name:"Settings",exact:true})).toHaveAttribute("href","/settings");
+  await expect(panel.getByRole("button",{name:"Settings",exact:true})).toBeVisible();
   await expect(panel.getByRole("link",{name:"Administration"})).toHaveCount(0);
   await expect(panel.getByRole("button",{name:"Sign Out"})).toHaveCount(0);
   const bounds=await panel.boundingBox(),viewport=page.viewportSize();

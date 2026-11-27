@@ -1,4 +1,6 @@
 import type { DeckRecord } from "./data";
+import { DEFAULT_APP_SETTINGS, normalizeAppSettings } from "./settings-preferences";
+export { DEFAULT_APP_SETTINGS } from "./settings-preferences";
 import type { MatchState } from "./game";
 import { isCompletedSeriesResult } from "./match-result-navigation";
 import {
@@ -45,6 +47,7 @@ export type AppSettings = {
   masterVolume?: number;
   automaticDraw?: boolean;
   automaticPass?: boolean;
+  logDetail?: string;
   /** Legacy aliases retained for older local/account snapshots. */
   soundEnabled?: boolean;
   soundVolume?: number;
@@ -140,22 +143,7 @@ export const DEFAULT_BRAWLER_PROFILE: BrawlerProfile = {
   achievementResetAt: null,
 };
 
-export const DEFAULT_APP_SETTINGS: AppSettings = {
-  reducedMotion: false,
-  highContrast: false,
-  sound: true,
-  cardScale: 100,
-  textScale: 100,
-  challenges: "Everyone",
-  gameSoundsEnabled: true,
-  gameSoundVolume: 55,
-  uiSoundsEnabled: true,
-  uiSoundVolume: 70,
-  musicEnabled: true,
-  musicVolume: 55,
-  masterVolume: 100,
-  replayLinks: true,
-};
+
 
 export function normalizeLifetimeMatchStats(value: unknown): LifetimeMatchStats {
   const candidate = value && typeof value === "object" ? value as Partial<LifetimeMatchStats> : {};
@@ -362,7 +350,7 @@ export function normalizeSnapshot(value: unknown, fallback: UserSnapshot): UserS
     deletedDecks: deckState.deletedDecks,
     history: Array.isArray(candidate.history) ? candidate.history.slice(0, MAX_MATCH_RECORDS) : fallback.history,
     lifetimeStats: normalizeLifetimeMatchStats(candidate.lifetimeStats ?? fallback.lifetimeStats),
-    settings: { ...fallback.settings, ...(candidate.settings ?? {}) },
+    settings: normalizeAppSettings(candidate.settings ?? fallback.settings),
     route: validRoutes.has(candidate.route as AppRoute) ? candidate.route as AppRoute : fallback.route,
     selectedDeckId: typeof candidate.selectedDeckId === "string" ? candidate.selectedDeckId : fallback.selectedDeckId,
     builderDeck: normalizeDeck(candidate.builderDeck),

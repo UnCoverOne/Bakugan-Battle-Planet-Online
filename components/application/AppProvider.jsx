@@ -4,6 +4,7 @@ import { cachedResponse, invalidateResponse } from "../../lib/response-cache";
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { applyPendingGuestReset } from "../../lib/guest-reset";
 import {
   createEmptyAccountSnapshot,
   createRegistrationSnapshot,
@@ -66,7 +67,7 @@ const defaults = {
   profile: DEFAULT_BRAWLER_PROFILE,
   settings: DEFAULT_APP_SETTINGS,
 };
-const paths = { entry: "/", dashboard: "/", decks: "/decks", "deck-detail": "/decks", builder: "/builder/new", compendium: "/compendium", collection: "/collection", play: "/play", lobby: "/play/lobby", placement: "/play/match", match: "/play/match", result: "/play/result", history: "/profile/records", profile: "/profile", settings: "/settings", admin: "/admin" };
+const paths = { entry: "/", dashboard: "/", decks: "/decks", "deck-detail": "/decks", builder: "/builder/new", compendium: "/compendium", collection: "/collection", play: "/play", lobby: "/play/lobby", placement: "/play/match", match: "/play/match", result: "/play/result", history: "/profile/records", profile: "/profile", settings: "/?settings=1", admin: "/admin" };
 
 let storageReportTimer = null;
 let pendingStorageDetail = null;
@@ -87,7 +88,7 @@ export function routeForPath(pathname) {
   if (first === "collection") return "collection";
   if (first === "admin") return "admin";
   if (first === "history") return "history";
-  if (["dashboard", "profile", "settings"].includes(first)) return first;
+  if (["dashboard", "profile"].includes(first)) return first;
   if (first === "play") return second === "lobby" ? "lobby" : second === "match" ? "match" : second === "result" ? "result" : "play";
   return "dashboard";
 }
@@ -252,6 +253,8 @@ export function useApp() {
 }
 
 export function AppProvider({ children }) {
+  // Run before passive restore effects read device-local guest data.
+  useLayoutEffect(() => { applyPendingGuestReset(); }, []);
   const pathname = usePathname();
   const router = useRouter();
   const route = routeForPath(pathname);
@@ -520,7 +523,7 @@ export function AppProvider({ children }) {
     applying.current = true;
     setProfile({ ...next.profile, signedIn: signedIn || next.profile.signedIn });
     decksRef.current = next.decks;
-    setStoredDecks(next.decks); setDeletedDecks(next.deletedDecks ?? []); setHistory(next.history); setLifetimeStats(normalizeLifetimeMatchStats(next.lifetimeStats)); setSettings(next.settings);
+    setStoredDecks(next.decks); setDeletedDecks(next.deletedDecks ?? []); setHistory(next.history); setLifetimeStats(normalizeLifetimeMatchStats(next.lifetimeStats)); setSettings(normalizeStoredSettings(next.settings));
     setBuilderDeck(next.builderDeck); setDeckQuery(next.deckQuery); setCompendiumQuery(next.compendiumQuery); setCompendiumTab(next.compendiumTab);
     setFormat(next.format); setMatchMode(next.matchMode);
     if (restoreReplay || replayReady || next.replay) setReplay(next.replay);

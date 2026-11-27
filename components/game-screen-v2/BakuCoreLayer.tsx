@@ -11,6 +11,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
+import {useReducedMotion} from "../application/useReducedMotion";
 import { HEX_CELLS, type CoreType, type MatchState } from "../../lib/game";
 import {
   allRollTargetsSelected,
@@ -346,6 +347,7 @@ export function BakuCoreLayer({
   presentationRate?: number;
 }) {
   const rate = Math.max(0.25, Math.min(4, presentationRate || 1));
+  const reducedMotion=useReducedMotion();
   const [targets, setTargets] = useState<PortalTargets>(EMPTY_TARGETS);
   const [selectedCoreCell, setSelectedCoreCell] = useState("");
   const [busy, setBusy] = useState(false);
@@ -374,13 +376,12 @@ export function BakuCoreLayer({
 
   useEffect(() => {
     if (!tracingRoll || !resultSignature) return;
-    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const timeout = window.setTimeout(
       () => setCompletedTraceSignature(resultSignature),
       reducedMotion ? 40 : ROLL_TRACE_DURATION_MS / rate,
     );
     return () => window.clearTimeout(timeout);
-  }, [rate, tracingRoll, resultSignature]);
+  }, [rate, tracingRoll, resultSignature, reducedMotion]);
 
   useEffect(() => {
     let frame = 0;

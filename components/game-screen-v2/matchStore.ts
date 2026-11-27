@@ -111,6 +111,7 @@ function readPersistedMatchStore(): MatchStoreSnapshot {
 
 let snapshot = EMPTY;
 let initialized = false;
+let preferencesPrimed = false;
 const listeners = new Set<() => void>();
 
 function snapshotsMatch(left: MatchStoreSnapshot, right: MatchStoreSnapshot) {
@@ -131,6 +132,7 @@ function notify() {
 function refresh() {
   if (typeof window === "undefined") return;
   const persisted = readPersistedMatchStore();
+  if (preferencesPrimed) persisted.settings = snapshot.settings;
   const inMemoryMatch = snapshot.match;
   const persistedMatch = persisted.match;
   const keepNewerInMemoryMatch = Boolean(
@@ -230,13 +232,14 @@ export function primeMatchStore(next: MatchStoreBootstrap) {
     if (acceptedMatch) primedMatch = candidate;
   }
 
+  if (next.settings !== undefined) preferencesPrimed = true;
   const primed: MatchStoreSnapshot = {
     route: next.route ?? gameplayRouteForPathname(window.location.pathname) ?? snapshot.route,
     online: next.online ?? snapshot.online,
     playerId: next.playerId ?? snapshot.playerId,
     capability: next.capability ?? snapshot.capability,
     controllerId: next.controllerId ?? snapshot.controllerId,
-    settings: next.settings ? { ...snapshot.settings, ...next.settings } : snapshot.settings,
+    settings: next.settings ?? snapshot.settings,
     match: primedMatch,
   };
 
@@ -321,11 +324,6 @@ export function publishMatch(next: MatchState, rememberPrevious = true) {
 
 export function publishRoute(route: string) {
   localStorage.setItem(ROUTE_KEY, JSON.stringify(route));
-  refresh();
-}
-
-export function publishSettings(settings: MatchClientSettings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   refresh();
 }
 

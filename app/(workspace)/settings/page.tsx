@@ -1,5 +1,4 @@
-import type { Metadata } from "next";
-import { SettingsScreen } from "../../../components/routes/SettingsScreen";
+import {redirect} from "next/navigation";
 
-export const metadata: Metadata = { title: "Settings" };
-export default function SettingsPage() { return <SettingsScreen />; }
+// Compatibility for old bookmarks. Settings is no longer a product page.
+export default function SettingsPage(){redirect("/?settings=1");}

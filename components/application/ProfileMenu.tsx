@@ -9,6 +9,7 @@ import {ProfileAvatar} from "../profile/ProfileAvatar";
 import {PresenceIndicator} from "../social/PresenceIndicator";
 import {useSocial} from "../social/SocialProvider";
 import {useAppFields} from "./AppProvider";
+import {useSettingsMenu} from "./SettingsMenuProvider";
 import styles from "./ProfileMenu.module.css";
 
 type FeedbackComponent=typeof import("./FeedbackReportsDialog").default;
@@ -39,6 +40,7 @@ export function ProfileMenu({open,onClose,triggerRef,onLogout}:{
   const {profile,authUser,requestAccountAccess}=useAppFields(["profile","authUser","requestAccountAccess"]);
   const {snapshot,socialError,refresh,open:socialOpen}=useSocial();
   const pathname=usePathname();
+  const {openSettings}=useSettingsMenu();
   const dialogRef=useRef<HTMLDialogElement>(null);
   const closeRef=useRef<HTMLButtonElement>(null);
   const [feedbackOpen,setFeedbackOpen]=useState(false);
@@ -150,7 +152,7 @@ export function ProfileMenu({open,onClose,triggerRef,onLogout}:{
         <button type="button" className="bb-button" onClick={()=>access("login")}>Log In</button>
       </div>}
       <nav aria-label="Utilities" className={styles.group} data-section="utilities">
-        <MenuLink href="/settings" label="Settings" icon="settings" onClose={onClose}/>
+        <MenuAction label="Settings" icon="settings" onClick={()=>{onClose();openSettings(triggerRef.current);}}/>
         <MenuAction label={feedbackLoading?"Loading feedback…":"Feedback & Reports"} icon="message-square" disabled={feedbackLoading} onClick={()=>void showFeedback()}/>
         {feedbackError&&<p className={styles.error} role="alert">{feedbackError}</p>}
         {administrator&&<MenuLink href="/admin" label="Administration" icon="shield" onClose={onClose}/>}

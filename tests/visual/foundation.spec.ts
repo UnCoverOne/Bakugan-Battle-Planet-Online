@@ -13,7 +13,6 @@ const routes = [
   { name: "profile", path: "/profile" },
   { name: "achievements", path: "/profile/achievements" },
   { name: "records", path: "/profile/records" },
-  { name: "settings", path: "/settings" },
 ] as const;
 
 const primitiveCoverage: Partial<Record<(typeof routes)[number]["name"], string[]>> = {

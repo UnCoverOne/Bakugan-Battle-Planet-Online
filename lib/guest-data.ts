@@ -1,4 +1,5 @@
 import type { UserSnapshot } from "./persistence";
+import {hasCustomPreferences} from "./settings-preferences";
 
 export type GuestDataSummary = {
   hasMeaningfulData: boolean;
@@ -18,15 +19,7 @@ type GuestSnapshot = Pick<
 
 const DEFAULT_PROFILE_NAMES = new Set(["Guest Brawler", "DanBrawler"]);
 const DEFAULT_PROFILE_FACTION = "Pyrus";
-const DEFAULT_SETTINGS = {
-  reducedMotion: false,
-  highContrast: false,
-  sound: true,
-  cardScale: 100,
-  logDetail: "All events",
-  challenges: "Everyone",
-  replayLinks: true,
-};
+
 
 export function summarizeGuestData(snapshot: GuestSnapshot): GuestDataSummary {
   const profileCustomized =
@@ -39,18 +32,7 @@ export function summarizeGuestData(snapshot: GuestSnapshot): GuestDataSummary {
       snapshot.profile.coverId !== "battle-planet") ||
     Boolean(snapshot.profile.showcaseAchievementIds?.length) ||
     Boolean(snapshot.profile.showcaseDeckIds?.length);
-  const settingsCustomized =
-    snapshot.settings.reducedMotion !== DEFAULT_SETTINGS.reducedMotion ||
-    snapshot.settings.highContrast !== DEFAULT_SETTINGS.highContrast ||
-    snapshot.settings.sound !== DEFAULT_SETTINGS.sound ||
-    snapshot.settings.cardScale !== DEFAULT_SETTINGS.cardScale ||
-    snapshot.settings.logDetail !== DEFAULT_SETTINGS.logDetail ||
-    snapshot.settings.challenges !== DEFAULT_SETTINGS.challenges ||
-    snapshot.settings.replayLinks === false ||
-    snapshot.settings.automaticDraw !== undefined ||
-    snapshot.settings.automaticPass !== undefined ||
-    snapshot.settings.soundEnabled !== undefined ||
-    snapshot.settings.soundVolume !== undefined;
+  const settingsCustomized = hasCustomPreferences(snapshot.settings);
   const deckCount = snapshot.decks.length;
   const matchCount = snapshot.history.length;
   const hasDraft = Boolean(snapshot.builderDeck);

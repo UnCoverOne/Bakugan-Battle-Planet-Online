@@ -17,16 +17,15 @@ import {
 import styles from "./MatchResultDialog.module.css";
 import { MatchResultSocial } from "../social/MatchResultSocial";
 import { useAppFields } from "../application/AppProvider";
+import {useReducedMotion} from "../application/useReducedMotion";
 import {
   MATCH_UPDATE_EVENT,
   finalizeCompletedMatchExit,
   publishMatch,
   publishRoute,
-  publishSettings,
   readMatchStore,
   useMatchSelector,
   useMatchTransport,
-  type MatchClientSettings,
 } from "./matchStore";
 
 export { MATCH_UPDATE_EVENT };
@@ -38,7 +37,6 @@ const GAME_ROUTE_PATHS: Record<string, string> = {
   lobby: "/play/lobby",
   match: "/play/match",
   result: "/play/result",
-  settings: "/settings",
 };
 
 type ResultOutcome = "victory" | "loss" | "draw";
@@ -172,7 +170,7 @@ function MatchResultDialog({
   useEffect(() => {
     primaryButtonRef.current?.focus();
     const dismissOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || document.querySelector("dialog[data-settings-menu][open],dialog[data-match-menu][open]")) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       onDismiss();
@@ -263,10 +261,6 @@ export function pathnameForGameRoute(route: string) {
   return GAME_ROUTE_PATHS[route] ?? null;
 }
 
-export function writeGameSettings(settings: Record<string, unknown>) {
-  publishSettings(settings as MatchClientSettings);
-}
-
 export function MatchStateCoordinator() {
   const router = useRouter();
   const { nextSeriesGame } = useAppFields(["nextSeriesGame"]);
@@ -279,20 +273,12 @@ export function MatchStateCoordinator() {
   const retracting = returnState.route === "match" && returnState.match?.phase === "retract";
   const completed = returnState.route === "match" && returnState.match?.phase === "result";
   const [resultReady, setResultReady] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const reducedMotion=useReducedMotion();
   const [skippedMaximusResultKey, setSkippedMaximusResultKey] = useState<string | null>(null);
   const [dismissedResultKey, setDismissedResultKey] = useState<string | null>(null);
   const resultKey = completed && returnState.match
     ? `${returnState.match.id}:${returnState.match.gameNumber}:${returnState.match.winner ?? ""}:${returnState.match.resultReason ?? ""}`
     : null;
-
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReducedMotion(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
 
   useEffect(() => {
     if (!completed || !returnState.match || !isDragonoidMaximusResult(returnState.match) || !resultKey) return;

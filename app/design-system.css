@@ -205,3 +205,14 @@ body { line-height: 1.5; }
 @media (prefers-reduced-motion: reduce) {
   :where(button, [role="button"], [role="tab"], a) { transition: none; }
 }
+
+/* Accessibility preferences use the same semantic tokens as ordinary screens. */
+:root[data-contrast="high"]{
+  --bb-page:#090d12;--bb-nav:#10151c;--bb-panel:#202832;--bb-panel-hover:#3b4a5b;
+  --bb-text:#ffffff;--bb-muted:#e0e7ef;--bb-border:#8394a7;--bb-border-hover:#a8b8c9;
+  --bb-focus:#a6e2ff;--bb-focus-warm:#ffe1e3;--bb-nav-indicator:#56bcff;
+  --bb-border-row:#8394a7;--bb-border-divider:#8394a7;--bb-border-panel:#8394a7;
+}
+:root[data-motion="reduced"] :where(.blank-shell:not(.immersive-shell) *,dialog[data-settings-menu] *,dialog[data-match-menu] *){
+  animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important;
+}

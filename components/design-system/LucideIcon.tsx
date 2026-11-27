@@ -10,10 +10,18 @@ export type LucideIconName =
   | "layout-list" | "layout-grid" | "sliders-horizontal" | "list"
   | "search" | "hexagon" | "rectangle-vertical" | "circle-minus"
   | "plus" | "minus" | "x" | "chevron-left" | "chevron-right"
+  | "gamepad-2" | "monitor" | "volume-2" | "key-round" | "download" | "trash-2" | "menu"
   | "user-round" | "history" | "settings" | "log-out" | "shield" | "layers" | "layout-dashboard" | "play" | "library-big"
   | "users" | "inbox" | "ellipsis" | "send" | "chevron-down" | "file-pen-line" | "link" | "globe" | "image" | "bot" | "swords" | "trophy" | "lock" | "message-square" | "copy";
 
 const glyphs: Record<LucideIconName, ReactNode> = {
+  "gamepad-2": <><path d="M6 12h4M8 10v4M15 13h.01M18 11h.01"/><path d="M17.3 7H6.7a4 4 0 0 0-3.9 3.2l-1 5a2.5 2.5 0 0 0 4.2 2.3L9 15h6l3 2.5a2.5 2.5 0 0 0 4.2-2.3l-1-5A4 4 0 0 0 17.3 7Z"/></>,
+  "monitor": <><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></>,
+  "volume-2": <><path d="M11 5 6 9H3v6h3l5 4V5ZM15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12"/></>,
+  "key-round": <><circle cx="7.5" cy="15.5" r="5.5"/><path d="m11.5 11.5 9-9 2 2-3 3 2 2-3 3-2-2-3 3"/></>,
+  "download": <><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></>,
+  "trash-2": <><path d="M3 6h18M8 6V3h8v3M5 6l1 14h12l1-14M10 10v6M14 10v6"/></>,
+  "menu": <path d="M4 6h16M4 12h16M4 18h16"/>,
   "user-round": <><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></>,
   "history": <><path d="M3 12a9 9 0 1 1 9 9 9 9 0 0 1-6.7-3"/><path d="M3 3v9h9M12 7v5l4 2"/></>,
   "settings": <><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.16-.09a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.16.09a2 2 0 0 1 1 1.73v.5a2 2 0 0 1-1 1.74l-.16.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.16-.09a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.16.09a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.16-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.73l.16-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.16.09a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></>,

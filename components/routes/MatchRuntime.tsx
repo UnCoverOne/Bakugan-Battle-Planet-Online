@@ -4,7 +4,7 @@ import "../../app/gameplay-foundation.css";
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useAppFields } from "../application/AppProvider";
 import { primeMatchStore } from "../game-screen-v2/matchStore";
 
@@ -33,7 +33,7 @@ export function MatchRuntime() {
   const [bootstrappedMatchId, setBootstrappedMatchId] = useState("");
   const [missingMatch, setMissingMatch] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!ready || !match) return;
     const primed = primeMatchStore({
       route: "match",

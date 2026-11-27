@@ -18,7 +18,7 @@ const guestSnapshot = (overrides: Partial<UserSnapshot> = {}) => ({
     highContrast: false,
     sound: true,
     cardScale: 100,
-    logDetail: "All events",
+    logDetail: "Cards",
     challenges: "Everyone",
     replayLinks: true,
   },
@@ -197,7 +197,7 @@ test("ordinary login never replaces the recovery code and Account Settings allow
   const modal = source("components/application/AccountAccessModal.tsx");
   const controller = source("components/application/GuestExperienceController.tsx");
   const route = source("app/api/auth/route.ts");
-  const settings = source("components/routes/SettingsScreen.tsx");
+  const settings = source("components/application/SettingsAccount.tsx");
   const loginHandler = route.split('if (action === "login")')[1].split('if (action === "recover-password")')[0];
 
   assert.ok(loginHandler);

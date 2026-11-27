@@ -8,6 +8,7 @@ import { cardEventLogEntries, eventLogEntries, matchTimeLabel } from "../../lib/
 import type { MatchState } from "../../lib/game";
 import { CardArt } from "../cards/CardArt";
 import { useMatchSelector } from "./matchStore";
+import {eventLogFilter} from "../../lib/settings-preferences";
 import batchStyles from "./BrawlExperienceLayer.module.css";
 import styles from "./MatchCommunicationLayer.module.css";
 
@@ -41,7 +42,9 @@ export function MatchCommunicationLayer() {
   }));
   const [eventLogOpen, setEventLogOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
-  const [eventFilter, setEventFilter] = useState<EventFilter>("cards");
+  const preferredFilter=useMatchSelector(state=>eventLogFilter(state.settings.logDetail));
+  const [eventFilter, setEventFilter] = useState<EventFilter>(preferredFilter);
+  useEffect(()=>setEventFilter(preferredFilter),[preferredFilter]);
   const eventScroll = useRef<HTMLDivElement | null>(null);
   const eventDock = useRef<HTMLDivElement | null>(null);
   const chatDock = useRef<HTMLDivElement | null>(null);
