@@ -34,7 +34,8 @@ function ProfileOwner({achievementPage,achievementView}:{achievementPage:boolean
   const [rankState,setRankState]=useState<"loading"|"ready"|"error">("loading");
   const effectiveLifetimeStats=useMemo(()=>authUser?lifetimeMatchStatsFromHistory(history):lifetimeStats,[authUser,history,lifetimeStats]);
   const achievements=useMemo(()=>achievementsForProfile(decks,history,effectiveLifetimeStats,profile),[decks,history,effectiveLifetimeStats,profile]);
-  const completedAchievementIds=new Set(achievements.filter(achievement=>achievement.unlocked).map(achievement=>achievement.id));
+  const completedAchievementIds=useMemo(()=>new Set(achievements.filter(achievement=>achievement.unlocked).map(achievement=>achievement.id)),[achievements]);
+  const showcasedAchievementIds=(profile.showcaseAchievementIds??[]).filter((id:string)=>completedAchievementIds.has(id)).slice(0,PROFILE_SHOWCASE_LIMIT);
   const stats=playerMatchSummary(history,lifetimeStats,Boolean(authUser));
   const unifiedProfile=buildPublicBrawlerProfile({userId:authUser?.id??"local-profile",joinedAt:authUser?.createdAt??null,profile,decks,achievements,stats,ranked:rankedProfile});
   useEffect(()=>{
@@ -54,11 +55,11 @@ function ProfileOwner({achievementPage,achievementView}:{achievementPage:boolean
   const update=(patch:Partial<typeof profile>,message:string)=>{setProfile((current:typeof profile)=>({...current,...patch}));notify(message);};
   const toggleAchievement=(achievement:(typeof achievements)[number])=>{
     if(!achievement.unlocked)return;
-    const result=toggleShowcaseId(profile.showcaseAchievementIds,achievement.id);
+    const result=toggleShowcaseId(showcasedAchievementIds,achievement.id);
     if(result.reachedLimit){notify("Choose up to "+PROFILE_SHOWCASE_LIMIT+" achievements.");return;}
     update({showcaseAchievementIds:result.ids},"Achievement showcase updated");
   };
-  if(achievementPage)return <AchievementsScreen achievements={achievements} view={achievementView} showcaseIds={profile.showcaseAchievementIds} onToggleShowcase={toggleAchievement}/>;
+  if(achievementPage)return <AchievementsScreen achievements={achievements} view={achievementView} showcaseIds={showcasedAchievementIds} onToggleShowcase={toggleAchievement}/>;
   const requirement=(id:string|null)=>id?achievements.find(achievement=>achievement.id===id)?.name??"Achievement required":"Available by default";
   const picture=<div className={styles.avatarPresetGrid}>
     <button type="button" aria-label="Reset profile picture to default account initials" aria-pressed={!profile.avatar} onClick={()=>update({ avatar: "" },"Profile picture reset")}><span className={styles.avatarInitialsPreview}>{profile.name.slice(0,2).toUpperCase()}</span><span>Default</span></button>
@@ -84,7 +85,7 @@ function ProfileOwner({achievementPage,achievementView}:{achievementPage:boolean
     {menu==="edit"&&<EditProfileMenu onClose={()=>setMenu(null)} panels={{"Profile Picture":picture,Banner:banners,Title:titles,Faction:factionPicker}}/>}
     {menu==="achievements"&&<ProfileDialog title="Achievements" onClose={()=>setMenu(null)}>
       <p className={styles.empty}>{unifiedProfile.showcaseAchievements.length}/{PROFILE_SHOWCASE_LIMIT} showcased</p>
-      <div className={styles.rewardList}>{achievements.map(achievement=><button type="button" key={achievement.id} disabled={!achievement.unlocked||(!profile.showcaseAchievementIds?.includes(achievement.id)&&unifiedProfile.showcaseAchievements.length>=PROFILE_SHOWCASE_LIMIT)} aria-pressed={Boolean(profile.showcaseAchievementIds?.includes(achievement.id))} onClick={()=>toggleAchievement(achievement)}><AchievementCategoryIcon category={achievement.category}/><span><strong>{achievement.name}</strong><small>{achievement.description}</small></span>{profile.showcaseAchievementIds?.includes(achievement.id)?<LucideIcon name="check"/>:!achievement.unlocked?<LucideIcon name="lock"/>:null}</button>)}</div>
+      <div className={styles.rewardList}>{achievements.map(achievement=><button type="button" key={achievement.id} disabled={!achievement.unlocked||(!showcasedAchievementIds.includes(achievement.id)&&unifiedProfile.showcaseAchievements.length>=PROFILE_SHOWCASE_LIMIT)} aria-pressed={Boolean(showcasedAchievementIds.includes(achievement.id))} onClick={()=>toggleAchievement(achievement)}><AchievementCategoryIcon category={achievement.category}/><span><strong>{achievement.name}</strong><small>{achievement.description}</small></span>{showcasedAchievementIds.includes(achievement.id)?<LucideIcon name="check"/>:!achievement.unlocked?<LucideIcon name="lock"/>:null}</button>)}</div>
       <Link className={styles.sectionAction} href="/profile/achievements" onClick={()=>setMenu(null)}>View all achievements <LucideIcon name="chevron-right" size={16}/></Link>
     </ProfileDialog>}
     {menu==="deck"&&<ProfileDialog title="Select Deck" onClose={()=>setMenu(null)}>
@@ -120,9 +121,17 @@ function ProfileDialog({title,onClose,children,back}:{title:string;onClose:()=>v
 function EditProfileMenu({panels,onClose}:{panels:Record<Category,ReactNode>;onClose:()=>void}){
   const [category,setCategory]=useState<Category>("Profile Picture");
   const [mobileSection,setMobileSection]=useState(false);
-  return <ProfileDialog title="Edit Profile" onClose={onClose} back={mobileSection?()=>setMobileSection(false):undefined}>
+  const [narrow,setNarrow]=useState(false);
+  const sectionRef=useRef<HTMLHeadingElement>(null);
+  useEffect(()=>{
+    const media=window.matchMedia("(max-width: 850px)");
+    const update=()=>{setNarrow(media.matches);if(!media.matches)setMobileSection(false);};
+    update();media.addEventListener("change",update);return ()=>media.removeEventListener("change",update);
+  },[]);
+  useEffect(()=>{if(narrow&&mobileSection)sectionRef.current?.focus();},[narrow,mobileSection,category]);
+  return <ProfileDialog title="Edit Profile" onClose={onClose} back={narrow&&mobileSection?()=>setMobileSection(false):undefined}>
     <div className={styles.editTabs} role="tablist" aria-label="Profile elements">{categories.map((item,index)=><button key={item} type="button" role="tab" id={"profile-tab-"+index} aria-controls="profile-edit-panel" aria-selected={category===item} tabIndex={category===item?0:-1} onClick={()=>setCategory(item)} onKeyDown={event=>{const next=event.key==="ArrowRight"?(index+1)%categories.length:event.key==="ArrowLeft"?(index+categories.length-1)%categories.length:event.key==="Home"?0:event.key==="End"?categories.length-1:null;if(next!==null){event.preventDefault();setCategory(categories[next]);document.getElementById("profile-tab-"+next)?.focus();}}}>{item}</button>)}</div>
     {!mobileSection&&<nav className={styles.editNavigation} aria-label="Profile elements">{categories.map(item=><button key={item} type="button" onClick={()=>{setCategory(item);setMobileSection(true);}}>{item}<LucideIcon name="chevron-right" size={18}/></button>)}</nav>}
-    <div id="profile-edit-panel" className={styles.editPanel} data-mobile-open={mobileSection||undefined}><h3 className={styles.mobileCategory}>{category}</h3>{panels[category]}</div>
+    <div id="profile-edit-panel" role={narrow?undefined:"tabpanel"} aria-labelledby={narrow?undefined:"profile-tab-"+categories.indexOf(category)} className={styles.editPanel} data-mobile-open={mobileSection||undefined} tabIndex={narrow?undefined:0}><h3 ref={sectionRef} tabIndex={-1} className={styles.mobileCategory}>{category}</h3>{panels[category]}</div>
   </ProfileDialog>;
 }

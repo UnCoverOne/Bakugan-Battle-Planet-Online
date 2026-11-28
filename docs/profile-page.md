@@ -6,4 +6,4 @@ Profile links directly to the independent Match Records screen (same legacy-comp
 
 Retired: old profile overview/records tabs, individual edit overlays, standalone public profile and mobile CSS, bespoke deck character stack, duplicate statistics panels. Original profile artwork remains in use.
 
-Verification: npm run check:palette; node --import tsx --test tests/profile-customization.test.ts; npm run build. In browser check desktop and mobile native dialogs, keyboard close/focus, all faction rings, visible achievement requirements, public/private deck selection, legacy records/replay URLs and public profile parity.
+Verification: npm run check:palette; node --import tsx --test tests/profile-customization.test.ts; npm run build; npm run test:visual -- tests/visual/profile-page.spec.ts. In browser check desktop and mobile native dialogs, keyboard close/focus, all faction rings, visible achievement requirements, public/private deck selection, legacy records/replay URLs and public profile parity.

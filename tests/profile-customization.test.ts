@@ -246,3 +246,23 @@ test("shared shell and all profile surfaces consume the same avatar component", 
   const preview = readFileSync("components/profile/PlayerPreview.tsx", "utf8");
   for (const source of [shell, shared, preview]) assert.match(source, /ProfileAvatar/);
 });
+
+test("redesigned profile keeps three metrics, visible achievement requirements and shared deck preview",()=>{
+  const shared=readFileSync("components/profile/BrawlerProfileView.tsx","utf8");
+  const owner=readFileSync("components/routes/ProfileScreen.tsx","utf8");
+  const css=readFileSync("components/routes/ProfileScreen.module.css","utf8");
+  assert.deepEqual([...shared.matchAll(/<dt>([^<]+)<\/dt>/g)].map(match=>match[1]),["Rank","Win Rate","Victories"]);
+  assert.match(shared,/achievement\.description/);
+  assert.match(shared,/<DeckPreview/);
+  assert.match(shared,/> Match Records /);
+  assert.match(shared,/>Leaderboards /);
+  assert.match(shared,/>Achievements /);
+  assert.match(shared,/>Select Deck /);
+  assert.match(owner,/dialog\.showModal\(\)/);
+  assert.match(owner,/role="tablist"/);
+  assert.match(owner,/Profile Picture","Banner","Title","Faction"/);
+  assert.match(owner,/deck\.visibility==="Public"/);
+  assert.match(css,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.equal(existsSync("components/profile/BrawlerProfileMobile.module.css"),false);
+  assert.equal(existsSync("components/routes/PublicProfileScreen.module.css"),false);
+});

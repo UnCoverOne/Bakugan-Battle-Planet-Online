@@ -1,7 +1,7 @@
 .profileOverview{--portrait-size:clamp(92px,13vw,132px);--portrait-cutout:10px;width:min(100%,1000px);margin-inline:auto;padding-bottom:3rem;color:var(--bb-text)}
 .identityCard{position:relative;width:100%;aspect-ratio:4 / 1;background:var(--bb-panel)}
 .identityCoverArt{display:block;width:100%;height:100%;object-fit:contain}
-.editButton{position:absolute;top:12px;right:12px;display:inline-flex;align-items:center;gap:.45rem;background:var(--bb-nav);color:var(--bb-text);border:1px solid var(--bb-border);padding:.6rem .8rem;cursor:pointer;font:700 1rem var(--bb-font-interface)}
+.editButton{position:absolute;z-index:2;top:12px;right:12px;display:inline-flex;align-items:center;gap:.45rem;background:var(--bb-nav);color:var(--bb-text);border:1px solid var(--bb-border);padding:.6rem .8rem;cursor:pointer;font:700 1rem var(--bb-font-interface)}
 .editButton:hover,.recordsLink:hover{background:var(--bb-panel-hover)}
 .identityContent,.profileContent{padding-inline:clamp(16px,3vw,28px)}
 .portraitWrap{--faction:var(--bb-pyrus);position:relative;width:var(--portrait-size);height:var(--portrait-size);margin-top:calc(var(--portrait-size) / -2);box-shadow:0 0 0 var(--portrait-cutout) var(--bb-page);border:3px solid var(--faction);border-radius:50%;box-sizing:border-box;background:var(--bb-page)}
@@ -35,7 +35,7 @@
 .deckFactions{display:flex;gap:4px;margin:4px 0}.deckFactions img{object-fit:contain}
 .empty{margin:0;color:var(--bb-muted);font-size:.9rem}
 .pageState{padding:2rem;text-align:center;color:var(--bb-muted)}
-.dialog{background:var(--bb-panel);color:var(--bb-text);border:1px solid var(--bb-border);width:min(720px,calc(100% - 32px));max-width:none;max-height:min(80dvh,800px);padding:0;overflow:hidden}
+.dialog{position:fixed;inset:0;margin:auto;background:var(--bb-panel);color:var(--bb-text);border:1px solid var(--bb-border);width:min(720px,calc(100% - 32px));max-width:none;max-height:min(80dvh,800px);padding:0;overflow:hidden}
 .dialog::backdrop{background:color-mix(in srgb,var(--bb-black) 72%,transparent)}
 .dialogInner{display:flex;flex-direction:column;max-height:inherit;min-height:0}
 .dialogHeading{display:flex;align-items:center;gap:10px;padding:16px 20px;background:var(--bb-nav)}
@@ -77,4 +77,4 @@
 .mobileCategory{display:block;margin:0 0 12px}
 .avatarPresetGrid{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
-@media(max-width:420px){.identityCard{min-height:96px}.identityCoverArt{object-fit:cover}.editButton{top:8px;right:8px;font-size:.85rem;padding:.45rem .6rem}.sectionHeading h2{font-size:1.1rem}.sectionAction{font-size:.86rem}.coverGrid{grid-template-columns:1fr}.profileContent{gap:26px}.stats dd{font-size:clamp(1rem,4.4vw,1.3rem)}}
+@media(max-width:420px){.editButton{top:8px;right:8px;font-size:.85rem;padding:.45rem .6rem}.sectionHeading h2{font-size:1.1rem}.sectionAction{font-size:.86rem}.coverGrid{grid-template-columns:1fr}.profileContent{gap:26px}.stats dd{font-size:clamp(.95rem,4vw,1.3rem)}.stats dd[data-rank="Awesome Brawler"]{font-size:clamp(.78rem,3.2vw,1.05rem)}}

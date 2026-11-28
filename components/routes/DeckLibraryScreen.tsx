@@ -126,7 +126,7 @@ export function DeckLibraryScreen() {
       return;
     }
     const ids = selectShowcaseDeck(profile.showcaseDeckIds, deck.id);
-    setProfile((current) => ({ ...current, showcaseDeckIds: ids }));
+    setProfile((current: typeof profile) => ({ ...current, showcaseDeckIds: ids }));
     notify(
       ids.includes(deck.id)
         ? `${deck.name} added to your Profile showcase.`
