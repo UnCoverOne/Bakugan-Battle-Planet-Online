@@ -40,7 +40,10 @@ for (const signedIn of [false,true]) {
     await dialog.getByRole("button",{name:"Select a related card"}).click();
     const selector=page.getByRole("dialog",{name:"Select Card",exact:true});
     await selector.getByRole("searchbox",{name:"Search cards"}).fill("bb-1");
-    await selector.getByRole("button").filter({hasText:/BB-1 ·/}).first().click();
+    const exactCard = selector.getByRole("button").filter({hasText:/BB-1 ·/}).first();
+    await expect(exactCard).toBeVisible();
+    await expect(selector.locator("ul button").first()).toHaveText(/BB-1 ·/);
+    await exactCard.click();
     await expect(dialog.getByLabel("Details")).toHaveValue(message);
     await expect(dialog.getByLabel("Submission type")).toHaveValue("suggestion");
     await dialog.getByRole("button",{name:"Submit request"}).click();

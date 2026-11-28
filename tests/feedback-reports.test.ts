@@ -18,7 +18,7 @@ test("Feedback & Reports is a single native modal form with a separate card sele
   assert.match(dialog, /<select[^>]*value=\{kind\}/);
   assert.match(dialog, /Report an issue/);
   assert.match(dialog, /Request a feature/);
-  assert.match(dialog, /<span>Details<\/span>/);
+  assert.match(dialog, /<label htmlFor=\{detailsId\}>Details<\/label>/);
   assert.match(dialog, /minLength=\{FEEDBACK_MIN_LENGTH\} maxLength=\{FEEDBACK_MAX_LENGTH\}/);
   assert.match(dialog, /dialog\.showModal\(\)/);
   assert.match(dialog, /setView\("card"\)/);

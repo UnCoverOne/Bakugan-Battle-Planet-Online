@@ -34,6 +34,7 @@ export default function FeedbackReportsDialog({ onClose }: { onClose: () => void
   const previousView = useRef<View>("form");
   const busyRef = useRef(false);
   const titleId = useId();
+  const detailsId = useId();
   const detailsHelpId = useId();
   const active = OPTIONS.find(option => option.kind === kind)!;
   const selectedCard = CARDS.find(card => card.catalogId === cardId);
@@ -147,12 +148,12 @@ export default function FeedbackReportsDialog({ onClose }: { onClose: () => void
             </div>
             {cardId && !selectedCard && <small role="alert">This card is no longer available. Choose another card or remove it.</small>}
           </div>
-          <label className={styles.field}>
-            <span className={styles.detailsHeading}><span>Details</span><span className={styles.counter}>{message.length.toLocaleString()} / {FEEDBACK_MAX_LENGTH.toLocaleString()}</span></span>
-            <textarea className="bb-field" required minLength={FEEDBACK_MIN_LENGTH} maxLength={FEEDBACK_MAX_LENGTH} rows={7}
+          <div className={styles.field}>
+            <span className={styles.detailsHeading}><label htmlFor={detailsId}>Details</label><span className={styles.counter}>{message.length.toLocaleString()} / {FEEDBACK_MAX_LENGTH.toLocaleString()}</span></span>
+            <textarea id={detailsId} className="bb-field" required minLength={FEEDBACK_MIN_LENGTH} maxLength={FEEDBACK_MAX_LENGTH} rows={7}
               value={details} onChange={event => setDetails(event.target.value)} aria-describedby={detailsHelpId} placeholder={active.placeholder}/>
             <small id={detailsHelpId}>Minimum {FEEDBACK_MIN_LENGTH} characters.</small>
-          </label>
+          </div>
         </fieldset>
         {error && <p className={styles.error} role="alert">{error}</p>}
         {remaining > 0 && <p className={styles.retry}>Try again in {remaining} seconds.</p>}

@@ -35,8 +35,12 @@ export function FeedbackCardSelector({ selectedId, onSelect }: {
     })).sort((a,b) => a.card.displayName.localeCompare(b.card.displayName) || a.card.catalogId.localeCompare(b.card.catalogId));
   }, [catalogueRevision]);
   const matches = useMemo(() => {
-    const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-    return index.filter(item => terms.every(term => item.searchable.includes(term)));
+    const normalized = query.toLowerCase().trim();
+    const terms = normalized.split(/\s+/).filter(Boolean);
+    const rank = (card: GameCard) => card.catalogId.toLowerCase() === normalized ? 0
+      : card.displayName.toLowerCase() === normalized || card.name.toLowerCase() === normalized ? 1 : 2;
+    return index.filter(item => terms.every(term => item.searchable.includes(term)))
+      .sort((a,b) => normalized ? rank(a.card) - rank(b.card) : 0);
   }, [index, query]);
   return <div className={styles.selector}>
     <div className={styles.searchBar}>
