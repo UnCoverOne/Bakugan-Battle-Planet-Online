@@ -26,6 +26,7 @@ import { completedMatchKey } from "../../lib/match-result-navigation";
 import {
   PROFILE_COVERS,
   PROFILE_TITLES,
+  normalizeShowcaseIds,
 } from "../../lib/profile-customization";
 import {
   resetProfileRewardRuntime,
@@ -52,6 +53,7 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
     () => normalizeAchievementDefinitions(ACHIEVEMENT_DEFINITIONS),
   );
   const [definitionsReady, setDefinitionsReady] = useState(false);
+  const [definitionsAuthoritative, setDefinitionsAuthoritative] = useState(false);
   const trainingEligibleAchievements = useMemo(
     () => definitions
       .filter((definition) => achievementTrainingConfigurable(definition) && definition.trainingAllowed)
@@ -93,6 +95,7 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
         const nextDefinitions = normalizeAchievementDefinitions(result.achievements);
         const activeAchievementIds = new Set(nextDefinitions.map((item) => item.id));
         setDefinitions(nextDefinitions);
+        setDefinitionsAuthoritative(true);
         setAssignments(normalizeAchievementRewardAssignments(result.assignments, activeAchievementIds));
         setDefinitionsReady(true);
       })
@@ -163,6 +166,18 @@ export function ProfileRewardRuntimeProvider({ children }: { children: ReactNode
       return { ...current, achievementCompletions: nextCompletions };
     });
   }, [liveAchievements, setProfile]);
+
+  // Do not discard custom achievements while the configured catalogue is still loading
+  // or when the request fails and the default catalogue is used as a fallback.
+  useEffect(() => {
+    if (!definitionsAuthoritative) return;
+    setProfile((current) => {
+      const selected = current.showcaseAchievementIds ?? [];
+      const eligible = normalizeShowcaseIds(selected).filter((id) => completedAchievementIds.has(id));
+      return selected.length === eligible.length && selected.every((id: string, index: number) => id === eligible[index])
+        ? current : { ...current, showcaseAchievementIds: eligible };
+    });
+  }, [definitionsAuthoritative, completedAchievementIds, setProfile]);
 
   useEffect(() => {
     const next = { ...profile };

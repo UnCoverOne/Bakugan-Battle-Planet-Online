@@ -36,7 +36,7 @@ export function BrawlerProfileView({profile,ownerActions,rankLoading=false,rankU
   const presence=ownPresence?{online:ownPresence.kind!=="offline",presence:ownPresence}:peer;
   const deck=profile.showcaseDecks[0];
   return <div className={styles.profileOverview}>
-    <header className={styles.identity}>
+    <header>
       <div className={styles.identityCard}>
         <OriginalImage className={styles.identityCoverArt} src={selectedCover.src} alt="" width="1920" height="480" fetchPriority="high"/>
         {ownerActions&&<button type="button" className={styles.editButton} onClick={ownerActions.onEdit}><LucideIcon name="pencil" size={18}/> Edit Profile</button>}

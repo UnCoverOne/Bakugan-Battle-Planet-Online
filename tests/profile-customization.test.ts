@@ -241,7 +241,7 @@ test("public profile server uses canonical profile fields and exposes only selec
 });
 
 test("shared shell and all profile surfaces consume the same avatar component", () => {
-  const shell = readFileSync("components/application/AppShell.jsx", "utf8");
+  const shell = readFileSync("components/application/SiteNavigation.jsx", "utf8");
   const shared = readFileSync("components/profile/BrawlerProfileView.tsx", "utf8");
   const preview = readFileSync("components/profile/PlayerPreview.tsx", "utf8");
   for (const source of [shell, shared, preview]) assert.match(source, /ProfileAvatar/);
@@ -265,4 +265,6 @@ test("redesigned profile keeps three metrics, visible achievement requirements a
   assert.match(css,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
   assert.equal(existsSync("components/profile/BrawlerProfileMobile.module.css"),false);
   assert.equal(existsSync("components/routes/PublicProfileScreen.module.css"),false);
+  const avatar=readFileSync("components/profile/ProfileAvatar.tsx","utf8");
+  assert.doesNotMatch(avatar,/PROFILE_AVATAR_PRESETS|profile-popover-avatar/);
 });
