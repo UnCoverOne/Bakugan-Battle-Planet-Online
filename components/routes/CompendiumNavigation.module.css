@@ -55,3 +55,5 @@
 @media (prefers-reduced-motion: reduce) {
   .button { transition: none; }
 }
+
+.navigation[data-collection="true"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }

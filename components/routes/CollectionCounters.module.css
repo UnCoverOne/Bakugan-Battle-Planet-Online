@@ -1,0 +1,19 @@
+.row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-top:4px;width:100%;min-width:0;height:24px}
+.counter{display:flex;align-items:center;justify-content:center;gap:3px;min-width:0;height:24px;padding:0 2px;border:1px solid var(--bb-border);border-radius:2px;background:var(--bb-panel);color:var(--bb-text);font:500 10px/16px var(--bb-font-interface);font-variant-numeric:tabular-nums;cursor:pointer}
+.counter svg{flex:none;width:12px;height:12px}
+.counter[data-zero="true"]{color:var(--bb-muted)}
+.counter:hover,.counter[aria-expanded="true"]{background:var(--bb-panel-hover);border-color:var(--bb-focus)}
+.counter:focus-visible,.editor button:focus-visible,.editor input:focus-visible,.editor select:focus-visible{outline:2px solid var(--bb-focus);outline-offset:1px}
+.editor{position:fixed;z-index:1250;box-sizing:border-box;width:min(240px,calc(100vw - 16px));max-height:calc(100dvh - 16px);overflow:auto;padding:10px;display:grid;gap:8px;background:var(--bb-panel);border:1px solid var(--bb-border-hover);color:var(--bb-text);font:500 13px var(--bb-font-interface);box-shadow:0 6px 20px rgb(0 0 0 / .32)}
+.header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.header button,.stepper button{display:grid;place-items:center;background:var(--bb-panel-inset);border:1px solid var(--bb-border);color:var(--bb-text);cursor:pointer;padding:0}
+.header button{width:28px;height:28px}
+.stepper{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:5px}
+.stepper button,.stepper input{height:44px}
+.stepper input,.printing select{width:100%;min-width:0;box-sizing:border-box;background:var(--bb-panel-inset);border:1px solid var(--bb-border);color:var(--bb-text);font:inherit}
+.stepper input{text-align:center;font-size:18px;font-variant-numeric:tabular-nums}
+.stepper button:disabled,.stepper input:disabled{opacity:.5;cursor:default}
+.printing{display:grid;gap:4px}
+.printing select{min-height:44px;padding:4px}
+.editor small{color:var(--bb-muted)}
+@media(max-width:700px){.row{gap:2px;height:32px}.counter{height:32px;gap:1px;padding:0 1px;font-size:10px}.counter svg{width:10px;height:10px}}

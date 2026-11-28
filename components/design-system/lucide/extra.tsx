@@ -1,5 +1,8 @@
 // Exact glyph geometry from Lucide 0.468.0. See THIRD-PARTY-NOTICES.md.
 export const extraGlyphs = {
+  "sparkles": <><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063L2 12l6.5-2.063A2 2 0 0 0 9.937 8.5L12 2l2.063 6.5A2 2 0 0 0 15.5 9.937L22 12l-6.5 2.063a2 2 0 0 0-1.437 1.437L12 22z"/><path d="M5 3v4M3 5h4M19 13v4M17 15h4"/></>,
+  "star": <path d="M11.5 2.5a.6.6 0 0 1 1 0l2.8 5.7 6.3.9a.6.6 0 0 1 .3 1l-4.5 4.4 1.1 6.2a.6.6 0 0 1-.9.6L12 18.4l-5.6 2.9a.6.6 0 0 1-.9-.6l1.1-6.2-4.5-4.4a.6.6 0 0 1 .3-1l6.3-.9z"/>,
+
   // upstream blob 433ded3fcc5f7bd2b6a59356c6ffe8eceac6b7e3
   "arrow-right": <><path d="M5 12h14" />
   <path d="m12 5 7 7-7 7" /></>,

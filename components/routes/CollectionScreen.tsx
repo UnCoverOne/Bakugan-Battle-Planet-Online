@@ -1,297 +1,196 @@
 "use client";
 
-import { LucideIcon } from "../design-system/LucideIcon";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { BakuCoreArt } from "@/components/bakucore/BakuCoreArt";
-import { ResponsiveCardImage } from "../cards/ResponsiveCardImage";
-import { BakuganRollingOverlay } from "../cards/BakuganRollingStats";
 import { CardInspector } from "../cards/CardInspector";
-import { CardGrid, Field, RouteHero, StatusChip, Surface, Tabs, ActionButton } from "../design-system/primitives";
-import { CardFilterPanel } from "../filters/CardFilterPanel";
-import { FilterPicker } from "../filters/FilterPicker";
-import { CARDS, CORE_COMPENDIUM } from "../../lib/data";
-import { cardSetCode } from "../../lib/content/catalogue";
-import { activeCardFilterCount, CORE_SET_OPTIONS, CORE_TYPE_OPTIONS, createCardFilterOptionCatalogue, type CardFilterFacet } from "../../lib/card-filters";
-import { SORT_LABELS, CHARACTER_SORTS, NON_CHARACTER_SORTS, CORE_SORT_LABELS } from "../../lib/catalogue-sorting";
-import { CORE_COMPENDIUM_SORTS, filterAndSortCompendiumCards, filterAndSortCompendiumCores, parseCompendiumState, parseCoreCompendiumState, selectedCompendiumCard, selectedCompendiumCore, parseInspectorTab, type CardInspectorTab } from "../../lib/compendium";
-import { collectionEntryForIds, coreCollectionIds, COLLECTION_QUANTITY_OPTIONS, COLLECTION_SORT_OPTIONS, type CollectionField } from "../../lib/collection";
-import { updateCollection } from "../../lib/collection";
+import { ActionButton, Surface } from "../design-system/primitives";
 import { useAppFields } from "../application/AppProvider";
-import compendiumStyles from "./CompendiumScreen.module.css";
+import { CARDS, CORE_COMPENDIUM } from "../../lib/data";
+import { activeCardFilterCount, createCardFilterOptionCatalogue, type CardFilterFacet } from "../../lib/card-filters";
+import { SORT_LABELS, CHARACTER_SORTS, NON_CHARACTER_SORTS, CORE_SORT_LABELS } from "../../lib/catalogue-sorting";
+import { COMPENDIUM_PAGE_SIZE, CORE_COMPENDIUM_PAGE_SIZE, filterAndSortCompendiumCores, parseCompendiumState, parseCoreCompendiumState, parseInspectorTab, selectedCompendiumCard, selectedCompendiumCore } from "../../lib/compendium";
+import { COLLECTION_FIELDS, COLLECTION_QUANTITY_OPTIONS, COLLECTION_SORT_OPTIONS, updateCollection, type CollectionField, type CollectionSort } from "../../lib/collection";
+import { cardCollectionCatalogue, coreCollectionPrintings, printingTotals, matchesCollection, sortCollection, COLLECTION_STATUS_OPTIONS } from "../../lib/collection-catalogue";
+import { CardsGallery } from "./CardsGallery";
+import { CoresGallery } from "./CoresGallery";
+import { CompendiumToolbar } from "./CompendiumToolbar";
+import { CompendiumSidebar } from "./CompendiumSidebar";
+import { CompendiumPagination } from "./CompendiumPagination";
+import { CompendiumFieldPicker } from "./CompendiumFieldPicker";
+import { FilterControls, CoreFilterControls } from "./CatalogueFilters";
+import { CollectionCounters, quantityLabel } from "./CollectionCounters";
+import layout from "./CompendiumScreen.module.css";
 import styles from "./CollectionScreen.module.css";
-import { MotionValue } from "../design-system/MotionValue";
 
-import { collectionIdentityIndex } from "../../lib/catalogue-index";
-
-const quantityKey = (field: CollectionField) => `collection${field[0].toUpperCase()}${field.slice(1)}`;
-const quantityLabel = (field: CollectionField) => field[0].toUpperCase() + field.slice(1);
-const allCollectionFilters = ["standard", "foil", "wishlist"] as const;
-const coreArchiveSortOptions = CORE_COMPENDIUM_SORTS.map((value) => ({ value, label: CORE_SORT_LABELS[value] }));
-
-function countMatches(count: number, values: readonly string[]) {
-  if (!values.length) return true;
-  return values.some((value) => value === "1" ? count === 1 : value === "2" ? count === 2 : count >= 3);
-}
+const quantityKey = (field: CollectionField) => "collection" + quantityLabel(field);
+const cardFilterKeys = ["type","set","faction","coreType","cost","rarity","keyword","bPower","damage","fusions"];
+const coreFilterKeys = ["coreType","coreSet","corePower","coreDamage","coreEffect","coreFaction"];
+const collectionKeys = ["collectionStatus", ...COLLECTION_FIELDS.map(quantityKey)];
+type Patch = Record<string, string | string[] | null>;
 
 export function CollectionScreen() {
-  const searchParams = useSearchParams();
-  const { authUser, accountDataReady, syncStatus, requestAccountAccess, collection, setCollection, catalogueRevision } = useAppFields(["authUser", "accountDataReady", "syncStatus", "requestAccountAccess", "collection", "setCollection", "catalogueRevision"]);
-  const inspectorTrigger = useRef<HTMLElement | null>(null);
-  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
-  const activeTab = searchParams.get("collectionTab") === "cores" ? "cores" : "cards";
-  const requestedInspectorTab = searchParams.get("tab");
-  const inspectorTab: CardInspectorTab = parseInspectorTab(requestedInspectorTab, "collection");
-  const urlQuery = searchParams.get("q") ?? "";
+  const params = useSearchParams();
+  const { authUser, accountDataReady, syncStatus, requestAccountAccess, collection, setCollection, catalogueRevision } = useAppFields(["authUser","accountDataReady","syncStatus","requestAccountAccess","collection","setCollection","catalogueRevision"]);
+  const section = params.get("collectionTab") === "cores" ? "cores" : "cards";
+  const isCards = section === "cards";
+  const state = useMemo(() => parseCompendiumState(params.toString()), [params]);
+  const coreState = useMemo(() => parseCoreCompendiumState(params.toString()), [params]);
+  const urlQuery = params.get("q") ?? "";
   const [query, setQuery] = useState(urlQuery);
   const deferredQuery = useDeferredValue(query);
-  useEffect(() => { setQuery(urlQuery); }, [urlQuery]);
-  const localParams = useMemo(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (deferredQuery) params.set("q", deferredQuery); else params.delete("q");
-    if (deferredQuery !== urlQuery) { params.delete("page"); params.delete("corePage"); }
-    return params;
-  }, [deferredQuery, searchParams, urlQuery]);
-  const cardState = useMemo(() => parseCompendiumState(localParams.toString()), [localParams]);
-  const coreState = useMemo(() => parseCoreCompendiumState(localParams.toString()), [localParams]);
-  const identityIndex = useMemo(() => { void catalogueRevision; return collectionIdentityIndex(CARDS); }, [catalogueRevision]);
-  const cardEntries = useMemo(() => new Map(identityIndex.representatives.map(card => [card.catalogId, collectionEntryForIds(collection, identityIndex.idsFor(card))])), [collection, identityIndex]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopVisible, setDesktopVisible] = useState(true);
+  const sidebarTrigger = useRef<HTMLButtonElement>(null);
+  const resultsStart = useRef<HTMLElement>(null);
+  const inspectorTrigger = useRef<HTMLElement | null>(null);
+  const localSearch = useRef(false);
+  const timer = useRef<number | null>(null);
+  const pageKey = isCards ? "page" : "corePage";
+  const densityKey = isCards ? "density" : "coreDensity";
+  const density = isCards ? state.density : coreState.density;
+  const statuses = params.getAll("collectionStatus").filter(value => COLLECTION_STATUS_OPTIONS.some(option => option.value === value));
+  const quantities = Object.fromEntries(COLLECTION_FIELDS.map(field => [field, params.getAll(quantityKey(field)).filter(value => COLLECTION_QUANTITY_OPTIONS.some(option => option.value === value))])) as Record<CollectionField, string[]>;
+  const rawSort = params.get("collectionSort");
+  const collectionSort: CollectionSort = COLLECTION_SORT_OPTIONS.find(option => option.value === rawSort)?.value ?? "collector";
+  const characterOnly = state.type.length === 1 && state.type[0] === "Character";
+  const allowedSorts = characterOnly ? CHARACTER_SORTS : NON_CHARACTER_SORTS;
+  const selectedCardSort = allowedSorts.has(state.sort) ? state.sort : "collector";
   const filterOptions = useMemo(() => { void catalogueRevision; return createCardFilterOptionCatalogue(CARDS); }, [catalogueRevision]);
-  const valuesFor = useCallback((field: CollectionField) => searchParams.getAll(quantityKey(field)), [searchParams]);
-  const requestedCollectionSort = searchParams.get("collectionSort");
-  const collectionSort = COLLECTION_SORT_OPTIONS.some(({ value }) => value === requestedCollectionSort) ? requestedCollectionSort! : "collector";
-  const isCharacterOnly = cardState.type.length === 1 && cardState.type[0] === "Character";
-  const includesCharacter = cardState.type.includes("Character");
-  const cardSortOptions = Object.entries(SORT_LABELS).filter(([value]) => (isCharacterOnly ? CHARACTER_SORTS : NON_CHARACTER_SORTS).has(value as typeof cardState.sort));
-  const selectedCardSort = cardSortOptions.some(([value]) => value === cardState.sort) ? cardState.sort : "collector";
-  const secondaryCardFacets: CardFilterFacet[] = ["set", "faction", ...(!isCharacterOnly ? ["cost", "rarity"] as CardFilterFacet[] : []), ...(includesCharacter ? ["coreType"] as CardFilterFacet[] : []), "keyword"];
-  const activeFilterCount = (activeTab === "cards" ? activeCardFilterCount(cardState) : coreState.type.length + coreState.set.length + coreState.bonus.length + coreState.damage.length + coreState.effects.length + coreState.faction.length)
-    + allCollectionFilters.reduce((total, field) => total + valuesFor(field).length, 0);
-
-  const navigate = useCallback((changes: Record<string, string | string[] | null>, path = "/collection") => {
-    if ("q" in changes) setQuery(typeof changes.q === "string" ? changes.q : "");
+  const cardCatalogue = useMemo(() => {
+    void catalogueRevision;
+    return isCards ? cardCollectionCatalogue(CARDS, { ...state, q: deferredQuery, sort: selectedCardSort }) : null;
+  }, [catalogueRevision, isCards, state, deferredQuery, selectedCardSort]);
+  const coreCatalogue = useMemo(() => isCards ? [] : filterAndSortCompendiumCores(CORE_COMPENDIUM, { ...coreState, q: deferredQuery }), [isCards, coreState, deferredQuery]);
+  const cardPrintings = cardCatalogue?.printings;
+  const corePrintings = useMemo(() => new Map(coreCatalogue.map(core => [core.id, coreCollectionPrintings(core, coreState.set)])), [coreCatalogue, coreState.set]);
+  const cardTotals = useMemo(() => new Map((cardCatalogue?.cards ?? []).map(card => [card.catalogId, printingTotals(collection, cardPrintings?.get(card.catalogId) ?? [])])), [cardCatalogue, cardPrintings, collection]);
+  const coreTotals = useMemo(() => new Map(coreCatalogue.map(core => [core.id, printingTotals(collection, corePrintings.get(core.id) ?? [])])), [coreCatalogue, corePrintings, collection]);
+  const cards = sortCollection((cardCatalogue?.cards ?? []).filter(card => matchesCollection(cardTotals.get(card.catalogId)!, statuses, quantities)), collectionSort, card => cardTotals.get(card.catalogId)!);
+  const cores = sortCollection(coreCatalogue.filter(core => matchesCollection(coreTotals.get(core.id)!, statuses, quantities)), collectionSort, core => coreTotals.get(core.id)!);
+  const total = isCards ? cards.length : cores.length;
+  const pageSize = isCards ? COMPENDIUM_PAGE_SIZE : CORE_COMPENDIUM_PAGE_SIZE;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const requestedPage = isCards ? state.page : coreState.page;
+  const page = Math.min(requestedPage, pages);
+  const activeCount = (isCards ? activeCardFilterCount(state) + Number(state.fusionOnly) : [coreState.type,coreState.set,coreState.bonus,coreState.damage,coreState.effects,coreState.faction].reduce((n, values) => n + values.length, 0)) + statuses.length + COLLECTION_FIELDS.reduce((n, field) => n + quantities[field].length, 0);
+  const navigate = useCallback((patch: Patch, push = false) => {
     const next = new URLSearchParams(window.location.search);
-    for (const [key, value] of Object.entries(changes)) {
+    if (localSearch.current) { if (query) next.set("q", query); else next.delete("q"); next.delete("page"); next.delete("corePage"); }
+    for (const [key,value] of Object.entries(patch)) {
       next.delete(key);
-      if (Array.isArray(value)) value.forEach((item) => next.append(key, item));
-      else if (value) next.set(key, value);
+      if (Array.isArray(value)) value.forEach(item => next.append(key,item));
+      else if (value) next.set(key,value);
     }
-    const query = next.toString();
-    window.history.pushState(null, "", `${path}${query ? `?${query}` : ""}`);
+    window.history[push ? "pushState" : "replaceState"](null,"","/collection" + (next.size ? "?" + next : ""));
+  }, [query]);
+  useEffect(() => {
+    const onPop = () => { localSearch.current = false; if (timer.current !== null) window.clearTimeout(timer.current); };
+    window.addEventListener("popstate",onPop);
+    return () => window.removeEventListener("popstate",onPop);
   }, []);
   useEffect(() => {
-    if (query === urlQuery) return;
-    const timer = setTimeout(() => {
-      const next = new URLSearchParams(window.location.search);
-      if (query) next.set("q", query); else next.delete("q");
-      next.delete("page"); next.delete("corePage");
-      window.history.replaceState(null, "", `/collection${next.size ? `?${next}` : ""}`);
-    }, 180);
-    return () => clearTimeout(timer);
-  }, [query, urlQuery]);
-
-  const cardResults = useMemo(() => {
-    const representatives = identityIndex.representatives;
-    const filtered = filterAndSortCompendiumCards(representatives, cardState);
-    const selected = Object.fromEntries(allCollectionFilters.map((field) => [field, valuesFor(field)])) as Record<CollectionField, string[]>;
-    const visible = filtered.filter((card) => {
-      const entry = cardEntries.get(card.catalogId)!;
-      return allCollectionFilters.every((field) => countMatches(entry[field], selected[field]));
-    });
-    if (collectionSort === "collector") return visible;
-    const [field, direction] = collectionSort.split("-") as [CollectionField, "asc" | "desc"];
-    return visible.toSorted((left, right) => {
-      const a = cardEntries.get(left.catalogId)![field];
-      const b = cardEntries.get(right.catalogId)![field];
-      return (direction === "asc" ? a - b : b - a) || left.displayName.localeCompare(right.displayName);
-    });
-  }, [cardState, cardEntries, identityIndex, collectionSort, valuesFor]);
-
-  const coreResults = useMemo(() => {
-    const filtered = filterAndSortCompendiumCores(CORE_COMPENDIUM, coreState);
-    const selected = Object.fromEntries(allCollectionFilters.map((field) => [field, valuesFor(field)])) as Record<CollectionField, string[]>;
-    const visible = filtered.filter((core) => {
-      const entry = collectionEntryForIds(collection, coreCollectionIds(core));
-      return allCollectionFilters.every((field) => countMatches(entry[field], selected[field]));
-    });
-    if (collectionSort === "collector") return visible;
-    const [field, direction] = collectionSort.split("-") as [CollectionField, "asc" | "desc"];
-    return visible.toSorted((left, right) => {
-      const a = collectionEntryForIds(collection, coreCollectionIds(left))[field];
-      const b = collectionEntryForIds(collection, coreCollectionIds(right))[field];
-      return (direction === "asc" ? a - b : b - a) || left.name.localeCompare(right.name);
-    });
-  }, [collection, collectionSort, coreState, valuesFor]);
-
-  const pageSize = 24;
-  const results = activeTab === "cards" ? cardResults : coreResults;
-  const requestedPage = Number(searchParams.get(activeTab === "cards" ? "page" : "corePage") ?? "1");
-  const pages = Math.max(1, Math.ceil(results.length / pageSize));
-  const page = Math.min(Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1, pages);
-  const visible = results.slice((page - 1) * pageSize, page * pageSize);
-  const selected = activeTab === "cards" ? selectedCompendiumCard(CARDS, cardState.card) : null;
-  const selectedCore = activeTab === "cores" ? selectedCompendiumCore(CORE_COMPENDIUM, coreState.core) : null;
-
-  const changeCollection = useCallback((catalogId: string, field: CollectionField, delta: number) => {
-    if (!authUser) return;
-    setCollection((current: import("../../lib/collection").Collection) => updateCollection(current, catalogId, field, delta));
-  }, [authUser, setCollection]);
-
-  if (!authUser) {
-    return <div className={compendiumStyles.route}><RouteHero eyebrow="PLAYER COLLECTION" title="Your collection" /><Surface className={styles.guestCta}><span className={styles.guestGlyph}>◇</span><h2>Sign in to track your collection</h2><p>Your collection is private account data and is available across devices after you create an account or log in.</p><div className="hero-actions"><ActionButton onClick={() => requestAccountAccess("signup")}>Create account</ActionButton><ActionButton tone="secondary" onClick={() => requestAccountAccess("login")}>Log in</ActionButton></div></Surface></div>;
-  }
-
-  if (!accountDataReady) {
-    return <div className={compendiumStyles.route}><RouteHero eyebrow="PLAYER COLLECTION" title="Your collection" /><Surface className={styles.guestCta} role="status"><h2>Loading your collection…</h2><p>Collection editing will be available after account data has finished loading.</p></Surface></div>;
-  }
-
-  const selectedCard = selected ?? undefined;
-  const closeInspector = () => navigate({ card: null, core: null, printing: null, tab: null });
-  const selectCard = (card: typeof CARDS[number]) => { inspectorTrigger.current = document.activeElement as HTMLElement; navigate({ collectionTab: "cards", card: card.slug ?? card.catalogId, core: null, printing: null, tab: "collection" }); };
-  const selectCore = (core: typeof CORE_COMPENDIUM[number]) => { inspectorTrigger.current = document.activeElement as HTMLElement; navigate({ collectionTab: "cores", core: core.catalogId ?? core.id, card: null, printing: null, tab: "collection" }); };
-  const selectRelatedCard = (card: typeof CARDS[number]) => navigate({
-    collectionTab: "cards", card: card.slug ?? card.catalogId, core: null,
-    printing: null, tab: "overview",
-  });
-  const pageParam = activeTab === "cards" ? "page" : "corePage";
-  const densityParam = activeTab === "cards" ? "density" : "coreDensity";
-  const density = activeTab === "cards" ? cardState.density : coreState.density;
-  const setPage = (next: number) => navigate({ [pageParam]: next > 1 ? String(next) : null });
-  const clearFilters = () => navigate({ q: null, set: null, type: null, coreType: null, faction: null, cost: null, rarity: null, keyword: null, coreSet: null, corePower: null, coreDamage: null, coreEffect: null, coreFaction: null, collectionSort: null, collectionStandard: null, collectionFoil: null, collectionWishlist: null, sort: null, coreSort: null, page: null, corePage: null });
-  const setQuantityFilter = (field: CollectionField, values: string[]) => navigate({ [quantityKey(field)]: values, page: null, corePage: null });
-  const renderCollectionFilterControls = () => (
-    <>
-      {activeTab === "cards" ? (
-        <>
-          <CardFilterPanel
-            filters={cardState}
-            facets={["type"]}
-            options={filterOptions}
-            onChange={(next, facet) => {
-              const nextIsCharacterOnly = next.type.length === 1 && next.type[0] === "Character";
-              const nextSorts = nextIsCharacterOnly ? CHARACTER_SORTS : NON_CHARACTER_SORTS;
-              navigate({
-                [facet]: next[facet],
-                ...(next.type.includes("Character") ? {} : { coreType: null }),
-                ...(nextIsCharacterOnly ? { cost: null, rarity: null } : {}),
-                ...(nextSorts.has(cardState.sort) ? {} : { sort: "collector" }),
-                page: null,
-              });
-            }}
-          />
-          <div className={styles.filterDivider} role="separator" />
-          <FilterPicker
-            label="Sort"
-            values={[selectedCardSort]}
-            options={cardSortOptions.map(([value, label]) => ({ value, label }))}
-            onChange={(values) => navigate({ sort: values[0] ?? "collector", page: null })}
-            mode="single"
-            clearable={false}
-          />
-          <div className={styles.filterDivider} role="separator" />
-          <CardFilterPanel
-            filters={cardState}
-            facets={secondaryCardFacets}
-            options={filterOptions}
-            onChange={(next, facet) => navigate({ [facet]: next[facet], page: null })}
-          />
-        </>
-      ) : (
-        <>
-          <FilterPicker
-            label="Core type"
-            values={coreState.type}
-            options={CORE_TYPE_OPTIONS}
-            onChange={(values) => navigate({ coreType: values[0] ?? null, corePage: null })}
-            mode="single"
-          />
-          <div className={styles.filterDivider} role="separator" />
-          <FilterPicker
-            label="Sort"
-            values={[coreState.sort]}
-            options={coreArchiveSortOptions}
-            onChange={(values) => navigate({ coreSort: values[0] ?? "collector", corePage: null })}
-            mode="single"
-            clearable={false}
-          />
-          <div className={styles.filterDivider} role="separator" />
-          <FilterPicker
-            label="Set"
-            values={coreState.set}
-            options={CORE_SET_OPTIONS}
-            onChange={(values) => navigate({ coreSet: values[0] ?? null, corePage: null })}
-            mode="single"
-          />
-        </>
-      )}
-      <div className={styles.filterDivider} role="separator" />
-      <FilterPicker
-        label="Collection sort"
-        values={[collectionSort]}
-        options={COLLECTION_SORT_OPTIONS.map((option) => ({ ...option }))}
-        onChange={(values) => navigate({ collectionSort: values[0] === "collector" ? null : values[0], page: null, corePage: null })}
-        mode="single"
-        clearable={false}
-      />
-      <div className={styles.filterDivider} role="separator" />
-      {allCollectionFilters.map((field) => (
-        <FilterPicker
-          key={field}
-          label={quantityLabel(field)}
-          values={valuesFor(field)}
-          options={COLLECTION_QUANTITY_OPTIONS.map((option) => ({ ...option }))}
-          onChange={(values) => setQuantityFilter(field, values)}
-        />
-      ))}
-    </>
-  );
-
-  return (
-    <div className={compendiumStyles.route}>
-      <RouteHero eyebrow="PLAYER COLLECTION" title="Your collection" aside={<div className={compendiumStyles.sourceSummary}><strong>{cardResults.length.toLocaleString()} cards · {coreResults.length.toLocaleString()} BakuCores</strong><span role={syncStatus === "error" || syncStatus === "offline" ? "status" : undefined}>{syncStatus === "synced" ? "Synced to your account" : syncStatus === "saving" ? "Saving to your account…" : syncStatus === "error" ? "Collection sync failed — your changes remain on this device" : syncStatus === "offline" ? "Offline — awaiting account sync" : "Checking account sync…"}</span></div>} />
-      <section className={compendiumStyles.toolbar}>
-        <Field className={compendiumStyles.search} label="Search your archive"><input type="search" value={query} placeholder="Cards, effects, IDs, mechanics…" onChange={(event) => setQuery(event.target.value)} /></Field>
-        <ActionButton className={compendiumStyles.toolbarFilterButton} tone="secondary" onClick={() => setFilterSheetOpen(true)}>
-          Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}
-        </ActionButton>
-        <Tabs label="Collection sections"><button type="button" className={activeTab === "cards" ? "active" : ""} onClick={() => navigate({ collectionTab: "cards", core: null, tab: null })}>CARDS</button><button type="button" className={activeTab === "cores" ? "active" : ""} onClick={() => navigate({ collectionTab: "cores", card: null, tab: null })}>BAKUCORES</button></Tabs>
-      </section>
-      <section className={compendiumStyles.resultsToolbar}><div><strong>{results.length.toLocaleString()} {activeTab === "cards" ? "cards" : "BakuCores"}</strong><span>Page {page} of {pages}</span></div><ActionButton className={compendiumStyles.mobileFilterButton} tone="secondary" onClick={() => setFilterSheetOpen(true)}>Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}</ActionButton><Tabs className={compendiumStyles.densityTabs} label="Gallery density"><button className={density === "gallery" ? "active" : ""} onClick={() => navigate({ [densityParam]: "gallery" })}>Gallery</button><button className={density === "compact" ? "active" : ""} onClick={() => navigate({ [densityParam]: "compact" })}>Compact</button></Tabs></section>
-      <div className={compendiumStyles.workspace}>
-        <Surface as="aside" className={compendiumStyles.filterRail} aria-label="Collection filters">
-          <div className={compendiumStyles.filterHeading}><div><h2>Filters &amp; sort</h2></div><button type="button" onClick={clearFilters}>Clear</button></div>
-          {renderCollectionFilterControls()}
-        </Surface>
-        <main className={compendiumStyles.gallery}>
-          {activeTab === "cards" ? <CardGrid className={`${styles.cardGrid} ${cardState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={cardState.density === "compact" ? "9.25rem" : "11.5rem"}>{(visible as typeof CARDS).map((card) => { const entry = cardEntries.get(card.catalogId)!; return <CollectionCard key={card.catalogId} card={card} entry={entry} selected={selected?.catalogId === card.catalogId} onSelect={selectCard} onQuickChange={(field, delta) => changeCollection(card.catalogId, field, delta)} />; })}</CardGrid> : <CardGrid className={`${styles.cardGrid} ${styles.coreGrid} ${coreState.density === "compact" ? styles.cardGridCompact : ""}`} minCardWidth={coreState.density === "compact" ? "9.25rem" : "11.5rem"}>{(visible as typeof CORE_COMPENDIUM).map((core) => { const entry = collectionEntryForIds(collection, coreCollectionIds(core)); return <CollectionCore key={core.id} core={core} entry={entry} selected={selectedCore?.id === core.id} onSelect={selectCore} onQuickChange={(field, delta) => changeCollection(core.catalogId ?? core.id, field, delta)} />; })}</CardGrid>}
-          {!visible.length && <Surface className={compendiumStyles.emptyResults} role="status"><span>◇</span><h2>No collection items match</h2><p>Adjust the search or clear the active filters to return to the full archive.</p><ActionButton tone="secondary" onClick={clearFilters}>Clear filters</ActionButton></Surface>}
-          <nav className={compendiumStyles.pagination} aria-label="Collection pages"><button disabled={page === 1} onClick={() => setPage(page - 1)}><LucideIcon name="arrow-left" size={16}/> Previous</button><span>Page {page} of {pages}</span><button disabled={page === pages} onClick={() => setPage(page + 1)}>Next <LucideIcon name="arrow-right" size={16}/></button></nav>
-        </main>
-        {selectedCard && <CardInspector card={selectedCard} allCards={CARDS} tab={inspectorTab} printingId={searchParams.get("printing") ?? ""} onPrintingChange={(printing) => navigate({ printing })} onSelectCard={selectRelatedCard} collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={(tab) => navigate({ tab })} onClose={closeInspector} returnFocusRef={inspectorTrigger} />}
-        {selectedCore && <CardInspector core={selectedCore} allCores={CORE_COMPENDIUM} tab={inspectorTab} printingId={searchParams.get("printing") ?? ""} onPrintingChange={(printing) => navigate({ printing })} preferredCorePrintingId={coreState.set.length === 1 ? selectedCore.printings?.find(p => p.set === coreState.set[0])?.id : undefined} collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={(tab) => navigate({ tab })} onClose={closeInspector} returnFocusRef={inspectorTrigger} />}
-      </div>
-      {filterSheetOpen && <div data-ui="filter-backdrop" className={compendiumStyles.filterBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFilterSheetOpen(false); }}><Surface as="aside" data-motion-surface="filter-sheet" className={compendiumStyles.filterSheet} role="dialog" aria-modal="true" aria-label="Collection filters"><div className={compendiumStyles.filterHeading}><h2>Filters &amp; sort</h2><button type="button" onClick={() => setFilterSheetOpen(false)}>Close</button></div>{renderCollectionFilterControls()}<div className={compendiumStyles.sheetDensity}><strong>Display</strong><Tabs label="Collection gallery density"><button type="button" className={density === "gallery" ? "active" : ""} onClick={() => navigate({ [densityParam]: "gallery" })}>Gallery</button><button type="button" className={density === "compact" ? "active" : ""} onClick={() => navigate({ [densityParam]: "compact" })}>Compact</button></Tabs></div><ActionButton onClick={() => setFilterSheetOpen(false)}>Show {results.length} items</ActionButton></Surface></div>}
+    if (query === urlQuery) { localSearch.current = false; return; }
+    if (!localSearch.current) { setQuery(urlQuery); return; }
+    timer.current = window.setTimeout(() => navigate({ q: query || null, page: null, corePage: null }),450);
+    return () => { if (timer.current !== null) window.clearTimeout(timer.current); };
+  }, [query,urlQuery,navigate]);
+  useEffect(() => {
+    if (requestedPage > pages && query === urlQuery) navigate({ [pageKey]: pages === 1 ? null : String(pages) });
+  }, [requestedPage,pages,query,urlQuery,navigate,pageKey]);
+  const changeCollection = useCallback((id: string, field: CollectionField, delta: number) => {
+    if (authUser && accountDataReady) setCollection(current => updateCollection(current,id,field,delta));
+  }, [authUser,accountDataReady,setCollection]);
+  const closeSidebar = useCallback(() => {
+    if (window.matchMedia("(max-width: 900px)").matches) setSidebarOpen(false);
+    else setDesktopVisible(false);
+    sidebarTrigger.current?.focus();
+  }, []);
+  const filter = (patch: Patch) => navigate({ ...patch, [pageKey]: null });
+  const clearFilters = () => filter(Object.fromEntries([...(isCards ? cardFilterKeys : coreFilterKeys), ...collectionKeys].map(key => [key,null])));
+  const setCardFilter = (key: CardFilterFacet, values: string[]) => {
+    if (key !== "type") { filter({ [key]: values }); return; }
+    const onlyCharacter = values.length === 1 && values[0] === "Character";
+    const nextSorts = onlyCharacter ? CHARACTER_SORTS : NON_CHARACTER_SORTS;
+    filter({ type: values, ...(!onlyCharacter ? {coreType:null,fusions:null} : {cost:null,rarity:null}),
+      ...(!values.includes("Character") && !values.includes("Evo") ? {bPower:null,damage:null} : {}),
+      ...(!nextSorts.has(state.sort) ? {sort:null} : {}) });
+  };
+  const sortOptions = [
+    ...(isCards ? Object.entries(SORT_LABELS).filter(([value]) => allowedSorts.has(value as typeof state.sort)) : Object.entries(CORE_SORT_LABELS)).map(([value,label]) => ({value,label})),
+    ...COLLECTION_SORT_OPTIONS.filter(option => option.value !== "collector"),
+  ];
+  const sortControl = <CompendiumFieldPicker label="Sort By" mode="single" clearable={false} options={sortOptions}
+    values={[collectionSort !== "collector" ? collectionSort : isCards ? selectedCardSort : coreState.sort]}
+    onChange={values => {
+      const value = values[0] ?? "collector";
+      const quantitySort = value !== "collector" && COLLECTION_SORT_OPTIONS.some(option => option.value === value);
+      filter({ collectionSort: quantitySort ? value : null, [isCards ? "sort" : "coreSort"]: quantitySort || value === "collector" ? null : value });
+    }}/>;
+  const selectedCard = isCards ? selectedCompendiumCard(CARDS,state.card,state.fusionOnly) : null;
+  const selectedCore = !isCards ? selectedCompendiumCore(CORE_COMPENDIUM,coreState.core) : null;
+  const inspectorTab = parseInspectorTab(params.get("tab"),"collection");
+  const closeInspector = () => navigate({card:null,core:null,printing:null,tab:null});
+  const selectCard = (card: typeof CARDS[number], trigger?: HTMLElement) => {
+    if (trigger) inspectorTrigger.current = trigger;
+    navigate({ card:card.slug ?? card.catalogId,core:null,printing:null,tab:"collection" },true);
+  };
+  const selectCore = (core: typeof CORE_COMPENDIUM[number], trigger?: HTMLElement) => {
+    if (trigger) inspectorTrigger.current = trigger;
+    navigate({core:core.catalogId ?? core.id,card:null,printing:corePrintings.get(core.id)?.[0]?.id ?? null,tab:"collection"},true);
+  };
+  const changePage = (next: number) => {
+    navigate({[pageKey]:next > 1 ? String(next) : null},true);
+    window.requestAnimationFrame(() => resultsStart.current?.scrollIntoView({block:"start",behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"}));
+  };
+  if (!authUser || !accountDataReady) return <div className={layout.route}>
+    <h1 className={layout.visuallyHidden}>Collection</h1>
+    <Surface className={styles.account} role={authUser ? "status" : undefined}>
+      <h2>{authUser ? "Loading your collection…" : "Sign in to track your collection"}</h2>
+      <p>{authUser ? "Your inventory will be available when your account data has loaded." : "Track your cards, BakuCores and wishlist privately across devices."}</p>
+      {!authUser && <div className={styles.accountActions}><ActionButton onClick={() => requestAccountAccess("signup")}>Create account</ActionButton><ActionButton tone="secondary" onClick={() => requestAccountAccess("login")}>Log in</ActionButton></div>}
+    </Surface>
+  </div>;
+  const noun = isCards ? "cards" : "BakuCores";
+  const syncLabel = syncStatus === "synced" ? "Collection synced" : syncStatus === "saving" ? "Saving collection…" : syncStatus === "offline" ? "Offline — awaiting sync" : syncStatus === "error" ? "Sync failed — changes remain on this device" : "Checking account sync…";
+  return <div className={layout.route + " " + styles.scope}>
+    <h1 className={layout.visuallyHidden}>Collection</h1>
+    <CompendiumToolbar collection section={section} query={query} onSearch={value => {localSearch.current=true;setQuery(value);}}
+      onSectionChange={next => {
+        if (next === section || (next !== "cards" && next !== "cores")) return;
+        setSidebarOpen(false);
+        navigate({...Object.fromEntries([...cardFilterKeys,...coreFilterKeys,"sort","coreSort","page","corePage","card","core","printing","tab"].map(key => [key,null])),collectionTab:next === "cores" ? "cores" : null},true);
+      }} sidebarTrigger={sidebarTrigger} activeCount={activeCount} density={density} sidebarOpen={sidebarOpen} desktopSidebarVisible={desktopVisible}
+      onSidebar={() => window.matchMedia("(max-width: 900px)").matches ? setSidebarOpen(true) : setDesktopVisible(value => !value)}
+      onDensityChange={() => navigate({[densityKey]:density === "gallery" ? "compact" : null})}/>
+    <div className={`${isCards ? layout.workspace : layout.coreWorkspace} ${desktopVisible ? "" : layout.withoutSidebar}`}>
+      <CompendiumSidebar label="Filters & Sort" open={sidebarOpen} desktopVisible={desktopVisible} onClose={closeSidebar} onClear={clearFilters} activeCount={activeCount}
+        footer={<button type="button" onClick={closeSidebar}>Show {total.toLocaleString()} {noun}</button>}>
+        <CompendiumFieldPicker label="Collection status" values={statuses} options={COLLECTION_STATUS_OPTIONS} onChange={values => filter({collectionStatus:values})}/>
+        {sortControl}
+        {COLLECTION_FIELDS.map(field => <CompendiumFieldPicker key={field} label={quantityLabel(field) + " quantity"} values={quantities[field]} options={COLLECTION_QUANTITY_OPTIONS} onChange={values => filter({[quantityKey(field)]:values})}/>)}
+        {isCards ? <FilterControls state={state} filterOptions={filterOptions} onChange={setCardFilter} onFusionChange={enabled => filter({fusions:enabled ? "1" : null})} onSortChange={sort => filter({sort})} sortControl={false}/>
+          : <CoreFilterControls state={coreState} onChange={patch => {
+            const keys = {type:"coreType",set:"coreSet",bonus:"corePower",damage:"coreDamage",effects:"coreEffect",faction:"coreFaction"} as const;
+            filter(Object.fromEntries(Object.entries(patch).map(([key,value]) => [keys[key as keyof typeof keys],value])) as Patch);
+          }} onSortChange={sort => filter({coreSort:sort})} sortControl={false}/>}
+      </CompendiumSidebar>
+      <main className={layout.gallery} ref={resultsStart}>
+        <div className={styles.results}>
+          <div className={layout.galleryHeader}>
+            <CompendiumPagination page={page} totalPages={pages} totalResults={total} pageSize={pageSize} noun={noun} onPageChange={changePage}/>
+            {pages <= 1 && <span className={layout.singlePageCount}>{total.toLocaleString()} {noun}</span>}
+          </div>
+          <div className={styles.sync} role="status" data-error={syncStatus === "error" || syncStatus === "offline"}>{syncLabel}</div>
+        </div>
+        {total ? isCards ? <CardsGallery collection cards={cards.slice((page-1)*pageSize,page*pageSize)} density={density} selectedId={selectedCard?.catalogId} onSelect={selectCard}
+          renderControls={card => <CollectionCounters label={card.displayName} totals={cardTotals.get(card.catalogId)!} printings={cardPrintings?.get(card.catalogId) ?? []} collection={collection} onChange={changeCollection}/>}/>
+          : <CoresGallery collection cores={cores.slice((page-1)*pageSize,page*pageSize)} density={density} selectedSets={coreState.set} selectedId={selectedCore?.id} onSelect={selectCore}
+          renderControls={core => <CollectionCounters label={core.name} totals={coreTotals.get(core.id)!} printings={corePrintings.get(core.id) ?? []} collection={collection} onChange={changeCollection}/>}/>
+          : <Surface className={layout.emptyResults} role="status"><h2>No {noun} match</h2><p>Adjust your search or collection filters to find more items.</p><ActionButton tone="secondary" onClick={() => {localSearch.current=false;setQuery("");navigate({...Object.fromEntries([...(isCards ? cardFilterKeys : coreFilterKeys),...collectionKeys].map(key=>[key,null])),q:null,[pageKey]:null});}}>Clear search &amp; filters</ActionButton></Surface>}
+        {pages > 1 && <div className={layout.galleryFooter}><CompendiumPagination placement="bottom" page={page} totalPages={pages} totalResults={total} pageSize={pageSize} noun={noun} onPageChange={changePage}/></div>}
+      </main>
+      {selectedCard && <CardInspector card={selectedCard} allCards={CARDS} tab={inspectorTab} printingId={params.get("printing") ?? ""} onPrintingChange={printing => navigate({printing},true)} onSelectCard={card => navigate({card:card.slug ?? card.catalogId,printing:null,tab:"overview"},true)} collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={tab => navigate({tab},true)} onClose={closeInspector} returnFocusRef={inspectorTrigger}/>}
+      {selectedCore && <CardInspector core={selectedCore} allCores={CORE_COMPENDIUM} tab={inspectorTab} printingId={params.get("printing") ?? ""} onPrintingChange={printing => navigate({printing},true)} preferredCorePrintingId={coreCollectionPrintings(selectedCore,coreState.set)[0]?.id} collectionEnabled collection={collection} onCollectionChange={changeCollection} onTabChange={tab => navigate({tab},true)} onClose={closeInspector} returnFocusRef={inspectorTrigger}/>}
     </div>
-  );
-}
-
-function CollectionCard({ card, entry, selected, onSelect, onQuickChange }: { card: typeof CARDS[number]; entry: { standard: number; foil: number; wishlist: number }; selected: boolean; onSelect: (card: typeof CARDS[number]) => void; onQuickChange: (field: CollectionField, delta: number) => void }) {
-  const owned = entry.standard + entry.foil;
-  return <div className={`${styles.collectionTile} ${owned ? "" : styles.unowned} ${selected ? styles.collectionTileSelected : ""}`}><button className={`${styles.cardTile} ${selected ? styles.cardTileSelected : ""}`} type="button" aria-pressed={selected} onClick={() => onSelect(card)}><span className={styles.cardArt}><span className={styles.cardArtFrame}><ResponsiveCardImage card={card} presentation="tile" /><BakuganRollingOverlay card={card} /></span></span><span className={styles.cardCopy}><span className={styles.cardBadges}><StatusChip tone="info">{card.faction}</StatusChip><StatusChip>{cardSetCode(card)}</StatusChip></span><strong>{card.displayName}</strong><small>{card.type} · {card.cost} Energy · {card.rarity}</small></span></button><CollectionFooter label={card.displayName} owned={owned} wishlist={entry.wishlist} standard={entry.standard} onQuickChange={onQuickChange} /></div>;
-}
-
-function CollectionCore({ core, entry, selected, onSelect, onQuickChange }: { core: typeof CORE_COMPENDIUM[number]; entry: { standard: number; foil: number; wishlist: number }; selected: boolean; onSelect: (core: typeof CORE_COMPENDIUM[number]) => void; onQuickChange: (field: CollectionField, delta: number) => void }) {
-  const owned = entry.standard + entry.foil;
-  return <div className={`${styles.collectionTile} ${owned ? "" : styles.unowned} ${selected ? styles.collectionTileSelected : ""}`}><button className={`${styles.cardTile} ${styles.coreTile} ${selected ? styles.cardTileSelected : ""}`} type="button" aria-pressed={selected} onClick={() => onSelect(core)}><span className={styles.coreArt}><BakuCoreArt core={core} alt={`${core.name} front`} /></span><span className={styles.cardCopy}><span className={styles.cardBadges}><StatusChip tone="info">{core.type}</StatusChip><StatusChip>{core.set === "Armored Alliance" ? "AA" : "BB"}</StatusChip></span><strong>{core.name}</strong><small>{core.set === "Armored Alliance" ? "AA" : "BB"} #{core.number}</small></span></button><CollectionFooter label={core.name} owned={owned} wishlist={entry.wishlist} standard={entry.standard} onQuickChange={onQuickChange} /></div>;
-}
-
-function CollectionFooter({ label, owned, wishlist, standard, onQuickChange }: { label: string; owned: number; wishlist: number; standard: number; onQuickChange: (field: CollectionField, delta: number) => void }) {
-  return <div className={styles.collectionFooter}>
-    <div data-ui="quantity-control" className={styles.quickCounter} aria-label={`${label} owned copies`}>
-      <button type="button" aria-label={`Decrease standard copies for ${label}`} disabled={!standard} onClick={() => onQuickChange("standard", -1)}><LucideIcon name="minus" size={16}/></button>
-      <span className={styles.collectionBadge}><MotionValue value={owned} /></span>
-      <button type="button" aria-label={`Increase standard copies for ${label}`} onClick={() => onQuickChange("standard", 1)}><LucideIcon name="plus" size={16}/></button>
-    </div>
-    {wishlist > 0 && <span className={styles.collectionBadge} aria-label={`${label} wishlist copies`}>★ <MotionValue value={wishlist} /></span>}
   </div>;
 }

@@ -15,6 +15,7 @@ type CoresGalleryProps = {
   selectedId?: string;
   onSelect: (core: Core, trigger: HTMLButtonElement) => void;
   renderControls?: (core: Core) => ReactNode;
+  collection?: boolean;
   resolveCore?: (core: Core) => Core;
 };
 
@@ -68,7 +69,7 @@ function EffectStrip({ effects }: { effects: readonly CoreEffect[] }) {
   </span>;
 }
 
-function CoreTile({ core, selectedSets, compact, selected, onSelect, renderControls, resolveCore }: {
+function CoreTile({ core, selectedSets, compact, selected, onSelect, renderControls, resolveCore, collection }: {
   core: Core;
   selectedSets: readonly string[];
   compact: boolean;
@@ -76,6 +77,7 @@ function CoreTile({ core, selectedSets, compact, selected, onSelect, renderContr
   onSelect: CoresGalleryProps["onSelect"];
   renderControls?: CoresGalleryProps["renderControls"];
   resolveCore?: CoresGalleryProps["resolveCore"];
+  collection: boolean;
 }) {
   const displayedCore = resolveCore?.(core) ?? coreForSet(core, selectedSets);
   const effects = useMemo(() => coreEffects(core), [core]);
@@ -87,27 +89,27 @@ function CoreTile({ core, selectedSets, compact, selected, onSelect, renderContr
     <span className={styles.artwork} data-core-preview>
       <BakuCoreArt core={displayedCore} alt="" />
     </span>
-    {!compact && <span className={styles.details} data-core-details>
+    {!compact && <span className={styles.details} data-core-details style={collection ? { gridTemplateRows: "20px" } : undefined}>
       <strong className={styles.name} title={core.type}>{core.type}</strong>
-      <span className={styles.metadata} data-core-meta>
+      {!collection && <span className={styles.metadata} data-core-meta>
         <span className={styles.setTag} title={`${setName}, collector number ${displayedCore.number}`}>
           {setCode} #{displayedCore.number}
         </span>
         <EffectStrip effects={effects} />
-      </span>
+      </span>}
     </span>}
   </button>;
   return renderControls ? <div className={styles.entry}>{tile}{renderControls(core)}</div> : tile;
 }
 
 /** BakuCore-specific gallery with the same frameless density modes as Cards. */
-export function CoresGallery({ cores, selectedSets, density, selectedId, onSelect, renderControls, resolveCore }: CoresGalleryProps) {
+export function CoresGallery({ cores, selectedSets, density, selectedId, onSelect, renderControls, resolveCore, collection = false }: CoresGalleryProps) {
   const compact = density === "compact";
   return <div className={`${styles.gallery} ${compact ? styles.compact : ""}`}
     data-ui="core-grid" data-cores-gallery data-cores-view={compact ? "compact" : "detailed"}
     aria-label={compact ? "Compact BakuCore previews" : "Detailed BakuCore previews"}>
     {cores.map((core) => <CoreTile key={core.id} core={core} selectedSets={selectedSets} compact={compact}
       selected={selectedId === core.id} onSelect={onSelect}
-      renderControls={renderControls} resolveCore={resolveCore} />)}
+      renderControls={renderControls} resolveCore={resolveCore} collection={collection} />)}
   </div>;
 }

@@ -19,13 +19,14 @@ const sections: readonly Section[] = [
   { id: "rulings", label: "Rulings", accessibleLabel: "Rulings", icon: "scale" },
 ];
 
-export function CompendiumNavigation({ active, onSelect }: {
+export function CompendiumNavigation({ active, onSelect, collection = false }: {
+  collection?: boolean;
   active: CompendiumSection;
   onSelect: (section: CompendiumSection) => void;
 }) {
   return (
-    <nav className={styles.navigation} aria-label="Compendium sections">
-      {sections.map(({ id, label, accessibleLabel, icon }) => (
+    <nav className={styles.navigation} data-collection={collection || undefined} aria-label={collection ? "Collection sections" : "Compendium sections"}>
+      {(collection ? sections.slice(0, 2) : sections).map(({ id, label, accessibleLabel, icon }) => (
         <button
           key={id}
           type="button"

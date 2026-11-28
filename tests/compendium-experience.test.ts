@@ -493,20 +493,15 @@ test("BakuCore collector ordering groups sets and sorts each set numerically", (
   );
 });
 
-test("Collection reuses the complete filter controls in desktop and mobile surfaces", async () => {
+test("Collection uses the redesigned catalogue surfaces and floating counter editor", async () => {
   const route = await read("components/routes/CollectionScreen.tsx");
-  assert.match(route, /const renderCollectionFilterControls = \(\) =>/);
-  assert.equal((route.match(/\{renderCollectionFilterControls\(\)\}/g) ?? []).length, 2);
-  for (const label of ["Archive sort", "Collection sort", "Core type", "Standard", "Foil", "Wishlist"]) {
-    assert.match(route, new RegExp(`label=["']${label}["']|label=\\{quantityLabel`));
-  }
-  assert.match(route, /CardFilterPanel/);
-  assert.match(route, /facets=\{\["type"\]\}/);
-  assert.match(route, /facets=\{secondaryCardFacets\}/);
-  assert.match(route, /const secondaryCardFacets: CardFilterFacet\[\] = \["set", "faction"/);
-  assert.match(route, /!isCharacterOnly \? \["cost", "rarity"\]/);
-  assert.match(route, /includesCharacter \? \["coreType"\]/);
-  assert.match(route, /nextIsCharacterOnly \? \{ cost: null, rarity: null \}/);
+  const counters = await read("components/routes/CollectionCounters.tsx");
+  const css = await read("components/routes/CollectionCounters.module.css");
+  for (const component of ["CompendiumToolbar", "CompendiumSidebar", "CompendiumPagination", "CardsGallery", "CoresGallery", "FilterControls", "CoreFilterControls", "CollectionCounters"]) assert.ok(route.includes("<" + component));
+  assert.doesNotMatch(route, /RouteHero|CardFilterPanel|BakuganRollingOverlay|filterSheetOpen|CollectionFooter/);
+  assert.match(counters, /createPortal/);
+  assert.match(css, /position:fixed/);
+  assert.match(css, /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
 });
 
 test("Compendium uses unified sticky toolbar, sidebar and responsive field pickers", async () => {
@@ -625,7 +620,8 @@ test("Bakugan rolling probabilities remain in other galleries and the inspector"
   assert.match(rollingStyles, /\/assets\/symbols\/double-core\.svg/);
   assert.match(rollingStyles, /display: flex/);
   assert.match(rollingStyles, /\.plain\s*\{/);
-  for (const gallery of [collection, builder, administrator, detail]) {
+  assert.doesNotMatch(collection, /<BakuganRollingOverlay card=/);
+  for (const gallery of [builder, administrator, detail]) {
     assert.match(gallery, /<BakuganRollingOverlay card=/);
   }
   assert.match(inspector, /<dt>Roll Accuracy<\/dt>/);

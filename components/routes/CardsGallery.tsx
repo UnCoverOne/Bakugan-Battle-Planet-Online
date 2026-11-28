@@ -17,11 +17,12 @@ type CardsGalleryProps = {
   onSelect: (card: GameCard, trigger: HTMLButtonElement) => void;
   /** Optional builder controls are outside the artwork/inspect button. */
   renderControls?: (card: GameCard) => ReactNode;
+  collection?: boolean;
   resolveCard?: (card: GameCard) => GameCard;
 };
 
 /** The Cards catalogue's two visual modes, independent of BakuCores and the inspector. */
-export function CardsGallery({ cards, density, selectedId, onSelect, renderControls, resolveCard }: CardsGalleryProps) {
+export function CardsGallery({ cards, density, selectedId, onSelect, renderControls, resolveCard, collection = false }: CardsGalleryProps) {
   const compact = density === "compact";
 
   return <div data-ui="card-grid" data-cards-gallery data-cards-view={compact ? "compact" : "detailed"}
@@ -41,9 +42,9 @@ export function CardsGallery({ cards, density, selectedId, onSelect, renderContr
         <span className={styles.artwork} data-card-preview>
           <ResponsiveCardImage card={displayed} presentation="tile" alt="" />
         </span>
-        {!compact && <span className={styles.details} data-card-details>
+        {!compact && <span className={styles.details} data-card-details style={collection ? { gridTemplateRows: "20px" } : undefined}>
           <strong className={styles.name} data-card-name title={displayed.displayName}>{displayed.displayName}</strong>
-          <span className={`${styles.metadata} ${rolling ? styles.metadataWithRolling : ""}`} data-card-meta>
+          {!collection && <span className={`${styles.metadata} ${rolling ? styles.metadataWithRolling : ""}`} data-card-meta>
             <span className={styles.factions} aria-label={factions.join(" / ")}>
               {factions.map(faction => <CardFactionTag key={faction} faction={faction} />)}
             </span>
@@ -57,7 +58,7 @@ export function CardsGallery({ cards, density, selectedId, onSelect, renderContr
               <span className={`${styles.tag} ${styles.rollingTag}`}><BakuganRollingStat kind="rollAccuracy" value={rolling.rollAccuracy} plain /></span>
               <span className={`${styles.tag} ${styles.rollingTag}`}><BakuganRollingStat kind="doubleCoreChance" value={rolling.doubleCoreChance} plain /></span>
             </>}
-          </span>
+          </span>}
         </span>}
       </button>;
       return renderControls ? <div key={card.catalogId} className={styles.entry}>{tile}{renderControls(displayed)}</div> : tile;

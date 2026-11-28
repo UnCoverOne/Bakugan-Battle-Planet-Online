@@ -81,16 +81,17 @@ export function coreCollectionIds(core: Core): string[] {
 
 export function collectionMatches(entry: CollectionEntry, values: readonly string[]): boolean {
   if (!values.length) return true;
-  return values.some((value) => value === "1" ? entry.standard === 1 : value === "2" ? entry.standard === 2 : entry.standard >= 3);
+  return values.some((value) => value === "0" ? entry.standard === 0 : value === "1" ? entry.standard === 1 : value === "2" ? entry.standard === 2 : value === "3+" && entry.standard >= 3);
 }
 
 export function collectionFieldMatches(entry: CollectionEntry, field: CollectionField, values: readonly string[]): boolean {
   if (!values.length) return true;
   const count = entry[field];
-  return values.some((value) => value === "1" ? count === 1 : value === "2" ? count === 2 : count >= 3);
+  return values.some((value) => value === "0" ? count === 0 : value === "1" ? count === 1 : value === "2" ? count === 2 : value === "3+" && count >= 3);
 }
 
 export const COLLECTION_QUANTITY_OPTIONS = [
+  { value: "0", label: "0" },
   { value: "1", label: "1" },
   { value: "2", label: "2" },
   { value: "3+", label: "3+" },
@@ -104,6 +105,8 @@ export const COLLECTION_SORT_OPTIONS = [
   { value: "foil-desc", label: "Foil high–low" },
   { value: "wishlist-asc", label: "Wishlist low–high" },
   { value: "wishlist-desc", label: "Wishlist high–low" },
+  { value: "owned-asc", label: "Total owned low–high" },
+  { value: "owned-desc", label: "Total owned high–low" },
 ] as const;
 
 export type CollectionSort = (typeof COLLECTION_SORT_OPTIONS)[number]["value"];

@@ -7,7 +7,8 @@ import styles from "./CompendiumToolbar.module.css";
 import { LucideIcon } from "../design-system/LucideIcon";
 
 export function CompendiumToolbar({ section, onSectionChange, query, onSearch, onSidebar, sidebarTrigger,
-  activeCount, density, onDensityChange, sidebarOpen, desktopSidebarVisible }: {
+  activeCount, density, onDensityChange, sidebarOpen, desktopSidebarVisible, collection = false }: {
+  collection?: boolean;
   section: CompendiumSection;
   onSectionChange: (next: CompendiumSection) => void;
   query: string;
@@ -31,7 +32,7 @@ export function CompendiumToolbar({ section, onSectionChange, query, onSearch, o
   const placeholder = { cards: "Search cards…", cores: "Search BakuCores…", glossary: "Search terms…", rules: "Search rules…", rulings: "Search rulings…" }[section];
   const expanded = mobile ? sidebarOpen : desktopSidebarVisible;
   return <div className={styles.sticky}>
-    <CompendiumNavigation active={section} onSelect={onSectionChange} />
+    <CompendiumNavigation active={section} onSelect={onSectionChange} collection={collection} />
     <div className={styles.controls}>
       <label className={styles.search}>
         <span className={styles.visuallyHidden}>Search {section}</span>
