@@ -1,603 +1,128 @@
 "use client";
 
-import { LucideIcon } from "../design-system/LucideIcon";
-import { OriginalImage } from "@/components/media/OriginalImage";
-
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { LucideIcon } from "../design-system/LucideIcon";
+import { OriginalImage } from "../media/OriginalImage";
 import { achievementsForProfile } from "../../lib/achievements";
 import { lifetimeMatchStatsFromHistory, playerMatchSummary } from "../../lib/match-statistics";
-import {
-  buildPublicBrawlerProfile,
-  normalizePublicBrawlerProfile,
-  type PublicRankedProfile,
-} from "../../lib/public-profile";
-import {
-  PROFILE_COVERS,
-  PROFILE_SHOWCASE_LIMIT,
-  PROFILE_TITLES,
-  profileRewardUnlocked,
-  toggleShowcaseId,
-} from "../../lib/profile-customization";
+import { buildPublicBrawlerProfile, normalizePublicBrawlerProfile, type PublicRankedProfile } from "../../lib/public-profile";
+import { PROFILE_AVATARS, PROFILE_COVERS, PROFILE_TITLES, PROFILE_SHOWCASE_LIMIT, profileRewardUnlocked, toggleShowcaseId } from "../../lib/profile-customization";
+import { profileRewardRequirement, PROFILE_REWARD_UNAVAILABLE } from "../../lib/profile-reward-runtime";
+import { FACTION_SYMBOLS } from "../../lib/card-filters";
 import { useAppFields } from "../application/AppProvider";
-import { SystemState } from "../application/SystemState";
-import { formatTimestamp } from "../application/ui";
-import { PROFILE_AVATAR_PRESETS } from "../profile/ProfileAvatar";
 import { BrawlerProfileView } from "../profile/BrawlerProfileView";
-import { ReplayTheatre } from "../replay/ReplayTheatre";
-import {
-  Field,
-  StatusChip,
-  Surface,
-  Tabs,
-} from "../design-system/primitives";
+import { AchievementCategoryIcon } from "./AchievementCategoryIcon";
 import { AchievementsScreen } from "./AchievementsScreen";
+import { MatchRecordsScreen } from "./MatchRecordsScreen";
+import { DeckPreview } from "./DeckGalleryCard";
 import styles from "./ProfileScreen.module.css";
 
-type ProfileSection = "overview" | "achievements" | "records";
-type ProfileDialog = "avatar" | "title" | "faction" | "cover";
+const categories=["Profile Picture","Banner","Title","Faction"] as const;
+type Category=typeof categories[number];
+type Menu="edit"|"achievements"|"deck";
+const factions=["Pyrus","Aquos","Darkus","Haos","Ventus","Aurelus"] as const;
 
-const FACTION_SYMBOLS: Record<string, string> = {
-  Aquos: "/assets/symbols/factions/aquos.png",
-  Aurelus: "/assets/symbols/factions/aurelus.png",
-  Darkus: "/assets/symbols/factions/darkus.png",
-  Haos: "/assets/symbols/factions/haos.png",
-  Pyrus: "/assets/symbols/factions/pyrus.png",
-  Ventus: "/assets/symbols/factions/ventus.png",
-};
+export function ProfileScreen({segments=[]}:{segments?:string[]}){
+  return segments[0]==="records"?<MatchRecordsScreen recordId={decodeURIComponent(segments[1]??"")}/>:<ProfileOwner achievementPage={segments[0]==="achievements"} achievementView={segments[1]}/>;
+}
 
-const PROFILE_FACTIONS = [
-  "Pyrus",
-  "Aquos",
-  "Darkus",
-  "Haos",
-  "Ventus",
-  "Aurelus",
-] as const;
-
-const resultTone = (result: string) =>
-  result === "Victor" ? "success" : result === "Defeat" ? "danger" : "neutral";
-
-export function ProfileScreen({ segments = [] }: { segments?: string[] }) {
-  const router = useRouter();
-  const {
-    profile,
-    setProfile,
-    history,
-    lifetimeStats,
-    decks,
-    notify,
-    replay,
-    setReplay,
-    authUser,
-  } = useAppFields(["profile", "setProfile", "history", "lifetimeStats", "decks", "notify", "replay", "setReplay", "authUser"]);
-  const section: ProfileSection =
-    segments[0] === "achievements"
-      ? "achievements"
-      : segments[0] === "records"
-        ? "records"
-        : "overview";
-  const recordId =
-    section === "records" ? decodeURIComponent(segments[1] ?? "") : "";
-  const [saved, setSaved] = useState("");
-  const [dialog, setDialog] = useState<ProfileDialog | null>(null);
-  const [recordFilter, setRecordFilter] = useState("all");
-  const [rankedProfile, setRankedProfile] =
-    useState<PublicRankedProfile | null>(null);
-  const effectiveLifetimeStats = useMemo(
-    () => authUser ? lifetimeMatchStatsFromHistory(history) : lifetimeStats,
-    [authUser, history, lifetimeStats],
-  );
-  const achievements = useMemo(
-    () => achievementsForProfile(decks, history, effectiveLifetimeStats, profile),
-    [decks, effectiveLifetimeStats, history, profile],
-  );
-  const { gamesPlayed, gamesWon: wins, winRate } = playerMatchSummary(history, lifetimeStats, Boolean(authUser));
-  const completedAchievementIds = useMemo(
-    () =>
-      new Set(
-        achievements
-          .filter((achievement) => achievement.unlocked)
-          .map((achievement) => achievement.id),
-      ),
-    [achievements],
-  );
-  const selectedTitle =
-    PROFILE_TITLES.find((item) => item.id === profile.titleId) ??
-    PROFILE_TITLES[0];
-  const selectedCover =
-    PROFILE_COVERS.find((item) => item.id === profile.coverId) ??
-    PROFILE_COVERS[0];
-  const unifiedProfile = useMemo(
-    () =>
-      buildPublicBrawlerProfile({
-        userId: authUser?.id ?? "local-profile",
-        joinedAt: authUser?.createdAt ?? null,
-        profile,
-        decks,
-        achievements,
-        stats: { gamesPlayed, gamesWon: wins, winRate },
-        ranked: rankedProfile,
-      }),
-    [
-      achievements,
-      authUser?.createdAt,
-      authUser?.id,
-      decks,
-      gamesPlayed,
-      profile,
-      rankedProfile,
-      winRate,
-      wins,
-    ],
-  );
-
-  useEffect(() => {
-    if (!recordId) return;
-    const record = history.find((item: any) => item.id === recordId);
-    if (!record) return;
-    setReplay(record);
-  }, [history, recordId, setReplay]);
-
-  useEffect(() => {
-    if (!authUser?.id) {
-      setRankedProfile(null);
-      return;
-    }
-    const controller = new AbortController();
-    fetch(`/api/profile?userId=${encodeURIComponent(authUser.id)}`, {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error ?? "Profile unavailable.");
-        return normalizePublicBrawlerProfile(result.profile);
-      })
-      .then((publicProfile) => setRankedProfile(publicProfile?.ranked ?? null))
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        setRankedProfile(null);
-      });
-    return () => controller.abort();
-  }, [authUser?.id]);
-
-  useEffect(() => {
-    if (!dialog) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setDialog(null);
-    };
-    addEventListener("keydown", close);
-    return () => {
-      document.body.style.overflow = previous;
-      removeEventListener("keydown", close);
-    };
-  }, [dialog]);
-
-  useEffect(() => {
-    const selected = profile.showcaseAchievementIds ?? [];
-    const eligible = selected
-      .filter((id) => completedAchievementIds.has(id))
-      .slice(0, PROFILE_SHOWCASE_LIMIT);
-    if (
-      selected.length === eligible.length &&
-      selected.every((id, index) => id === eligible[index])
-    ) {
-      return;
-    }
-    setProfile({ ...profile, showcaseAchievementIds: eligible });
-  }, [completedAchievementIds, profile, setProfile]);
-
-  const activeRecord = recordId
-    ? (history.find((item: any) => item.id === recordId) ??
-      (replay?.id === recordId ? replay : null))
-    : null;
-
-  if (section === "achievements") {
-    return (
-      <AchievementsScreen
-        achievements={achievements}
-        view={segments[1]}
-        showcaseIds={profile.showcaseAchievementIds}
-        onToggleShowcase={(achievement) => {
-          if (!achievement.unlocked) {
-            notify("Complete an achievement before showcasing it.");
-            return;
-          }
-          const result = toggleShowcaseId(
-            profile.showcaseAchievementIds,
-            achievement.id,
-          );
-          if (result.reachedLimit) {
-            notify(
-              `Your Profile can showcase up to ${PROFILE_SHOWCASE_LIMIT} achievements.`,
-            );
-            return;
-          }
-          setProfile({ ...profile, showcaseAchievementIds: result.ids });
-          notify(
-            result.ids.includes(achievement.id)
-              ? `${achievement.name} added to your Profile showcase.`
-              : `${achievement.name} removed from your Profile showcase.`,
-          );
-        }}
-      />
-    );
-  }
-
-  const updateCustomization = (
-    patch: Partial<typeof profile>,
-    message: string,
-  ) => {
-    setProfile({ ...profile, ...patch });
-    setSaved(message);
-    window.setTimeout(() => setSaved(""), 2400);
+function ProfileOwner({achievementPage,achievementView}:{achievementPage:boolean;achievementView?:string}){
+  const {profile,setProfile,history,lifetimeStats,decks,notify,authUser}=useAppFields(["profile","setProfile","history","lifetimeStats","decks","notify","authUser"]);
+  const [menu,setMenu]=useState<Menu|null>(null);
+  const [rankedProfile,setRankedProfile]=useState<PublicRankedProfile|null>(null);
+  const [rankState,setRankState]=useState<"loading"|"ready"|"error">("loading");
+  const effectiveLifetimeStats=useMemo(()=>authUser?lifetimeMatchStatsFromHistory(history):lifetimeStats,[authUser,history,lifetimeStats]);
+  const achievements=useMemo(()=>achievementsForProfile(decks,history,effectiveLifetimeStats,profile),[decks,history,effectiveLifetimeStats,profile]);
+  const completedAchievementIds=new Set(achievements.filter(achievement=>achievement.unlocked).map(achievement=>achievement.id));
+  const stats=playerMatchSummary(history,lifetimeStats,Boolean(authUser));
+  const unifiedProfile=buildPublicBrawlerProfile({userId:authUser?.id??"local-profile",joinedAt:authUser?.createdAt??null,profile,decks,achievements,stats,ranked:rankedProfile});
+  useEffect(()=>{
+    setRankedProfile(null);
+    if(!authUser?.id){setRankState("ready");return;}
+    if(achievementPage)return;
+    const controller=new AbortController();
+    setRankState("loading");
+    fetch("/api/profile?userId="+encodeURIComponent(authUser.id),{cache:"no-store",signal:controller.signal}).then(async response=>{
+      if(!response.ok)throw Error("Profile unavailable");
+      const data=normalizePublicBrawlerProfile((await response.json()).profile);
+      if(!data)throw Error("Invalid profile");
+      if(!controller.signal.aborted){setRankedProfile(data.ranked);setRankState("ready");}
+    }).catch(()=>{if(!controller.signal.aborted)setRankState("error");});
+    return ()=>controller.abort();
+  },[authUser?.id,achievementPage]);
+  const update=(patch:Partial<typeof profile>,message:string)=>{setProfile((current:typeof profile)=>({...current,...patch}));notify(message);};
+  const toggleAchievement=(achievement:(typeof achievements)[number])=>{
+    if(!achievement.unlocked)return;
+    const result=toggleShowcaseId(profile.showcaseAchievementIds,achievement.id);
+    if(result.reachedLimit){notify("Choose up to "+PROFILE_SHOWCASE_LIMIT+" achievements.");return;}
+    update({showcaseAchievementIds:result.ids},"Achievement showcase updated");
   };
-
-  return (
-    <div className={styles.route}>
-      <Tabs label="Profile sections" className={styles.tabs}>
-        <Link
-          aria-current={section === "overview" ? "page" : undefined}
-          className={section === "overview" ? "active" : ""}
-          href="/profile"
-        >
-          Overview
-        </Link>
-        <Link
-          aria-current={section === "records" ? "page" : undefined}
-          className={section === "records" ? "active" : ""}
-          href="/profile/records"
-        >
-          Match records
-        </Link>
-      </Tabs>
-      <div className={styles.saveAnnouncement} role="status" aria-live="polite">
-        {saved}
-      </div>
-
-      {section === "overview" ? (
-        <BrawlerProfileView
-          profile={unifiedProfile}
-          ownerActions={{
-            onEditAvatar: () => setDialog("avatar"),
-            onEditTitle: () => setDialog("title"),
-            onEditFaction: () => setDialog("faction"),
-            onEditCover: () => setDialog("cover"),
-            achievementsHref: "/profile/achievements",
-            decksHref: "/decks",
-          }}
-        />
-      ) : null}
-      {section === "records" && (
-        <RecordsPanel
-          history={history}
-          activeRecord={activeRecord}
-          filter={recordFilter}
-          setFilter={setRecordFilter}
-          router={router}
-        />
-      )}
-
-      {dialog === "avatar" && (
-        <ProfileModal
-          title="Choose a profile picture"
-          description="Use the default account initials or choose one of the Brawler Profile Icons."
-          onClose={() => setDialog(null)}
-        >
-          <div className={styles.avatarPresetGrid}>
-            <button
-              type="button"
-              aria-label="Reset profile picture to default account initials"
-              aria-pressed={!profile.avatar}
-              onClick={() => {
-                updateCustomization(
-                  { avatar: "" },
-                  "Profile picture reset to default",
-                );
-                setDialog(null);
-              }}
-            >
-              <span
-                className={`${styles.avatarPresetIcon} ${styles.avatarInitialsPreview}`}
-                aria-hidden="true"
-              >
-                {profile.name.slice(0, 2).toUpperCase()}
-              </span>
-              <span>Default profile picture</span>
-            </button>
-            {PROFILE_AVATAR_PRESETS.map((item) => (
-              <button
-                type="button"
-                key={item.id}
-                aria-label={`Use ${item.name} profile icon`}
-                aria-pressed={profile.avatar === `preset:${item.id}`}
-                onClick={() => {
-                  updateCustomization(
-                    { avatar: `preset:${item.id}` },
-                    "Profile picture updated",
-                  );
-                  setDialog(null);
-                }}
-              >
-                <OriginalImage
-                  className={styles.avatarPresetIcon}
-                  src={item.src}
-                  alt=""
-                  width="380"
-                  height="380"
-                  loading="lazy"
-                  decoding="async"
-                />
-                <span>{item.name}</span>
-              </button>
-            ))}
-          </div>
-        </ProfileModal>
-      )}
-
-      {dialog === "title" && (
-        <ProfileModal
-          title="Choose a Profile Title"
-          description="Titles are permanent quest rewards. Complete the associated achievement to unlock each one."
-          onClose={() => setDialog(null)}
-        >
-          <div className={styles.rewardList}>
-            {PROFILE_TITLES.map((title) => {
-              const unlocked = profileRewardUnlocked(
-                title,
-                completedAchievementIds,
-              );
-              const requirement = title.achievementId
-                ? achievements.find(
-                    (achievement) => achievement.id === title.achievementId,
-                  )?.name
-                : "Available by default";
-              return (
-                <button
-                  type="button"
-                  key={title.id}
-                  disabled={!unlocked}
-                  aria-pressed={selectedTitle.id === title.id}
-                  onClick={() => {
-                    updateCustomization(
-                      { titleId: title.id },
-                      "Profile Title updated",
-                    );
-                    setDialog(null);
-                  }}
-                >
-                  <span>
-                    <strong>{title.label}</strong>
-                    <small>{
-                      unlocked ? requirement : `Locked · ${requirement}`
-                    }</small>
-                  </span>
-                  <i aria-hidden="true">
-                    {selectedTitle.id === title.id
-                      ? <LucideIcon name="check" size={16}/>
-                      : unlocked
-                        ? "○"
-                        : <LucideIcon name="lock" size={16}/>}
-                  </i>
-                </button>
-              );
-            })}
-          </div>
-        </ProfileModal>
-      )}
-
-      {dialog === "faction" && (
-        <ProfileModal
-          title="Choose a Brawler Faction"
-          description="Choose the faction shown as your Brawler identity."
-          onClose={() => setDialog(null)}
-        >
-          <div className={styles.rewardList}>
-            {PROFILE_FACTIONS.map((faction) => (
-              <button
-                type="button"
-                key={faction}
-                aria-pressed={profile.faction === faction}
-                onClick={() => {
-                  updateCustomization(
-                    { faction },
-                    "Brawler faction updated",
-                  );
-                  setDialog(null);
-                }}
-              >
-                <span>
-                  <strong>{faction}</strong>
-                  <small>{faction} Brawler</small>
-                </span>
-                <OriginalImage
-                  src={FACTION_SYMBOLS[faction]}
-                  alt=""
-                  width="36"
-                  height="36"
-                />
-              </button>
-            ))}
-          </div>
-        </ProfileModal>
-      )}
-
-      {dialog === "cover" && (
-        <ProfileModal
-          title="Choose a Cover"
-          description="Choose one of the Brawler Profile Covers."
-          onClose={() => setDialog(null)}
-        >
-          <div className={styles.coverGrid}>
-            {PROFILE_COVERS.map((cover) => {
-              const unlocked = profileRewardUnlocked(
-                cover,
-                completedAchievementIds,
-              );
-              const requirement = cover.achievementId
-                ? achievements.find(
-                    (achievement) => achievement.id === cover.achievementId,
-                  )?.name
-                : "Available by default";
-              return (
-                <button
-                  type="button"
-                  key={cover.id}
-                  disabled={!unlocked}
-                  aria-pressed={selectedCover.id === cover.id}
-                  onClick={() => {
-                    updateCustomization(
-                      { coverId: cover.id },
-                      "Profile Cover updated",
-                    );
-                    setDialog(null);
-                  }}
-                >
-                  <OriginalImage
-                    className={styles.coverArt}
-                    src={cover.src}
-                    alt=""
-                    width="1920"
-                    height="480"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <span className={styles.coverCopy}>
-                    <strong>{cover.label}</strong>
-                    <small>{
-                      unlocked ? requirement : `Locked · ${requirement}`
-                    }</small>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </ProfileModal>
-      )}
-    </div>
-  );
+  if(achievementPage)return <AchievementsScreen achievements={achievements} view={achievementView} showcaseIds={profile.showcaseAchievementIds} onToggleShowcase={toggleAchievement}/>;
+  const requirement=(id:string|null)=>id?achievements.find(achievement=>achievement.id===id)?.name??"Achievement required":"Available by default";
+  const picture=<div className={styles.avatarPresetGrid}>
+    <button type="button" aria-label="Reset profile picture to default account initials" aria-pressed={!profile.avatar} onClick={()=>update({ avatar: "" },"Profile picture reset")}><span className={styles.avatarInitialsPreview}>{profile.name.slice(0,2).toUpperCase()}</span><span>Default</span></button>
+    {PROFILE_AVATARS.map(item=>{
+      const required=profileRewardRequirement("avatars",item.id,null);
+      if(required===PROFILE_REWARD_UNAVAILABLE)return null;
+      const unlocked=!required||completedAchievementIds.has(required);
+      return <button type="button" key={item.id} disabled={!unlocked} aria-pressed={profile.avatar==="preset:"+item.id} onClick={()=>update({avatar:"preset:"+item.id},"Profile picture updated")}><OriginalImage className={styles.avatarPresetIcon} src={item.src} alt="" width="380" height="380" loading="lazy"/><span>{item.label}</span>{!unlocked&&<small>Locked · {requirement(required)}</small>}</button>;
+    })}
+  </div>;
+  const banners=<div className={styles.coverGrid}>{PROFILE_COVERS.map(cover=>{
+    const unlocked=profileRewardUnlocked(cover,completedAchievementIds);
+    return <button key={cover.id} type="button" disabled={!unlocked} aria-pressed={profile.coverId===cover.id} onClick={()=>update({coverId:cover.id},"Banner updated")}><OriginalImage className={styles.coverArt} src={cover.src} alt="" width="1920" height="480" loading="lazy"/><strong>{cover.label}</strong>{!unlocked&&<small>Locked · {requirement(cover.achievementId)}</small>}</button>;
+  })}</div>;
+  const titles=<div className={styles.rewardList}>{PROFILE_TITLES.map(title=>{
+    const unlocked=profileRewardUnlocked(title,completedAchievementIds);
+    return <button type="button" key={title.id} disabled={!unlocked} aria-pressed={profile.titleId===title.id} onClick={()=>update({titleId:title.id},"Title updated")}><span><strong>{title.label}</strong>{!unlocked&&<small>Locked · {requirement(title.achievementId)}</small>}</span>{!unlocked?<LucideIcon name="lock"/>:profile.titleId===title.id?<LucideIcon name="check"/>:null}</button>;
+  })}</div>;
+  const factionPicker=<div className={styles.factionGrid}>{factions.map(faction=><button key={faction} type="button" aria-pressed={profile.faction===faction} onClick={()=>update({faction},"Preferred faction updated")}><OriginalImage src={FACTION_SYMBOLS[faction]} alt="" width="48" height="48"/><strong>{faction}</strong></button>)}</div>;
+  const selectedDeck=unifiedProfile.showcaseDecks[0]?.id;
+  return <>
+    <BrawlerProfileView profile={unifiedProfile} rankLoading={rankState==="loading"&&Boolean(authUser)} rankUnavailable={rankState==="error"} ownerActions={{onEdit:()=>setMenu("edit"),onAchievements:()=>setMenu("achievements"),onSelectDeck:()=>setMenu("deck")}}/>
+    {menu==="edit"&&<EditProfileMenu onClose={()=>setMenu(null)} panels={{"Profile Picture":picture,Banner:banners,Title:titles,Faction:factionPicker}}/>}
+    {menu==="achievements"&&<ProfileDialog title="Achievements" onClose={()=>setMenu(null)}>
+      <p className={styles.empty}>{unifiedProfile.showcaseAchievements.length}/{PROFILE_SHOWCASE_LIMIT} showcased</p>
+      <div className={styles.rewardList}>{achievements.map(achievement=><button type="button" key={achievement.id} disabled={!achievement.unlocked||(!profile.showcaseAchievementIds?.includes(achievement.id)&&unifiedProfile.showcaseAchievements.length>=PROFILE_SHOWCASE_LIMIT)} aria-pressed={Boolean(profile.showcaseAchievementIds?.includes(achievement.id))} onClick={()=>toggleAchievement(achievement)}><AchievementCategoryIcon category={achievement.category}/><span><strong>{achievement.name}</strong><small>{achievement.description}</small></span>{profile.showcaseAchievementIds?.includes(achievement.id)?<LucideIcon name="check"/>:!achievement.unlocked?<LucideIcon name="lock"/>:null}</button>)}</div>
+      <Link className={styles.sectionAction} href="/profile/achievements" onClick={()=>setMenu(null)}>View all achievements <LucideIcon name="chevron-right" size={16}/></Link>
+    </ProfileDialog>}
+    {menu==="deck"&&<ProfileDialog title="Select Deck" onClose={()=>setMenu(null)}>
+      <div className={styles.rewardList}><button type="button" aria-pressed={!selectedDeck} onClick={()=>{update({showcaseDeckIds:[]},"Deck showcase cleared");setMenu(null);}}>No showcased deck {!selectedDeck&&<LucideIcon name="check"/>}</button>
+      {decks.filter((deck:any)=>deck.visibility==="Public").map((deck:any)=><button type="button" key={deck.id} className={styles.deckChoice} aria-pressed={selectedDeck===deck.id} onClick={()=>{update({showcaseDeckIds:[deck.id]},"Showcased deck updated");setMenu(null);}}><div className={styles.deckArtwork}><DeckPreview deck={deck}/></div><strong>{deck.name}</strong>{selectedDeck===deck.id&&<LucideIcon name="check"/>}</button>)}</div>
+      {!decks.some((deck:any)=>deck.visibility==="Public")&&<p className={styles.empty}>Publish a deck before showcasing it.</p>}
+      <Link className={styles.sectionAction} href="/decks" onClick={()=>setMenu(null)}>My Decks <LucideIcon name="chevron-right" size={16}/></Link>
+    </ProfileDialog>}
+  </>;
 }
 
-function ProfileModal({
-  title,
-  description,
-  onClose,
-  children,
-}: {
-  title: string;
-  description: string;
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <div
-      className={styles.backdrop}
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <Surface
-        className={styles.editDialog}
-        elevation="overlay"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="profile-dialog-title"
-      >
-        <header className={styles.dialogHeading}>
-          <div>
-            <StatusChip tone="info">Profile customization</StatusChip>
-            <h2 id="profile-dialog-title">{title}</h2>
-            <p>{description}</p>
-          </div>
-          <button type="button" aria-label="Close" onClick={onClose}>
-            <LucideIcon name="x" size={20}/>
-          </button>
-        </header>
-        {children}
-      </Surface>
+function ProfileDialog({title,onClose,children,back}:{title:string;onClose:()=>void;children:ReactNode;back?:()=>void}){
+  const ref=useRef<HTMLDialogElement>(null);
+  const closeRef=useRef<HTMLButtonElement>(null);
+  useEffect(()=>{
+    const dialog=ref.current;
+    if(!dialog)return;
+    const previous=document.activeElement as HTMLElement|null;
+    const overflow=document.body.style.overflow;
+    document.body.style.overflow="hidden";
+    dialog.showModal();
+    closeRef.current?.focus();
+    return ()=>{dialog.close();document.body.style.overflow=overflow;if(previous?.isConnected)previous.focus();};
+  },[]);
+  return <dialog ref={ref} className={styles.dialog} aria-labelledby="profile-dialog-title" onCancel={event=>{event.preventDefault();onClose();}} onClick={event=>{if(event.target===event.currentTarget)onClose();}}>
+    <div className={styles.dialogInner}>
+      <header className={styles.dialogHeading}>{back&&<button className={styles.mobileBack} type="button" onClick={back}><LucideIcon name="arrow-left" size={18}/> Back</button>}<h2 id="profile-dialog-title">{title}</h2><button ref={closeRef} type="button" aria-label="Close" onClick={onClose}><LucideIcon name="x" size={24}/></button></header>
+      <div className={styles.dialogBody}>{children}</div>
     </div>
-  );
+  </dialog>;
 }
 
-function RecordsPanel({
-  history,
-  activeRecord,
-  filter,
-  setFilter,
-  router,
-}: any) {
-  if (activeRecord) {
-    return (
-      <ReplayTheatre
-        record={activeRecord}
-        onBack={() => router.push("/profile/records")}
-      />
-    );
-  }
-  const visible = history.filter(
-    (item: any) =>
-      filter === "all" ||
-      item.result.toLowerCase() === filter ||
-      item.mode === filter ||
-      item.format === filter,
-  );
-  return (
-    <section className={styles.section}>
-      <header className={styles.sectionToolbar}>
-        <div>
-          <span>Match archive</span>
-          <h2>Recorded matches</h2>
-        </div>
-        <Field label="Filter">
-          <select
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-          >
-            <option value="all">All records</option>
-            <option value="victor">Victories</option>
-            <option value="defeat">Defeats</option>
-            <option value="training">Training</option>
-            <option value="casual">Casual</option>
-            <option value="ranked">Ranked</option>
-            <option value="bo1">Best of one</option>
-            <option value="bo3">Best of three</option>
-          </select>
-        </Field>
-      </header>
-      {visible.length ? (
-        <Surface className={styles.recordTable}>
-          {visible.map((item: any) => (
-            <button
-              key={item.id}
-              onClick={() =>
-                router.push(`/profile/records/${encodeURIComponent(item.id)}`)
-              }
-            >
-              <StatusChip tone={resultTone(item.result)}>
-                {item.result}
-              </StatusChip>
-              <strong>{item.opponent}</strong>
-              <span>{item.score}</span>
-              <span>{item.mode ?? "legacy"}</span>
-              <small>{formatTimestamp(item.at)}</small>
-              <i>Open <LucideIcon name="arrow-right" size={16}/></i>
-            </button>
-          ))}
-        </Surface>
-      ) : (
-        <SystemState
-          compact
-          tone="empty"
-          title="No matching records"
-          message="Complete a training or online match, or clear the current filter."
-          actions={<Link href="/play">Play a match</Link>}
-        />
-      )}
-    </section>
-  );
+function EditProfileMenu({panels,onClose}:{panels:Record<Category,ReactNode>;onClose:()=>void}){
+  const [category,setCategory]=useState<Category>("Profile Picture");
+  const [mobileSection,setMobileSection]=useState(false);
+  return <ProfileDialog title="Edit Profile" onClose={onClose} back={mobileSection?()=>setMobileSection(false):undefined}>
+    <div className={styles.editTabs} role="tablist" aria-label="Profile elements">{categories.map((item,index)=><button key={item} type="button" role="tab" id={"profile-tab-"+index} aria-controls="profile-edit-panel" aria-selected={category===item} tabIndex={category===item?0:-1} onClick={()=>setCategory(item)} onKeyDown={event=>{const next=event.key==="ArrowRight"?(index+1)%categories.length:event.key==="ArrowLeft"?(index+categories.length-1)%categories.length:event.key==="Home"?0:event.key==="End"?categories.length-1:null;if(next!==null){event.preventDefault();setCategory(categories[next]);document.getElementById("profile-tab-"+next)?.focus();}}}>{item}</button>)}</div>
+    {!mobileSection&&<nav className={styles.editNavigation} aria-label="Profile elements">{categories.map(item=><button key={item} type="button" onClick={()=>{setCategory(item);setMobileSection(true);}}>{item}<LucideIcon name="chevron-right" size={18}/></button>)}</nav>}
+    <div id="profile-edit-panel" className={styles.editPanel} data-mobile-open={mobileSection||undefined}><h3 className={styles.mobileCategory}>{category}</h3>{panels[category]}</div>
+  </ProfileDialog>;
 }

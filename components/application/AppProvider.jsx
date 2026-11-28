@@ -394,7 +394,7 @@ export function AppProvider({ children }) {
       const selected = Array.isArray(current.showcaseDeckIds)
         ? current.showcaseDeckIds
         : [];
-      const eligible = selected.filter((id) => eligibleDeckIds.has(id)).slice(0, 3);
+      const eligible = selected.filter((id) => eligibleDeckIds.has(id)).slice(0, 1);
       if (
         selected.length === eligible.length &&
         selected.every((id, index) => id === eligible[index])

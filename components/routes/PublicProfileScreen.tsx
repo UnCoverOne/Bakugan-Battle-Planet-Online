@@ -1,7 +1,5 @@
 "use client";
 
-import { LucideIcon } from "../design-system/LucideIcon";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
@@ -48,24 +46,17 @@ export function PublicProfileScreen({ userId }: { userId: string }) {
   }, [ownProfile, userId]);
 
   if (ownProfile) {
-    return <div className={styles.saveAnnouncement}>Opening your Profile…</div>;
+    return <div className={styles.pageState}>Opening your Profile…</div>;
   }
   if (!profile) {
     return (
-      <div className={styles.section} role={error ? "alert" : "status"}>
+      <div className={styles.pageState} role={error ? "alert" : "status"}>
         {error || "Loading Brawler Profile…"}
       </div>
     );
   }
 
   return (
-    <div className={styles.route}>
-      <BrawlerProfileView profile={profile} />
-      <div className={styles.section}>
-        <Link className={styles.textAction} href="/leaderboard">
-          <LucideIcon name="arrow-left" size={16}/> Return to leaderboard
-        </Link>
-      </div>
-    </div>
+    <BrawlerProfileView profile={profile} />
   );
 }

@@ -16,6 +16,8 @@ import {
   normalizeProfileCover,
   normalizeProfileTitle,
   normalizeShowcaseIds,
+  normalizeDeckShowcaseIds,
+  selectShowcaseDeck,
   profileRewardUnlocked,
   toggleShowcaseId,
 } from "../lib/profile-customization";
@@ -70,6 +72,12 @@ test("showcase toggling enforces the maximum and supports removing items", () =>
   assert.deepEqual(toggleShowcaseId(["a", "b"], "c"), { ids: ["a", "b", "c"], reachedLimit: false });
   assert.deepEqual(toggleShowcaseId(["a", "b", "c"], "d"), { ids: ["a", "b", "c"], reachedLimit: true });
   assert.deepEqual(toggleShowcaseId(["a", "b", "c"], "b"), { ids: ["a", "c"], reachedLimit: false });
+});
+
+test("single deck showcase migrates legacy selections and replaces without deleting decks",()=>{
+  assert.deepEqual(normalizeDeckShowcaseIds(["a","b","c"]),["a"]);
+  assert.deepEqual(selectShowcaseDeck(["a","b"],"c"),["c"]);
+  assert.deepEqual(selectShowcaseDeck(["a"],"a"),[]);
 });
 
 test("profile normalization rejects removed image and title sources", () => {
@@ -209,8 +217,8 @@ test("owner and public routes render one shared Brawler Profile presentation", (
   assert.match(publicProfile, /\/api\/profile\?userId=/);
   assert.match(publicProfile, /router\.replace\("\/profile"\)/);
   assert.match(shared, /Showcased Achievements/);
-  assert.match(shared, /Public Decks/);
-  assert.match(shared, /Ranked Profile/);
+  assert.match(shared, /Showcased Deck/);
+  assert.match(shared, /Battle Statistics/);
   assert.match(shared, /ProfileAvatar/);
 });
 
@@ -228,7 +236,7 @@ test("public profile server uses canonical profile fields and exposes only selec
   assert.doesNotMatch(server, /user_data\.data_json/);
   assert.doesNotMatch(server, /LEFT JOIN user_data/);
   assert.match(contract, /deck\.visibility === "Public"/);
-  assert.match(contract, /normalizeShowcaseIds\(input\.profile\.showcaseDeckIds\)/);
+  assert.match(contract, /normalizeDeckShowcaseIds\(input\.profile\.showcaseDeckIds\)/);
   assert.match(rankedRoute, /publicBrawlerProfile/);
 });
 

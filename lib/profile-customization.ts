@@ -4,6 +4,7 @@ import {
 } from "./profile-reward-runtime";
 
 export const PROFILE_SHOWCASE_LIMIT = 3;
+export const PROFILE_DECK_SHOWCASE_LIMIT = 1;
 
 export type ProfileReward = {
   id: string;
@@ -139,6 +140,15 @@ const uniqueIds = (value: unknown) =>
 
 export function normalizeShowcaseIds(value: unknown) {
   return uniqueIds(value);
+}
+
+/** Keep the first legacy selection; never delete the underlying deck. */
+export function normalizeDeckShowcaseIds(value: unknown) {
+  return normalizeShowcaseIds(value).slice(0, PROFILE_DECK_SHOWCASE_LIMIT);
+}
+
+export function selectShowcaseDeck(current: readonly string[] | undefined, id: string) {
+  return normalizeDeckShowcaseIds(current).includes(id) ? [] : normalizeDeckShowcaseIds([id]);
 }
 
 export function normalizeProfileAvatar(value: unknown) {

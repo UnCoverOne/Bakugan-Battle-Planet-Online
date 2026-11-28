@@ -1,0 +1,9 @@
+# Brawler Profile redesign
+
+The shared own/public profile is a continuous Midnight/Pyrus layout: constrained banner (full width on narrow screens), circular portrait with page-coloured cutout, faction ring and shared presence dot; username, faction symbol and equipped title. Owner-only edit button opens a native modal; desktop tabs and mobile drill-down share the same four pickers. Equipping saves through existing profile persistence. Achievement reward assignments remain authoritative.
+
+Profile links directly to the independent Match Records screen (same legacy-compatible route). Battle Statistics shows only rank, all-mode win rate and victories. Showcased Achievements includes icon, name and full requirement; the owner opens a showcase picker, with a link to the full achievement page. The single Public deck uses the shared DeckPreview. Existing array-shaped stored showcase selections normalize to one; choosing another replaces the previous selection without deleting decks. The public contract contains only the preview's selected lead card and relevant printing preferences, not private deck contents. Public visitors do not see owner controls or private match records.
+
+Retired: old profile overview/records tabs, individual edit overlays, standalone public profile and mobile CSS, bespoke deck character stack, duplicate statistics panels. Original profile artwork remains in use.
+
+Verification: npm run check:palette; node --import tsx --test tests/profile-customization.test.ts; npm run build. In browser check desktop and mobile native dialogs, keyboard close/focus, all faction rings, visible achievement requirements, public/private deck selection, legacy records/replay URLs and public profile parity.

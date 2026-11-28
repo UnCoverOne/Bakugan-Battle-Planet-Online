@@ -3,8 +3,9 @@ import {
   type Achievement,
   type AchievementCategory,
 } from "./achievements";
-import { validateDeck, type DeckRecord } from "./data";
+import { BAKUGAN, deckLeadCard, validateDeck, type DeckRecord } from "./data";
 import { deckSetName } from "./deck-set";
+import { cardPrintingKey } from "./deck-printings";
 import type { BrawlerProfile } from "./persistence";
 import {
   PROFILE_COVERS,
@@ -14,6 +15,8 @@ import {
   normalizeProfileCover,
   normalizeProfileTitle,
   normalizeShowcaseIds,
+  normalizeDeckShowcaseIds,
+  PROFILE_DECK_SHOWCASE_LIMIT,
 } from "./profile-customization";
 
 export type PublicProfileAchievement = Pick<
@@ -28,6 +31,8 @@ export type PublicProfileDeck = {
   bakuganIds: string[];
   setName: string;
   isLegal: boolean;
+  leadCardId?: string;
+  printingPreferences?: Record<string, string>;
 };
 
 export type PublicRankedProfile = {
@@ -100,7 +105,15 @@ const achievementCategory = (value: unknown): AchievementCategory => {
 };
 
 export function publicDeckSummary(deck: DeckRecord): PublicProfileDeck {
+  const featured = deckLeadCard(deck);
+  const keys = new Set(deck.bakuganIds.slice(0, 3).flatMap(id => {
+    const character = BAKUGAN.find(item => item.id === id);
+    return character ? [cardPrintingKey(character.character)] : [];
+  }));
+  if (featured) keys.add(cardPrintingKey(featured));
   return {
+    leadCardId: featured ? (deck.leadCardId && deck.cardIds.includes(deck.leadCardId) ? deck.leadCardId : deck.cardIds[0]) : undefined,
+    printingPreferences: Object.fromEntries(Object.entries(deck.printingPreferences ?? {}).filter(([key]) => keys.has(key))),
     id: deck.id,
     name: deck.name,
     factions: deck.factions.slice(0, 6),
@@ -135,10 +148,10 @@ export function buildPublicBrawlerProfile(input: {
       description,
       category,
     }));
-  const selectedDecks = normalizeShowcaseIds(input.profile.showcaseDeckIds)
+  const selectedDecks = normalizeDeckShowcaseIds(input.profile.showcaseDeckIds)
     .map((id) => publicDecks.find((deck) => deck.id === id))
     .filter((deck): deck is DeckRecord => Boolean(deck))
-    .slice(0, PROFILE_SHOWCASE_LIMIT)
+    .slice(0, PROFILE_DECK_SHOWCASE_LIMIT)
     .map(publicDeckSummary);
 
   return normalizePublicBrawlerProfile({
@@ -205,9 +218,13 @@ export function normalizePublicBrawlerProfile(
           bakuganIds: strings(item.bakuganIds, 3, 120),
           setName: text(item.setName, 80),
           isLegal: Boolean(item.isLegal),
+          leadCardId: text(item.leadCardId, 160) || undefined,
+          printingPreferences: item.printingPreferences && typeof item.printingPreferences === "object" && !Array.isArray(item.printingPreferences)
+            ? Object.fromEntries(Object.entries(item.printingPreferences).filter(([key, value]) => key.startsWith("card:") && key.length <= 300 && typeof value === "string" && value.length <= 160).slice(0, 4)) as Record<string, string>
+            : undefined,
         }))
         .filter((item) => item.id && item.name)
-        .slice(0, PROFILE_SHOWCASE_LIMIT)
+        .slice(0, PROFILE_DECK_SHOWCASE_LIMIT)
     : [];
 
   return {

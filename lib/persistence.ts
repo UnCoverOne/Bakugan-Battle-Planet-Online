@@ -14,6 +14,7 @@ import {
   normalizeProfileCover,
   normalizeProfileTitle,
   normalizeShowcaseIds,
+  normalizeDeckShowcaseIds,
 } from "./profile-customization";
 import { normalizeCollection, type Collection } from "./collection";
 
@@ -334,7 +335,7 @@ export function normalizeSnapshot(value: unknown, fallback: UserSnapshot): UserS
       titleId: normalizeProfileTitle(candidate.profile?.titleId),
       coverId: normalizeProfileCover(candidate.profile?.coverId),
       showcaseAchievementIds: normalizeShowcaseIds(candidate.profile?.showcaseAchievementIds),
-      showcaseDeckIds: normalizeShowcaseIds(candidate.profile?.showcaseDeckIds),
+      showcaseDeckIds: normalizeDeckShowcaseIds(candidate.profile?.showcaseDeckIds),
       achievementCompletions: normalizeAchievementCompletions(
         candidate.profile?.achievementCompletions ?? fallback.profile.achievementCompletions,
       ),

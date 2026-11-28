@@ -3,3 +3,5 @@
 .presence[data-tone=active] i{background:var(--bb-success)}
 .presence[data-tone=away] i{background:var(--bb-presence-away)}
 .presence[data-tone=game] i{background:var(--bb-nav-indicator)}
+
+.presence[data-icon-only]{display:grid;place-items:center;line-height:1}.presence[data-icon-only] i{width:100%;height:100%;margin:0}

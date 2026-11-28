@@ -8,7 +8,7 @@ import { useMemo, useState } from "react";
 import { legalDeckFormats, validateDeck, type DeckFormat, type DeckRecord } from "../../lib/data";
 import { DECK_LIMIT, decodeDeckCode, deckTextList, encodeDeckCode, uniqueDeckName } from "../../lib/deck-transfer";
 import { deckSetName } from "../../lib/deck-set";
-import { PROFILE_SHOWCASE_LIMIT, toggleShowcaseId } from "../../lib/profile-customization";
+import { selectShowcaseDeck } from "../../lib/profile-customization";
 import { useAppFields } from "../application/AppProvider";
 import { copyText, downloadTextFile } from "../application/ui";
 import { ActionButton } from "../design-system/primitives";
@@ -125,16 +125,10 @@ export function DeckLibraryScreen() {
       notify("Only Public decks can be showcased on your Profile.");
       return;
     }
-    const result = toggleShowcaseId(profile.showcaseDeckIds, deck.id);
-    if (result.reachedLimit) {
-      notify(
-        `Your Profile can showcase up to ${PROFILE_SHOWCASE_LIMIT} Public decks.`,
-      );
-      return;
-    }
-    setProfile({ ...profile, showcaseDeckIds: result.ids });
+    const ids = selectShowcaseDeck(profile.showcaseDeckIds, deck.id);
+    setProfile((current) => ({ ...current, showcaseDeckIds: ids }));
     notify(
-      result.ids.includes(deck.id)
+      ids.includes(deck.id)
         ? `${deck.name} added to your Profile showcase.`
         : `${deck.name} removed from your Profile showcase.`,
     );

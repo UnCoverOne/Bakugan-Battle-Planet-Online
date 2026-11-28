@@ -16,6 +16,7 @@ import {
   normalizeProfileCover,
   normalizeProfileTitle,
   normalizeShowcaseIds,
+  normalizeDeckShowcaseIds,
 } from "./profile-customization";
 import {
   buildPublicBrawlerProfile,
@@ -59,7 +60,7 @@ function snapshotProfile(
     showcaseAchievementIds: normalizeShowcaseIds(
       profile.showcaseAchievementIds,
     ),
-    showcaseDeckIds: normalizeShowcaseIds(profile.showcaseDeckIds),
+    showcaseDeckIds: normalizeDeckShowcaseIds(profile.showcaseDeckIds),
     achievementCompletions: normalizeAchievementCompletions(
       profile.achievementCompletions,
     ),
