@@ -63,3 +63,16 @@ test("Collection statuses, zero quantities and total ownership sort remain disti
   assert.ok(matchesCollection(owned,["owned"],{standard:["1"],foil:["2"],wishlist:["0"]}));
   assert.deepEqual(sortCollection([zero,owned],"owned-desc",entry=>entry),[owned,zero]);
 });
+
+test("Fused display faces resolve to their physical front for ownership", () => {
+  const fronts = CARDS.filter(card => card.fusionFace === "a" && card.fusionPairId);
+  const catalogue = cardCollectionCatalogue(CARDS, {...DEFAULT_COMPENDIUM_STATE, type:["Character"], fusionOnly:true});
+  assert.ok(catalogue.cards.length > 0);
+  for (const back of catalogue.cards) {
+    const front = fronts.find(card => card.fusionPairId === back.fusionPairId);
+    assert.ok(front);
+    const printings = catalogue.printings.get(back.catalogId)!;
+    assert.ok(printings.some(printing => printing.id === front.catalogId));
+    assert.ok(!printings.some(printing => printing.id === back.catalogId));
+  }
+});

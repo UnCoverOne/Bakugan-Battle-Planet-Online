@@ -9,7 +9,7 @@ import { CARDS, CORE_COMPENDIUM } from "../../lib/data";
 import { activeCardFilterCount, createCardFilterOptionCatalogue, type CardFilterFacet } from "../../lib/card-filters";
 import { SORT_LABELS, CHARACTER_SORTS, NON_CHARACTER_SORTS, CORE_SORT_LABELS } from "../../lib/catalogue-sorting";
 import { COMPENDIUM_PAGE_SIZE, CORE_COMPENDIUM_PAGE_SIZE, filterAndSortCompendiumCores, parseCompendiumState, parseCoreCompendiumState, parseInspectorTab, selectedCompendiumCard, selectedCompendiumCore } from "../../lib/compendium";
-import { COLLECTION_FIELDS, COLLECTION_QUANTITY_OPTIONS, COLLECTION_SORT_OPTIONS, updateCollection, type CollectionField, type CollectionSort } from "../../lib/collection";
+import { COLLECTION_FIELDS, COLLECTION_QUANTITY_OPTIONS, COLLECTION_SORT_OPTIONS, updateCollection, type Collection, type CollectionField, type CollectionSort } from "../../lib/collection";
 import { cardCollectionCatalogue, coreCollectionPrintings, printingTotals, matchesCollection, sortCollection, COLLECTION_STATUS_OPTIONS } from "../../lib/collection-catalogue";
 import { CardsGallery } from "./CardsGallery";
 import { CoresGallery } from "./CoresGallery";
@@ -71,7 +71,7 @@ export function CollectionScreen() {
   const pageSize = isCards ? COMPENDIUM_PAGE_SIZE : CORE_COMPENDIUM_PAGE_SIZE;
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const requestedPage = isCards ? state.page : coreState.page;
-  const page = Math.min(requestedPage, pages);
+  const page = query !== urlQuery ? 1 : Math.min(requestedPage, pages);
   const activeCount = (isCards ? activeCardFilterCount(state) + Number(state.fusionOnly) : [coreState.type,coreState.set,coreState.bonus,coreState.damage,coreState.effects,coreState.faction].reduce((n, values) => n + values.length, 0)) + statuses.length + COLLECTION_FIELDS.reduce((n, field) => n + quantities[field].length, 0);
   const navigate = useCallback((patch: Patch, push = false) => {
     const next = new URLSearchParams(window.location.search);
@@ -98,7 +98,7 @@ export function CollectionScreen() {
     if (requestedPage > pages && query === urlQuery) navigate({ [pageKey]: pages === 1 ? null : String(pages) });
   }, [requestedPage,pages,query,urlQuery,navigate,pageKey]);
   const changeCollection = useCallback((id: string, field: CollectionField, delta: number) => {
-    if (authUser && accountDataReady) setCollection(current => updateCollection(current,id,field,delta));
+    if (authUser && accountDataReady) setCollection((current: Collection) => updateCollection(current,id,field,delta));
   }, [authUser,accountDataReady,setCollection]);
   const closeSidebar = useCallback(() => {
     if (window.matchMedia("(max-width: 900px)").matches) setSidebarOpen(false);
@@ -132,7 +132,7 @@ export function CollectionScreen() {
   const closeInspector = () => navigate({card:null,core:null,printing:null,tab:null});
   const selectCard = (card: typeof CARDS[number], trigger?: HTMLElement) => {
     if (trigger) inspectorTrigger.current = trigger;
-    navigate({ card:card.slug ?? card.catalogId,core:null,printing:null,tab:"collection" },true);
+    navigate({ card:card.slug ?? card.catalogId,core:null,printing:card.fusionFace === "b" ? CARDS.find(candidate => candidate.fusionPairId === card.fusionPairId && candidate.fusionFace === "a")?.catalogId ?? null : card.catalogId,tab:"collection" },true);
   };
   const selectCore = (core: typeof CORE_COMPENDIUM[number], trigger?: HTMLElement) => {
     if (trigger) inspectorTrigger.current = trigger;

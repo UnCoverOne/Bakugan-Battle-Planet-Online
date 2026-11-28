@@ -89,7 +89,7 @@ function CoreTile({ core, selectedSets, compact, selected, onSelect, renderContr
     <span className={styles.artwork} data-core-preview>
       <BakuCoreArt core={displayedCore} alt="" />
     </span>
-    {!compact && <span className={styles.details} data-core-details style={collection ? { gridTemplateRows: "20px" } : undefined}>
+    {!compact && <span className={styles.details} data-core-details data-collection-details={collection || undefined}>
       <strong className={styles.name} title={core.type}>{core.type}</strong>
       {!collection && <span className={styles.metadata} data-core-meta>
         <span className={styles.setTag} title={`${setName}, collector number ${displayedCore.number}`}>
@@ -99,7 +99,7 @@ function CoreTile({ core, selectedSets, compact, selected, onSelect, renderContr
       </span>}
     </span>}
   </button>;
-  return renderControls ? <div className={styles.entry}>{tile}{renderControls(core)}</div> : tile;
+  return renderControls ? <div className={styles.entry} data-collection-entry={collection || undefined}>{tile}{renderControls(core)}</div> : tile;
 }
 
 /** BakuCore-specific gallery with the same frameless density modes as Cards. */

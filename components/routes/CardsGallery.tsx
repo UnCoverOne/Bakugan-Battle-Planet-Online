@@ -42,7 +42,7 @@ export function CardsGallery({ cards, density, selectedId, onSelect, renderContr
         <span className={styles.artwork} data-card-preview>
           <ResponsiveCardImage card={displayed} presentation="tile" alt="" />
         </span>
-        {!compact && <span className={styles.details} data-card-details style={collection ? { gridTemplateRows: "20px" } : undefined}>
+        {!compact && <span className={styles.details} data-card-details data-collection-details={collection || undefined}>
           <strong className={styles.name} data-card-name title={displayed.displayName}>{displayed.displayName}</strong>
           {!collection && <span className={`${styles.metadata} ${rolling ? styles.metadataWithRolling : ""}`} data-card-meta>
             <span className={styles.factions} aria-label={factions.join(" / ")}>
@@ -61,7 +61,7 @@ export function CardsGallery({ cards, density, selectedId, onSelect, renderContr
           </span>}
         </span>}
       </button>;
-      return renderControls ? <div key={card.catalogId} className={styles.entry}>{tile}{renderControls(displayed)}</div> : tile;
+      return renderControls ? <div key={card.catalogId} className={styles.entry} data-collection-entry={collection || undefined}>{tile}{renderControls(displayed)}</div> : tile;
     })}
   </div>;
 }

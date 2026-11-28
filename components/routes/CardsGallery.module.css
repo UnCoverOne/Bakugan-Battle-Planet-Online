@@ -204,5 +204,10 @@
   .artwork::after { transition: none; }
 }
 
-/* Builder-only extension: retain every Compendium tile and metadata detail. */
+/* Optional controls remain independent of the inspection button. */
 .entry{min-width:0;display:grid;align-content:start;gap:7px}
+
+/* Collection swaps the metadata strip for a fixed-height counter row. */
+.details[data-collection-details="true"]{grid-template-rows:20px}
+.entry[data-collection-entry="true"]{gap:4px}
+@media(max-width:360px){.gallery.compact:has(>[data-collection-entry]){grid-template-columns:repeat(2,minmax(0,1fr))}}

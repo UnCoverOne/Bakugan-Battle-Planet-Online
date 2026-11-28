@@ -3,12 +3,12 @@
 .accountActions{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--space-3)}
 .results{display:grid;min-width:0}.sync{font:500 12px var(--bb-font-interface);color:var(--bb-muted);text-align:right;margin-bottom:12px}
 .sync[data-error="true"]{color:var(--bb-text);font-weight:600}
-.scope :global([data-cards-gallery]) > div:has(> :global([data-collection-counters][data-owned="false"])) :global([data-card-preview]),
-.scope :global([data-cores-gallery]) > div:has(> :global([data-collection-counters][data-owned="false"])) :global([data-core-preview]){filter:saturate(.55) brightness(.74)}
-.scope :global([data-cards-gallery]) > div:has(> :global([data-collection-counters][data-owned="false"][data-wishlisted="true"])) :global([data-card-preview]),
-.scope :global([data-cores-gallery]) > div:has(> :global([data-collection-counters][data-owned="false"][data-wishlisted="true"])) :global([data-core-preview]){filter:saturate(.8) brightness(.9)}
-.scope :global([data-cards-gallery]) > div:has(> :global([data-collection-counters])):hover :global([data-card-preview]),
-.scope :global([data-cores-gallery]) > div:has(> :global([data-collection-counters])):hover :global([data-core-preview]),
-.scope :global([data-cards-gallery]) > div:has(> :global([data-collection-counters])):focus-within :global([data-card-preview]),
-.scope :global([data-cores-gallery]) > div:has(> :global([data-collection-counters])):focus-within :global([data-core-preview]){filter:none}
+.scope :global([data-collection-entry]:has([data-collection-counters][data-owned="false"]) [data-card-preview]),
+.scope :global([data-collection-entry]:has([data-collection-counters][data-owned="false"]) [data-core-preview]){filter:saturate(.55) brightness(.74)}
+.scope :global([data-collection-entry]:has([data-collection-counters][data-owned="false"][data-wishlisted="true"]) [data-card-preview]),
+.scope :global([data-collection-entry]:has([data-collection-counters][data-owned="false"][data-wishlisted="true"]) [data-core-preview]){filter:saturate(.8) brightness(.9)}
+.scope :global([data-collection-entry]:hover [data-card-preview]),
+.scope :global([data-collection-entry]:hover [data-core-preview]),
+.scope :global([data-collection-entry]:focus-within [data-card-preview]),
+.scope :global([data-collection-entry]:focus-within [data-core-preview]){filter:none}
 @media(max-width:700px){.account{margin:var(--space-5);padding:var(--space-5)}}
