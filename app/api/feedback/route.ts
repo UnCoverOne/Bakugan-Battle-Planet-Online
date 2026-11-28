@@ -1,49 +1,64 @@
 import { CARD_BY_ID } from "../../../lib/data";
-import { getDatabase, getSessionUser } from "../../../lib/account-server";
-import { assertSameOrigin, enforceD1RateLimit, RateLimitError, requestClientKey } from "../../../lib/request-security";
+import { getDatabase, getSessionUserFromDatabase } from "../../../lib/account-server";
+import { assertSameOrigin, enforceD1RateLimit } from "../../../lib/request-security";
+import { FEEDBACK_MAX_REQUEST_BYTES, validateFeedback } from "../../../lib/feedback";
+import { serverErrorResponse } from "../../../lib/server-errors";
 
 export const dynamic = "force-dynamic";
-
 const json = (value: unknown, status = 200) => Response.json(value, {
-  status,
-  headers: { "cache-control": "no-store" },
+  status, headers: { "cache-control": "no-store" },
 });
 
-const CATEGORIES = new Set(["suggestion", "bug", "issue"]);
-async function database() {
-  const db = await getDatabase();
-  await db.batch([
-    db.prepare("CREATE TABLE IF NOT EXISTS feedback_reports (id TEXT PRIMARY KEY NOT NULL, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, kind TEXT NOT NULL CHECK (kind IN ('suggestion', 'bug', 'issue')), card_id TEXT, message TEXT NOT NULL, source_url TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'resolved', 'closed')), submitted_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)"),
-    db.prepare("CREATE INDEX IF NOT EXISTS feedback_reports_user_submitted_idx ON feedback_reports (user_id, submitted_at)"),
-    db.prepare("CREATE INDEX IF NOT EXISTS feedback_reports_status_submitted_idx ON feedback_reports (status, submitted_at)"),
-  ]);
-  return db;
-}
-
+/** Submissions are public-write, private-read. Never trust a client-supplied identity. */
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
-    const user = await getSessionUser(request);
-    if (!user) return json({ error: "Sign in is required." }, 401);
-    const body = await request.json() as { kind?: unknown; cardId?: unknown; message?: unknown; sourceUrl?: unknown };
-    const kind = typeof body.kind === "string" ? body.kind : "";
-    const cardId = typeof body.cardId === "string" ? body.cardId.trim() : "";
-    const message = typeof body.message === "string"
-      ? body.message.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").trim() : "";
-    const sourceUrl = typeof body.sourceUrl === "string" ? body.sourceUrl.slice(0, 500) : "";
-    if (!CATEGORIES.has(kind)) return json({ error: "Choose Report an issue or Request a feature." }, 422);
-    if (message.length < 20 || message.length > 2000) return json({ error: "Please write between 20 and 2,000 characters." }, 422);
-    if (cardId && !CARD_BY_ID.has(cardId)) return json({ error: "The selected card does not exist." }, 422);
-    const db = await database();
-    await enforceD1RateLimit(db, `feedback:${user.id}:${requestClientKey(request)}`, 5, 60_000);
+    if (Number(request.headers.get("content-length") ?? 0) > FEEDBACK_MAX_REQUEST_BYTES) {
+      return json({ error: "Request is too large." }, 413);
+    }
+    const reader = request.body?.getReader();
+    if (!reader) return json({ error: "Invalid feedback." }, 400);
+    const decoder = new TextDecoder();
+    let raw = "", bytes = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        bytes += value.byteLength;
+        if (bytes > FEEDBACK_MAX_REQUEST_BYTES) {
+          await reader.cancel();
+          return json({ error: "Request is too large." }, 413);
+        }
+        raw += decoder.decode(value, { stream: true });
+      }
+      raw += decoder.decode();
+    } finally { reader.releaseLock(); }
+    let body: unknown;
+    try { body = JSON.parse(raw); } catch { return json({ error: "Invalid feedback." }, 400); }
+    const result = validateFeedback(body, id => CARD_BY_ID.has(id));
+    if (!result.valid) return json({ error: result.error }, 422);
+
+    const db = await getDatabase();
+    const user = await getSessionUserFromDatabase(request, db);
+    // Cloudflare supplies this header. Do not trust caller-controlled X-Forwarded-For
+    // for anonymous quotas; use a shared fallback outside the trusted edge.
+    const client = request.headers.get("cf-connecting-ip")?.trim() || "unknown";
+    await enforceD1RateLimit(db, "feedback:client:" + client, 20, 60_000);
+    if (user) {
+      await enforceD1RateLimit(db, "feedback:account:" + user.id, 5, 60_000);
+    } else {
+      await enforceD1RateLimit(db, "feedback:guest:minute:" + client, 5, 60_000);
+      await enforceD1RateLimit(db, "feedback:guest:hour:" + client, 20, 3_600_000);
+    }
+    const { kind, cardId, message } = result.input;
     const id = crypto.randomUUID();
     const now = Date.now();
+    // source_url intentionally omitted: its historical column defaults to an empty string.
     await db.prepare(
-      "INSERT INTO feedback_reports (id, user_id, kind, card_id, message, source_url, submitted_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    ).bind(id, user.id, kind, cardId || null, message, sourceUrl, now, now).run();
+      "INSERT INTO feedback_reports (id, user_id, kind, card_id, message, submitted_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    ).bind(id, user?.id ?? null, kind, cardId, message, now, now).run();
     return json({ id, status: "pending", submittedAt: now }, 201);
   } catch (error) {
-    if (error instanceof RateLimitError) return Response.json({ error: error.message, retryAfter: error.retryAfterSeconds }, { status: 429, headers: { "cache-control": "no-store", "retry-after": String(error.retryAfterSeconds) } });
-    return json({ error: error instanceof Error ? error.message : "Could not submit feedback." }, 400);
+    return serverErrorResponse(error, crypto.randomUUID(), "Could not submit feedback. Please try again.", { route: "/api/feedback", method: "POST" });
   }
 }

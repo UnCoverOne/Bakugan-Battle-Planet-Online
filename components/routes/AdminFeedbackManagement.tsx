@@ -13,7 +13,7 @@ import styles from "./AdminFeedbackManagement.module.css";
 type Submission = {
   kind: SubmissionKind;
   id: string;
-  user_id: string;
+  user_id: string | null;
   player_name: string;
   player_email: string;
   card_id: string | null;
@@ -74,7 +74,7 @@ export function AdminFeedbackManagement() {
       (type === "all" || entry.kind === type)
       && (statusFilter === "all" || entry.status === statusFilter)
       && entry.submitted_at >= from && entry.submitted_at <= to
-      && (!playerTerm || [entry.player_name, entry.player_email, entry.user_id].some((s) => s.toLowerCase().includes(playerTerm)))
+      && (!playerTerm || [entry.player_name, entry.player_email, entry.user_id ?? ""].some((s) => s.toLowerCase().includes(playerTerm)))
       && (!searchTerm || [entry.message, entry.card_id ?? "", entry.id].some((s) => s.toLowerCase().includes(searchTerm)))
     ));
   }, [submissions, type, statusFilter, fromDate, toDate, search, player]);
@@ -198,14 +198,14 @@ export function AdminFeedbackManagement() {
             <span className={styles.currentStatus}>{SUBMISSION_STATUS_LABELS[selected.status]}</span>
           </div>
           <dl className={styles.metadata}>
-            <div><dt>Player</dt><dd><Link href={`/brawlers/${encodeURIComponent(selected.user_id)}`}>{selected.player_name}</Link> <small>{selected.player_email}</small></dd></div>
+            <div><dt>Player</dt><dd>{selected.user_id ? <><Link href={`/brawlers/${encodeURIComponent(selected.user_id)}`}>{selected.player_name}</Link> <small>{selected.player_email}</small></> : "Guest"}</dd></div>
             <div><dt>Submitted</dt><dd>{dateLabel(selected.submitted_at)}</dd></div>
             <div><dt>Related card</dt><dd>{selected.card_id
               ? <Link href={`/compendium?card=${encodeURIComponent(selected.card_id)}`}>{selected.card_id} <LucideIcon name="arrow-up-right" size={16}/></Link>
               : "None"}</dd></div>
             <div><dt>Request ID</dt><dd className={styles.mono}>{selected.id}</dd></div>
             {selected.reviewed_at && <div><dt>Last reviewed</dt><dd>{dateLabel(selected.reviewed_at)}</dd></div>}
-            {selected.source_url && <div><dt>Page</dt><dd className={styles.source}>{selected.source_url}</dd></div>}
+            {selected.source_url && <div><dt>Page (historical)</dt><dd className={styles.source}>{selected.source_url}</dd></div>}
           </dl>
           <h4>Player message</h4>
           <p className={styles.message}>{selected.message}</p>

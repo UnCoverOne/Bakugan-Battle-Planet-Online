@@ -1,172 +1,190 @@
 "use client";
 
-import { LucideIcon } from "../design-system/LucideIcon";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { CARDS } from "../../lib/data";
-import { cardSetCode } from "../../lib/content/catalogue";
+import { FEEDBACK_MIN_LENGTH, FEEDBACK_MAX_LENGTH, normalizeFeedbackMessage, type FeedbackKind } from "../../lib/feedback";
+import { LucideIcon } from "../design-system/LucideIcon";
+import { FeedbackCardSelector, FeedbackCardThumbnail, feedbackCardLabel } from "./FeedbackCardSelector";
+import { useAppFields } from "./AppProvider";
 import styles from "./FeedbackReportsDialog.module.css";
 
-type FeedbackKind = "issue" | "suggestion";
-type FeedbackOption = { kind: FeedbackKind; title: string; placeholder: string };
-const OPTIONS: readonly FeedbackOption[] = [
-  { kind: "issue", title: "Report an issue", placeholder: "Describe the issue, where it happened, and what you expected…" },
-  { kind: "suggestion", title: "Request a feature", placeholder: "Describe the feature you would like to see and how it would help…" },
-];
-const SEARCHABLE_CARDS = CARDS.filter((card) => card.fusionFace !== "b")
-  .map((card) => ({
-    card,
-    searchable: `${cardSetCode(card)} ${card.catalogId} ${card.displayName} ${card.name} ${card.faction} ${card.type} ${card.number}`.toLowerCase(),
-  }))
-  .sort((a, b) => a.card.displayName.localeCompare(b.card.displayName) || a.card.catalogId.localeCompare(b.card.catalogId));
+const OPTIONS = [
+  { kind: "issue", title: "Report an issue", action: "Submit report", success: "Report submitted", placeholder: "Describe the issue, what you expected to happen, and how it can be reproduced…" },
+  { kind: "suggestion", title: "Request a feature", action: "Submit request", success: "Feature request submitted", placeholder: "Describe the feature you would like to see and how it would benefit players…" },
+] as const;
+type View = "form" | "card" | "discard" | "sent";
 
-function SearchableCardPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const rootRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const selected = SEARCHABLE_CARDS.find(({ card }) => card.catalogId === value)?.card;
-  const matches = useMemo(() => {
-    const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-    return SEARCHABLE_CARDS.filter(({ searchable }) => terms.every((term) => searchable.includes(term))).slice(0, 60);
-  }, [query]);
-  useEffect(() => {
-    if (!open) return;
-    const closeOutside = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", closeOutside);
-    return () => document.removeEventListener("pointerdown", closeOutside);
-  }, [open]);
-
-  const choose = (id: string) => {
-    onChange(id);
-    setOpen(false);
-    setQuery("");
-    triggerRef.current?.focus();
-  };
-  return <div className={styles.cardField} ref={rootRef}>
-    <span className={styles.fieldLabel}>Related card <small>(optional)</small></span>
-    <button ref={triggerRef} type="button" className={styles.cardTrigger} aria-haspopup="listbox"
-      aria-expanded={open} aria-controls="feedback-card-options" onClick={() => setOpen((previous) => !previous)}>
-      <span>{selected ? `${cardSetCode(selected)} · ${selected.displayName}` : "No specific card selected"}</span>
-      <span aria-hidden="true">⌄</span>
-    </button>
-    {open && <div className={styles.cardPopover} onKeyDown={(event) => {
-      if (event.key === "Escape") { event.stopPropagation(); setOpen(false); triggerRef.current?.focus(); }
-    }}>
-      <input autoFocus type="search" className={styles.cardSearch} aria-label="Search cards"
-        placeholder="Search by name, ID, faction or set…" value={query} onChange={(event) => setQuery(event.target.value)} />
-      <div id="feedback-card-options" className={styles.cardResults} role="listbox" aria-label="Related card">
-        <button type="button" role="option" aria-selected={!value} className={styles.cardOption} onClick={() => choose("")}>No specific card</button>
-        {matches.map(({ card }) => <button key={card.catalogId} type="button" role="option"
-          aria-selected={value === card.catalogId} className={styles.cardOption} onClick={() => choose(card.catalogId)}>
-          <span className={styles.cardName}>{card.displayName}</span>
-          <small>{cardSetCode(card)} #{card.number} · {card.faction} · {card.type}</small>
-        </button>)}
-        {!matches.length && <p className={styles.noCards}>No matching cards. Try a different name or set.</p>}
-      </div>
-      {matches.length === 60 && <p className={styles.cardHint}>Showing the first 60 matches. Refine your search to narrow the list.</p>}
-    </div>}
-  </div>;
-}
-
-export default function FeedbackReportsDialog({
-  signedIn, onSignIn, onClose,
-}: {
-  signedIn: boolean;
-  onSignIn: () => void;
-  onClose: () => void;
-}) {
+export default function FeedbackReportsDialog({ onClose }: { onClose: () => void }) {
+  const { catalogueRevision } = useAppFields(["catalogueRevision"]);
+  void catalogueRevision;
   const [kind, setKind] = useState<FeedbackKind>("issue");
   const [cardId, setCardId] = useState("");
   const [details, setDetails] = useState("");
-  const [status, setStatus] = useState<"idle" | "submitting" | "sent">("idle");
+  const [view, setView] = useState<View>("form");
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const dialogRef = useRef<HTMLElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-  const active = OPTIONS.find((option) => option.kind === kind)!;
+  const [retryUntil, setRetryUntil] = useState(0);
+  const [now, setNow] = useState(0);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const cardTriggerRef = useRef<HTMLButtonElement>(null);
+  const keepRef = useRef<HTMLButtonElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const focusCard = useRef(false);
+  const previousView = useRef<View>("form");
+  const busyRef = useRef(false);
+  const titleId = useId();
+  const detailsHelpId = useId();
+  const active = OPTIONS.find(option => option.kind === kind)!;
+  const selectedCard = CARDS.find(card => card.catalogId === cardId);
+  const message = normalizeFeedbackMessage(details);
+  const valid = message.length >= FEEDBACK_MIN_LENGTH && message.length <= FEEDBACK_MAX_LENGTH && (!cardId || Boolean(selectedCard));
+  const remaining = Math.max(0, Math.ceil((retryUntil - now) / 1000));
+  const dirty = details.length > 0 || Boolean(cardId);
+
   useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    closeRef.current?.focus();
-    return () => { document.body.style.overflow = previousOverflow; };
+    dialog.showModal();
+    return () => { if (dialog.open) dialog.close(); document.body.style.overflow = previous; };
   }, []);
-  const handleKeys = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key === "Escape") { event.preventDefault(); onClose(); return; }
-    if (event.key !== "Tab") return;
-    const nodes = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
-      'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])',
-    ) ?? []).filter((node) => node.getClientRects().length > 0);
-    if (!nodes.length) return;
-    if (event.shiftKey && document.activeElement === nodes[0]) { event.preventDefault(); nodes.at(-1)?.focus(); }
-    else if (!event.shiftKey && document.activeElement === nodes.at(-1)) { event.preventDefault(); nodes[0].focus(); }
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    if (view === "discard") keepRef.current?.focus();
+    else if (view === "form" && focusCard.current) {
+      focusCard.current = false;
+      cardTriggerRef.current?.focus();
+    } else headingRef.current?.focus();
+  }, [view]);
+  useEffect(() => {
+    if (!retryUntil) return;
+    const tick = () => {
+      const current = Date.now();
+      setNow(current);
+      if (current >= retryUntil) setRetryUntil(0);
+    };
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [retryUntil]);
+
+  const returnFromCard = () => { focusCard.current = true; setView("form"); };
+  const requestClose = () => {
+    if (busyRef.current) return;
+    if (view === "discard") { setView(previousView.current); return; }
+    if (view === "sent" || !dirty) { onClose(); return; }
+    previousView.current = view;
+    setView("discard");
+  };
+  const reset = () => {
+    setDetails(""); setCardId(""); setError(""); setKind("issue"); setView("form");
   };
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!signedIn) { onSignIn(); return; }
-    if (status === "submitting" || details.trim().length < 20 || details.trim().length > 2000) return;
-    setStatus("submitting");
-    setError("");
+    if (busyRef.current || !valid || remaining > 0) return;
+    busyRef.current = true;
+    setBusy(true); setError("");
     try {
       const response = await fetch("/api/feedback", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ kind, cardId: cardId || null, message: details.trim(), sourceUrl: window.location.href }),
+        body: JSON.stringify({ kind, cardId: cardId || null, message }),
       });
-      const result = await response.json() as { error?: string; id?: string };
-      if (!response.ok) throw new Error(result.error ?? "Could not submit your message.");
-      setStatus("sent");
+      const result = await response.json().catch(() => null) as { id?: string; error?: string; retryAfter?: number } | null;
+      if (response.status === 429) {
+        const seconds = Number(response.headers.get("retry-after") ?? result?.retryAfter ?? 60);
+        const current = Date.now();
+        setNow(current);
+        setRetryUntil(current + (Number.isFinite(seconds) ? Math.max(1, seconds) : 60) * 1000);
+        setError("Too many submissions. Please wait before trying again.");
+        return;
+      }
+      if (!response.ok || !result?.id) throw new Error(result?.error || "Could not submit feedback. Please try again.");
+      setView("sent");
     } catch (failure) {
-      setStatus("idle");
-      setError(failure instanceof Error ? failure.message : "Could not submit your message.");
+      setError(failure instanceof Error ? failure.message : "Could not submit feedback. Please try again.");
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
   };
-  return <div className={styles.backdrop} role="presentation" onMouseDown={(event) => {
-    if (event.target === event.currentTarget) onClose();
-  }}>
-    <section ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="feedback-title"
-      className={styles.dialog} onKeyDown={handleKeys}>
-      <header className={styles.header}>
-        <div><span className={styles.eyebrow}>Player support</span><h2 id="feedback-title">Feedback &amp; Reports</h2>
-          <p>Help us improve Bakugan Battle Planet Online.</p></div>
-        <button ref={closeRef} type="button" className={styles.close} onClick={onClose} aria-label="Close Feedback and Reports"><LucideIcon name="x" size={20}/></button>
-      </header>
-      {status === "sent" ? <div className={styles.success} role="status">
-        <strong>Submission received</strong>
-        <p>Thank you! Your {active.title.toLowerCase()} has been sent for review.</p>
-        <div className={styles.actions}>
-          <button type="button" className={styles.primary} onClick={() => {
-            setDetails(""); setCardId(""); setStatus("idle"); setError("");
-          }}>Submit another</button>
-          <button type="button" className={styles.secondary} onClick={onClose}>Done</button>
-        </div>
-      </div> : <form className={styles.form} onSubmit={(event) => void submit(event)}>
-        <label className={styles.feedbackType}>
-          <span className={styles.fieldLabel}>What would you like to do?</span>
-          <select value={kind} disabled={status === "submitting"}
-            onChange={(event) => { setKind(event.target.value as FeedbackKind); setError(""); }}>
-            {OPTIONS.map((option) => <option key={option.kind} value={option.kind}>{option.title}</option>)}
-          </select>
-        </label>
-        <SearchableCardPicker value={cardId} onChange={setCardId} />
-        <label className={styles.details}>
-          <span className={styles.fieldLabel}>Details <small>(20–2,000 characters)</small></span>
-          <textarea required minLength={20} maxLength={2000} rows={5} value={details}
-            disabled={status === "submitting"} placeholder={active.placeholder}
-            onChange={(event) => setDetails(event.target.value)} />
-        </label>
-        <div className={styles.counter}>{details.trim().length}/2,000</div>
+
+  return <dialog ref={dialogRef} className={styles.dialog} data-feedback-menu aria-labelledby={titleId}
+    onCancel={event => {
+      event.preventDefault();
+      if (view === "card") returnFromCard(); else requestClose();
+    }}
+    onClick={event => {
+      if (event.target !== event.currentTarget || window.matchMedia("(max-width: 850px)").matches) return;
+      const rect = event.currentTarget.getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) requestClose();
+    }}>
+    <header className={styles.header}>
+      {view === "card" && <button type="button" className={styles.iconButton} aria-label="Back to feedback" onClick={returnFromCard}><LucideIcon name="arrow-left" size={24}/></button>}
+      <h2 id={titleId} ref={headingRef} tabIndex={-1}>{view === "card" ? "Select Card" : view === "discard" ? "Discard draft?" : "Feedback & Reports"}</h2>
+      <button type="button" className={styles.iconButton} disabled={busy} aria-label="Close Feedback and Reports" onClick={requestClose}><LucideIcon name="x" size={24}/></button>
+    </header>
+    {view === "form" && <form className={styles.form} onSubmit={event => void submit(event)} aria-busy={busy}>
+      <div className={styles.content} ref={scrollRef}>
+        <fieldset className={styles.fields} disabled={busy}>
+          <label className={styles.field}>
+            <span>Submission type</span>
+            <select className="bb-field" value={kind} onChange={event => {setKind(event.target.value as FeedbackKind);setError("");}}>
+              {OPTIONS.map(option => <option key={option.kind} value={option.kind}>{option.title}</option>)}
+            </select>
+          </label>
+          <div className={styles.field}>
+            <span>Related card <small>(optional)</small></span>
+            <div className={styles.cardSelection}>
+              <button type="button" ref={cardTriggerRef} className={styles.cardTrigger} aria-label={selectedCard ? "Change related card: " + selectedCard.displayName : "Select a related card"} onClick={() => setView("card")}>
+                {selectedCard ? <><FeedbackCardThumbnail card={selectedCard}/><span className={styles.cardIdentity}><strong>{selectedCard.displayName}</strong><small>{feedbackCardLabel(selectedCard)}</small></span></>
+                  : <><LucideIcon name="files" size={20}/><span className={styles.unselected}>Select a card</span></>}
+                <LucideIcon name={selectedCard ? "pencil" : "chevron-right"} size={20}/>
+              </button>
+              {cardId && <button type="button" className={styles.iconButton} aria-label="Remove related card" onClick={() => {setCardId("");cardTriggerRef.current?.focus();}}><LucideIcon name="x" size={20}/></button>}
+            </div>
+            {cardId && !selectedCard && <small role="alert">This card is no longer available. Choose another card or remove it.</small>}
+          </div>
+          <label className={styles.field}>
+            <span className={styles.detailsHeading}><span>Details</span><span className={styles.counter}>{message.length.toLocaleString()} / {FEEDBACK_MAX_LENGTH.toLocaleString()}</span></span>
+            <textarea className="bb-field" required minLength={FEEDBACK_MIN_LENGTH} maxLength={FEEDBACK_MAX_LENGTH} rows={7}
+              value={details} onChange={event => setDetails(event.target.value)} aria-describedby={detailsHelpId} placeholder={active.placeholder}/>
+            <small id={detailsHelpId}>Minimum {FEEDBACK_MIN_LENGTH} characters.</small>
+          </label>
+        </fieldset>
         {error && <p className={styles.error} role="alert">{error}</p>}
-        {!signedIn && <p className={styles.signInNote}>Sign in to send your feedback. Your draft is not saved when you leave this dialog.</p>}
-        <div className={styles.actions}>
-          <button type={signedIn ? "submit" : "button"} className={styles.primary}
-            disabled={status === "submitting" || (signedIn && details.trim().length < 20)}
-            onClick={signedIn ? undefined : onSignIn}>
-            {status === "submitting" ? "Submitting…" : signedIn ? "Submit" : "Sign in to submit"}
-          </button>
-          <button className={styles.secondary} type="button" onClick={onClose}>Cancel</button>
+        {remaining > 0 && <p className={styles.retry}>Try again in {remaining} seconds.</p>}
+      </div>
+      <footer className={styles.footer}>
+        <button type="button" className="bb-button" disabled={busy} onClick={requestClose}>Cancel</button>
+        <button type="submit" className="bb-button bb-button--primary" disabled={busy || !valid || remaining > 0}>{busy ? "Submitting…" : active.action}</button>
+      </footer>
+    </form>}
+    {view === "card" && <>
+      <div className={styles.content} ref={scrollRef}><FeedbackCardSelector selectedId={cardId} onSelect={id => {setCardId(id);returnFromCard();}}/></div>
+      <footer className={styles.footer}><button type="button" className="bb-button" onClick={returnFromCard}>Back</button></footer>
+    </>}
+    {view === "discard" && <>
+      <div className={styles.content} ref={scrollRef}><p className={styles.confirmText}>Your feedback has not been submitted. Closing this menu will discard your draft.</p></div>
+      <footer className={styles.footer}>
+        <button type="button" className="bb-button bb-button--danger" onClick={onClose}>Discard</button>
+        <button type="button" ref={keepRef} className="bb-button" onClick={() => setView(previousView.current)}>Keep editing</button>
+      </footer>
+    </>}
+    {view === "sent" && <>
+      <div className={styles.content} ref={scrollRef}>
+        <div className={styles.success} role="status">
+          <span className={styles.successIcon}><LucideIcon name="check" size={32}/></span>
+          <h3>{active.success}</h3>
+          <p>Thank you for helping improve Bakugan Battle Planet Online. Your submission has been sent for review.</p>
         </div>
-      </form>}
-    </section>
-  </div>;
+      </div>
+      <footer className={styles.footer}>
+        <button type="button" className="bb-button" onClick={reset}>Submit another</button>
+        <button type="button" className="bb-button bb-button--primary" onClick={onClose}>Done</button>
+      </footer>
+    </>}
+  </dialog>;
 }

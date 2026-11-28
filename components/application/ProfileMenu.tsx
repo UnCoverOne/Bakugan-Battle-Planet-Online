@@ -60,7 +60,7 @@ export function ProfileMenu({open,onClose,triggerRef,onLogout}:{
   useEffect(()=>{
     if(open&&authUser)void refresh();
   },[open,authUser,refresh]);
-  useEffect(()=>{setFeedbackOpen(false);},[pathname,socialOpen,authUser?.id]);
+  useEffect(()=>{setFeedbackOpen(false);},[pathname,socialOpen]);
   useEffect(()=>{
     if(!open){setFeedbackLoading(false);setFeedbackError("");}
     return()=>{loadGeneration.current++;};
@@ -110,7 +110,7 @@ export function ProfileMenu({open,onClose,triggerRef,onLogout}:{
   },[open,onClose,triggerRef]);
 
   const access=(mode:"login"|"signup")=>{onClose();setFeedbackOpen(false);requestAccountAccess(mode);};
-  const closeFeedback=()=>{setFeedbackOpen(false);requestAnimationFrame(()=>triggerRef.current?.focus());};
+  const closeFeedback=()=>{setFeedbackOpen(false);requestAnimationFrame(()=>{if(triggerRef.current?.isConnected&&!document.querySelector("dialog[open]:modal"))triggerRef.current.focus();});};
   const showFeedback=async()=>{
     if(feedbackLoading)return;
     const generation=++loadGeneration.current;
@@ -161,6 +161,6 @@ export function ProfileMenu({open,onClose,triggerRef,onLogout}:{
         <MenuAction label="Sign Out" icon="log-out" danger onClick={()=>{onClose();void onLogout();}}/>
       </div>}
     </dialog>}
-    {feedbackOpen&&FeedbackDialog&&<FeedbackDialog signedIn={Boolean(authUser)} onSignIn={()=>access("login")} onClose={closeFeedback}/>}
+    {feedbackOpen&&FeedbackDialog&&<FeedbackDialog onClose={closeFeedback}/>}
   </>;
 }

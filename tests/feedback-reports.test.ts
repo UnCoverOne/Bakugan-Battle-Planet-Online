@@ -6,41 +6,43 @@ import { isSubmissionKind, isSubmissionStatus, normalizedSubmissionStatus, sourc
 
 const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("Feedback & Reports offers a two-option dropdown, fixed Details label, and searchable cards", async () => {
-  const [dialog, styles, questionApi, feedbackApi] = await Promise.all([
+test("Feedback & Reports is a single native modal form with a separate card selection view", async () => {
+  const [dialog, selector, styles, questionApi, feedbackApi, profile] = await Promise.all([
     read("components/application/FeedbackReportsDialog.tsx"),
+    read("components/application/FeedbackCardSelector.tsx"),
     read("components/application/FeedbackReportsDialog.module.css"),
     read("app/api/rulings/route.ts"),
     read("app/api/feedback/route.ts"),
+    read("components/application/ProfileMenu.tsx"),
   ]);
-  assert.match(dialog, /type FeedbackKind = "issue" \| "suggestion"/);
-  assert.match(dialog, /<select value=\{kind\}/);
-  assert.match(dialog, /<option key=\{option.kind\} value=\{option.kind\}>\{option.title\}<\/option>/);
+  assert.match(dialog, /<select[^>]*value=\{kind\}/);
   assert.match(dialog, /Report an issue/);
   assert.match(dialog, /Request a feature/);
-  for (const oldTitle of ["Ask a Question", "Suggest an Improvement", "Report a Bug", "Report an Issue"]) {
-    assert.ok(!dialog.includes(oldTitle), `Old action still shown: ${oldTitle}`);
-  }
-  assert.match(dialog, /<span className=\{styles.fieldLabel\}>Details <small>/);
-  assert.doesNotMatch(dialog, /active\.prompt/);
-  assert.match(dialog, /type="search"/);
-  assert.match(dialog, /SEARCHABLE_CARDS\.filter/);
-  assert.match(dialog, /role="listbox"/);
-  assert.match(dialog, /cardSetCode\(card\)/);
+  assert.match(dialog, /<span>Details<\/span>/);
+  assert.match(dialog, /minLength=\{FEEDBACK_MIN_LENGTH\} maxLength=\{FEEDBACK_MAX_LENGTH\}/);
+  assert.match(dialog, /dialog\.showModal\(\)/);
+  assert.match(dialog, /setView\("card"\)/);
+  assert.match(dialog, /Discard draft\?/);
   assert.match(dialog, /fetch\("\/api\/feedback"/);
-  assert.doesNotMatch(dialog, /fetch\("\/api\/rulings"/);
-  assert.match(dialog, /minLength=\{20\} maxLength=\{2000\}/);
-  assert.match(dialog, /aria-modal="true"/);
-  assert.match(styles, /\.cardResults\{max-height:/);
-  assert.match(styles, /\.feedbackType select\{/);
-  assert.doesNotMatch(styles, /\.options\{|\.option\{/);
+  assert.doesNotMatch(dialog, /sourceUrl|window\.location\.href|signedIn|onSignIn|cardPopover|role="tab"|fetch\("\/api\/rulings"/);
+  assert.match(selector, /type="search"/);
+  assert.match(selector, /catalogueRevision/);
+  assert.match(selector, /presentation="thumbnail"/);
+  assert.match(selector, /cardSetCode\(card\)/);
+  assert.match(styles, /max-width:850px/);
+  assert.match(styles, /var\(--bb-nav\)/);
+  assert.doesNotMatch(styles, /linear-gradient|--brand-red|--text-secondary|--font-display\)|\.cardPopover/);
+  assert.match(profile, /<FeedbackDialog onClose=\{closeFeedback\}\/>/);
   assert.match(questionApi, /CARD_BY_ID\.has\(cardId\)/);
-  assert.match(feedbackApi, /CARD_BY_ID\.has\(cardId\)/);
+  assert.match(feedbackApi, /CARD_BY_ID\.has\(id\)/);
   assert.match(feedbackApi, /assertSameOrigin\(request\)/);
   assert.match(feedbackApi, /enforceD1RateLimit\(/);
-  assert.doesNotMatch(feedbackApi, /export async function GET\(/);
-  assert.ok(CARDS.some((card) => card.catalogId.startsWith("aa-")));
-  assert.ok(CARDS.some((card) => card.catalogId.startsWith("ff-")));
+  assert.match(feedbackApi, /user\?\.id \?\? null/);
+  assert.match(feedbackApi, /feedback:guest:minute:/);
+  assert.match(feedbackApi, /feedback:guest:hour:/);
+  assert.doesNotMatch(feedbackApi, /Sign in is required|sourceUrl|export async function GET\(/);
+  assert.ok(CARDS.some(card => card.catalogId.startsWith("aa-")));
+  assert.ok(CARDS.some(card => card.catalogId.startsWith("ff-")));
 });
 
 test("Administrator control centre offers a permissioned unified inbox", async () => {
@@ -58,6 +60,9 @@ test("Administrator control centre offers a permissioned unified inbox", async (
   assert.match(api, /assertSameOrigin\(request\)/);
   assert.match(api, /enforceD1RateLimit\(/);
   assert.match(api, /UNION ALL/);
+  assert.match(api, /FROM feedback_reports f LEFT JOIN users/);
+  assert.match(view, /user_id: string \| null/);
+  assert.match(view, /selected\.user_id \?/);
   assert.match(api, /ON CONFLICT\(kind, submission_id\) DO UPDATE/);
   assert.match(api, /UPDATE ruling_requests SET status = \?, administrator_id = \?/);
   assert.match(api, /UPDATE feedback_reports SET status = \?/);

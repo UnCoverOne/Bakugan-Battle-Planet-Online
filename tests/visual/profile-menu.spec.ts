@@ -51,8 +51,12 @@ test("guest menu is responsive, shares the social background and restores focus"
   const feedback=page.getByRole("dialog",{name:"Feedback & Reports"});
   await expect(feedback).toBeVisible();
   await expect(panel).toHaveCount(0);
-  await feedback.getByRole("button",{name:"Sign in to submit"}).click();
-  await expect(page.getByRole("dialog",{name:"Log in",exact:true})).toBeVisible();
+  await expect(feedback.getByLabel("Submission type")).toHaveValue("issue");
+  await expect(feedback.getByRole("button",{name:"Submit report",exact:true})).toBeDisabled();
+  await expect(feedback.getByRole("button",{name:"Sign in to submit"})).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(feedback).toHaveCount(0);
+  await expect(trigger(page)).toBeFocused();
 });
 
 for(const administrator of [false,true]){

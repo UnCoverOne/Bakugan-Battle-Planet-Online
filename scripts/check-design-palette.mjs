@@ -28,6 +28,7 @@ const targets = [
   "components/social/PresenceIndicator.module.css",
   "components/application/ProfileMenu.module.css",
   "components/application/SettingsMenu.module.css",
+  "components/application/FeedbackReportsDialog.module.css",
   "components/game-screen-v2/GameMenuHud.module.css",
   "components/social/MatchResultSocial.module.css",
 ];

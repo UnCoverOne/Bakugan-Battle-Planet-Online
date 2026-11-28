@@ -11,7 +11,6 @@ const json = (value: unknown, status = 200) => Response.json(value, {
 async function ensureSubmissionTables(db: Awaited<ReturnType<typeof getDatabase>>) {
   await db.batch([
     db.prepare("CREATE TABLE IF NOT EXISTS ruling_requests (id TEXT PRIMARY KEY NOT NULL, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, card_id TEXT, question TEXT NOT NULL, source_url TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'answered', 'published', 'withdrawn')), answer TEXT, administrator_id TEXT REFERENCES users(id) ON DELETE SET NULL, submitted_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, published_at INTEGER)"),
-    db.prepare("CREATE TABLE IF NOT EXISTS feedback_reports (id TEXT PRIMARY KEY NOT NULL, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, kind TEXT NOT NULL CHECK (kind IN ('suggestion', 'bug', 'issue')), card_id TEXT, message TEXT NOT NULL, source_url TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'resolved', 'closed')), submitted_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS submission_reviews (kind TEXT NOT NULL CHECK (kind IN ('question', 'suggestion', 'bug', 'issue')), submission_id TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('pending', 'in_review', 'resolved', 'closed')), response TEXT NOT NULL DEFAULT '', administrator_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, updated_at INTEGER NOT NULL, PRIMARY KEY (kind, submission_id))"),
     db.prepare("CREATE INDEX IF NOT EXISTS submission_reviews_status_idx ON submission_reviews(status, updated_at)"),
   ]);
@@ -34,12 +33,12 @@ export async function GET(request: Request) {
         FROM ruling_requests r JOIN users u ON u.id = r.user_id
         LEFT JOIN submission_reviews v ON v.kind = 'question' AND v.submission_id = r.id
         UNION ALL
-        SELECT f.kind AS kind, f.id, f.user_id, u.display_name AS player_name,
-          u.email AS player_email, f.card_id, f.message, f.source_url,
+        SELECT f.kind AS kind, f.id, f.user_id, COALESCE(u.display_name, 'Guest') AS player_name,
+          COALESCE(u.email, '') AS player_email, f.card_id, f.message, f.source_url,
           COALESCE(v.status, CASE
             WHEN f.status = 'reviewed' THEN 'in_review' ELSE f.status END) AS status,
           f.submitted_at, f.updated_at, v.administrator_id AS reviewed_by, v.updated_at AS reviewed_at
-        FROM feedback_reports f JOIN users u ON u.id = f.user_id
+        FROM feedback_reports f LEFT JOIN users u ON u.id = f.user_id
         LEFT JOIN submission_reviews v ON v.kind = f.kind AND v.submission_id = f.id
         ORDER BY submitted_at DESC LIMIT 500
       `).all(),
